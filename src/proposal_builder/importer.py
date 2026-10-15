@@ -269,7 +269,7 @@ def build_settings(wb) -> Settings:
     email = parts[2].replace("Email:", "").strip() if len(parts) > 2 else ""
     return Settings(
         company=Company(legal_name="Convenient Enterprises LLC", dba="Kept Spec Advisors",
-                        address=address, phone=phone, email=email),
+                        address=address, phone=phone, email=email, logo_path="logo.png"),
         proposal_year=26, next_proposal_seq=6,
     )
 

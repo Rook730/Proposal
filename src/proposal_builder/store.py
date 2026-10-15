@@ -34,6 +34,8 @@ DEFAULT_DATA_DIR_NAME = "KeptSpec Proposals"
 
 T = TypeVar("T", bound=BaseModel)
 
+SEED_ASSETS = ["logo.png"]
+
 FILES: dict[str, type[BaseModel]] = {
     "settings.json": Settings,
     "catalog.json": Catalog,
@@ -129,6 +131,11 @@ class DataStore:
                 self._backup(dest)
             _atomic_write(dest, text)
             written.append(name)
+        for name in SEED_ASSETS:
+            dest = self.path(name)
+            if not dest.exists():
+                dest.write_bytes((seed / name).read_bytes())
+                written.append(name)
         return written
 
     # -- generic load/save
@@ -172,3 +179,98 @@ class DataStore:
 
     def save_boilerplate(self, b: Boilerplate) -> None:
         self.save("boilerplate.json", b)
+
+
+# ---------------------------------------------------------------- projects
+
+
+def _rev_key(rev: str) -> tuple[int, ...]:
+    return tuple(int(p) for p in rev.split(".") if p.isdigit())
+
+
+class ProjectStore:
+    """projects/<number>_<name>/project.json and rev_<rev>.json files."""
+
+    def __init__(self, store: DataStore):
+        self.store = store
+
+    @property
+    def root(self) -> Path:
+        return self.store.projects_dir
+
+    def project_dir(self, number: str) -> Path | None:
+        if not self.root.exists():
+            return None
+        for d in sorted(self.root.iterdir()):
+            if d.is_dir() and (d.name == number or d.name.startswith(number + "_")) and (d / "project.json").exists():
+                return d
+        return None
+
+    def list_projects(self):
+        from .proposal import Project
+        out = []
+        if self.root.exists():
+            for f in sorted(self.root.glob("*/project.json")):
+                try:
+                    out.append(Project.model_validate_json(f.read_text(encoding="utf-8")))
+                except ValueError:
+                    continue
+        return sorted(out, key=lambda p: p.number, reverse=True)
+
+    def create(self, project, revision) -> Path:
+        if self.project_dir(project.number):
+            raise ValueError(f"project {project.number} already exists")
+        d = self.root / project.folder_name
+        d.mkdir(parents=True, exist_ok=False)
+        self.save_project(project, d)
+        self.save_revision(project.number, revision)
+        return d
+
+    def load_project(self, number: str):
+        from .proposal import Project
+        d = self.project_dir(number)
+        if d is None:
+            raise FileNotFoundError(f"project {number} not found")
+        return Project.model_validate_json((d / "project.json").read_text(encoding="utf-8"))
+
+    def save_project(self, project, folder: Path | None = None) -> None:
+        d = folder or self.project_dir(project.number)
+        if d is None:
+            raise FileNotFoundError(f"project {project.number} not found")
+        self._save(d / "project.json", project)
+
+    def list_revisions(self, number: str) -> list[str]:
+        d = self.project_dir(number)
+        if d is None:
+            return []
+        revs = [p.stem[len("rev_"):] for p in d.glob("rev_*.json")]
+        return sorted(revs, key=_rev_key)
+
+    def load_revision(self, number: str, rev: str | None = None):
+        from .proposal import Revision
+        revs = self.list_revisions(number)
+        if not revs:
+            raise FileNotFoundError(f"project {number} has no revisions")
+        rev = rev or revs[-1]
+        d = self.project_dir(number)
+        return Revision.model_validate_json((d / f"rev_{rev}.json").read_text(encoding="utf-8"))
+
+    def save_revision(self, number: str, revision) -> None:
+        d = self.project_dir(number)
+        if d is None:
+            raise FileNotFoundError(f"project {number} not found")
+        self._save(d / f"rev_{revision.rev}.json", revision)
+
+    def _save(self, path: Path, model: BaseModel) -> None:
+        text = dump_model(model)
+        if path.exists():
+            if path.read_text(encoding="utf-8") == text:
+                return
+            backup_dir = self.store.backup_dir / "projects" / path.parent.name
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+            shutil.copy2(path, backup_dir / f"{path.stem}.{stamp}{path.suffix}")
+            old = sorted(backup_dir.glob(f"{path.stem}.*{path.suffix}"))
+            for p in old[:-MAX_BACKUPS]:
+                p.unlink(missing_ok=True)
+        _atomic_write(path, text)

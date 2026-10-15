@@ -24,7 +24,7 @@ proposal-builder = "proposal_builder.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-proposal_builder = ["seed/*.json"]
+proposal_builder = ["seed/*.json", "seed/*.png"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
