@@ -20,11 +20,14 @@ class AppState:
         self.reload()
 
     def reload(self) -> None:
-        if not self.store.is_initialized():
-            self.store.initialize_from_seed()
+        # copies missing seed files only (never overwrites), e.g. the logo for older data folders
+        self.store.initialize_from_seed()
         self.settings = self.store.load_settings()
         self.catalog = self.store.load_catalog()
         self.boilerplate = self.store.load_boilerplate()
+        if not self.settings.company.logo_path and self.store.path("logo.png").exists():
+            self.settings.company.logo_path = "logo.png"
+            self.save_settings()
 
     @property
     def projects(self) -> ProjectStore:
