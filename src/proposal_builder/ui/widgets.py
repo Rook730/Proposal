@@ -101,9 +101,14 @@ class EditableGrid:
 
     def __init__(self, models: Callable[[], list[BaseModel]], cols: list[Col],
                  save: Callable[[], list[str] | None], new_model: Callable[[], BaseModel] | None = None,
-                 height: str = "70vh"):
+                 height: str = "70vh", readonly: bool = False):
         self.models, self.cols, self.save, self.new_model = models, cols, save, new_model
-        with ui.row().classes("gap-2 mb-2"):
+        self.readonly = readonly
+        if readonly:
+            self.cols = cols = [Col(**{**c.__dict__, "editable": False}) for c in cols]
+        toolbar = ui.row().classes("gap-2 mb-2")
+        toolbar.set_visibility(not readonly)
+        with toolbar:
             if new_model:
                 ui.button("Add row", icon="add", on_click=self.add).props("outline dense")
             ui.button("Delete selected", icon="delete", on_click=self.delete).props("outline dense color=negative")

@@ -8,6 +8,7 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 - src/proposal_builder/importer.py: one-time Excel import; regenerates src/proposal_builder/seed/*.json.
 - src/proposal_builder/proposal.py: Project/Revision/Line/Alternate, snapshot + pull update.
 - src/proposal_builder/calc.py: totals, percent items, alternates, variables, stock rounding.
+- src/proposal_builder/revisions.py: issue / new revision / finalize (2.0) / mark accepted; revision diffs.
 - src/proposal_builder/import_proposal.py: import a KS template proposal sheet as a project.
 - src/proposal_builder/render/: document.py builds print data and compiles; templates/proposal.typ is the Typst layout; markup.py converts note Markdown to Typst; fonts/ bundles Carlito (OFL, Calibri metrics).
 - src/proposal_builder/ui/: NiceGUI pages (projects.py, editor.py, pages.py for catalog). Run with `python -m proposal_builder --browser`.

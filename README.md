@@ -11,8 +11,8 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 | 1 | Data model, file storage, Excel import, catalog manager | done |
 | 2 | Proposal editor, calculations, variables, snapshot rule | done |
 | 3 | PDF engine (Typst), pagination rules | done |
-| 4 | Revisions, alternates, boilerplate per proposal, validation | next |
-| 5 | Change orders, schedule of values, reconciliation | |
+| 4 | Revisions, alternates, boilerplate per proposal, validation | done |
+| 5 | Change orders, reconciliation | next |
 | 6 | Windows .exe packaging | |
 
 ## Run on Windows
@@ -31,7 +31,9 @@ On first start the app creates `%USERPROFILE%\KeptSpec Proposals` and fills it w
 - **Line form**: detail notes with {variables}, quantity bound to a variable or computed from a takeoff and stock lengths, price from a rate, allowance tier, fixed value or variable, flags, internal fields, and "Pull update" when the catalog changed.
 - **Variables** tab: per-proposal values; every {name} and bound field updates when a value changes.
 - **Alternates** tab: up to 3; each removes base lines and/or adds lines assigned to it.
-- **Issues** tab: undefined variables, excluded lines, catalog changes, unused variables.
+- **Terms & options** tab: this proposal's copy of the boilerplate (toggle, edit, reorder, reset to library, add from library or custom), plus page options (Changes page, Schedule of Values page).
+- **Issues** tab: undefined variables, excluded lines, catalog changes, unused variables, zero quantities, missing prices.
+- **Revisions**: Issue Rev locks the draft and saves its PDF. New revision copies it (1.0, 1.1, ...). Finalize creates 2.0 with the client's chosen alternates merged; issue it for signature, then Mark accepted. Older revisions open read-only from the Revision selector.
 - **Preview / Export PDF** (editor header): preview renders every page in the app; Export writes `projects/<project>/pdf/<number>_<client>_<project>_Proposal_V<rev>.pdf` and offers to open it.
   Boilerplate can also use `{total_price}`, `{subtotal}`, `{deposit_amount}`, `{progress_amount}` and `{retainage_amount}`.
 

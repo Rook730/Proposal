@@ -7,7 +7,7 @@ saved line; "pull update" re-copies on request.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
 
@@ -139,6 +139,19 @@ class Revision(_Model):
     variables: list[Variable] = Field(default_factory=list)
     blocks: list[ProposalBlock] = Field(default_factory=list)
     next_seq: dict[int, int] = Field(default_factory=dict)     # section -> next line sequence
+    based_on: str | None = None                                # revision this one was copied from
+    issued_at: datetime | None = None
+    selected_alternates: list[int] = Field(default_factory=list)   # recorded on the contract revision
+    print_changes: bool = True                                 # "Changes from Rev X" page
+    print_sov: bool = False                                    # schedule of values summary page
+
+    @property
+    def locked(self) -> bool:
+        return self.state is not RevisionState.DRAFT
+
+    @property
+    def is_contract(self) -> bool:
+        return rev_major(self.rev) >= 2
 
     # -- lines
     def line(self, line_id: str) -> Line | None:
@@ -187,6 +200,53 @@ class Revision(_Model):
 
     def alternate(self, number: int) -> Alternate | None:
         return next((a for a in self.alternates if a.number == number), None)
+
+
+def rev_major(rev: str) -> int:
+    return int(rev.split(".")[0])
+
+
+def next_revision_number(existing: list[str]) -> str:
+    """1.0 -> 1.1 -> 1.2 ... before acceptance; after 2.0 exists, revisions are 2.1, 2.2 ..."""
+    if not existing:
+        return "1.0"
+    last = max(existing, key=lambda r: tuple(int(x) for x in r.split(".")))
+    major, minor = (int(x) for x in last.split("."))
+    return f"{major}.{minor + 1}"
+
+
+def new_revision_from(src: Revision, rev: str) -> Revision:
+    """Editable copy of a revision with a new number and today's date."""
+    data = src.model_dump()
+    data.update(rev=rev, state=RevisionState.DRAFT, proposal_date=date.today(), based_on=src.rev,
+                issued_at=None)
+    return Revision.model_validate(data)
+
+
+def contract_revision(src: Revision, selected: list[int]) -> Revision:
+    """Rev 2.0: base only. Selected alternates are merged into the base, the rest are dropped."""
+    selected = sorted(set(selected))
+    removed: set[str] = set()
+    for n in selected:
+        alt = src.alternate(n)
+        if alt is None:
+            raise ValueError(f"alternate {n} does not exist")
+        removed |= set(alt.removes)
+    for a, b in ((a, b) for i, a in enumerate(selected) for b in selected[i + 1:]):
+        if set(src.alternate(a).removes) & set(src.alternate(b).removes):
+            raise ValueError(f"Alt {a} and Alt {b} remove the same line and cannot both be selected")
+    rev = new_revision_from(src, "2.0")
+    lines = []
+    for ln in rev.lines:
+        if ln.alternate is None and ln.id not in removed:
+            lines.append(ln)
+        elif ln.alternate in selected:
+            ln.alternate = None
+            lines.append(ln)
+    rev.lines = lines
+    rev.alternates = []
+    rev.selected_alternates = selected
+    return rev
 
 
 class Project(_Model):

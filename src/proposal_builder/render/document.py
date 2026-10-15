@@ -69,8 +69,40 @@ def document_variables(res: Results, settings: Settings) -> dict[str, str]:
             "retainage_amount": f"${ps['retainage']:,.2f}"}
 
 
+def _changes(diff) -> dict | None:
+    if diff is None or diff.empty:
+        return None
+    rows = [{"id": c.line_id, "title": c.title, "kind": c.kind.capitalize(), "details": md_to_typst("; ".join(c.details)),
+             "before": fmt_money(c.old_cost) if c.old_cost is not None else "",
+             "after": fmt_money(c.new_cost) if c.new_cost is not None else ""} for c in diff.changes]
+    diffv = diff.total_change
+    summary = [
+        {"label": "Subtotal (less % items)", "before": fmt_money(diff.old_subtotal), "after": fmt_money(diff.new_subtotal)},
+        {"label": "Total Price", "before": fmt_money(diff.old_total), "after": fmt_money(diff.new_total)},
+    ]
+    return {"from": diff.old_rev, "rows": rows, "notes": [escape(n) for n in diff.notes], "summary": summary,
+            "change": (("+" if diffv > 0 else "-") + f"${abs(diffv):,.2f}") if diffv else "no change"}
+
+
+def _sov(rev: Revision, res: Results, catalog: Catalog) -> dict:
+    total = res.base.total
+    rows = []
+    for sec_num in rev.sections:
+        base = res.base.section_base.get(sec_num)
+        if base is None:
+            continue
+        sec = catalog.section(sec_num)
+        rows.append({"label": sec.name if sec else str(sec_num), "amount": fmt_money(base),
+                     "pct": f"{(base / total * 100):.1f}%" if total else ""})
+    for lid, amt in res.base.percent_items.items():
+        ln = rev.line(lid)
+        rows.append({"label": ln.title if ln else lid, "amount": fmt_money(amt),
+                     "pct": f"{(amt / total * 100):.1f}%" if total else "", "pctline": True})
+    return {"rows": rows, "total": fmt_money(total)}
+
+
 def build_document(project: Project, rev: Revision, settings: Settings, catalog: Catalog,
-                   boilerplate: Boilerplate, results: Results | None = None) -> dict:
+                   boilerplate: Boilerplate, results: Results | None = None, diff=None) -> dict:
     res = results or calculate(rev, settings, catalog.stock_classes, project)
     v = variable_map(project, rev, settings)
     v.update(document_variables(res, settings))
@@ -185,6 +217,8 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         "totals_note": blocks_by_heading.get("Totals", []),
         "signature": blocks_by_heading.get("Signature", []),
         "groups": groups,
+        "changes": _changes(diff) if rev.print_changes else None,
+        "sov": _sov(rev, res, catalog) if rev.print_sov else None,
     }
 
 

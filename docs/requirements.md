@@ -162,8 +162,8 @@ The Exclusions block is a checklist of library bullets plus free text. Example b
 **Revision**
 - Numbering:
   - 1.0, 1.1, 1.2 ... are revisions issued before acceptance.
-  - 2.0 is the accepted contract revision. It is base only: the alternates the client selected are merged into the base, and the rest are removed.
-  - After acceptance, scope changes go through change orders only.
+  - 2.0 is the final revision, created once the client has chosen (Finalize). It is base only: the alternates the client selected are merged into the base, and the rest are removed. It is issued for signature; 2.1, 2.2 ... are allowed if it needs another pass before signing.
+  - Mark accepted records the signature on the latest issued 2.x. After acceptance, scope changes go through change orders only.
 - Date.
 - State: Draft, Issued, Accepted, Superseded. Issuing a revision locks it; editing after that creates the next revision.
 - Included sections (ordered).
@@ -240,9 +240,14 @@ The Exclusions block is a checklist of library bullets plus free text. Example b
 - Alternate references to lines that no longer exist.
 
 ## 6. Revisions
-- Issuing creates a locked file. A new revision copies the latest one and increments the number.
-- The revision log stores per-revision diffs: lines added, removed and changed, and the change in total.
-- Every revision after 1.0 can include a client-facing "Changes from Rev X" page in the PDF (toggleable).
+- Issuing locks the revision file (write-once), marks earlier issued revisions Superseded, sets the project status to Presented and saves the PDF to the project's pdf folder. Validation results are shown first; errors need an explicit "Issue anyway".
+- New revision copies the latest issued one, increments the number and starts as a Draft dated today.
+- Finalize (from the latest issued 1.x): choose the alternates the client selected; creates Draft 2.0, base only.
+- Mark accepted (latest issued 2.x): state Accepted, project status Accepted, no further revisions.
+- Older revisions stay viewable read-only from the revision selector.
+- Differences are computed between a revision and the one it was copied from: lines added, removed and changed (qty, unit price, description, performer, section, alternate), section and alternate changes, terms changes, and the change in subtotal and total.
+- Every revision after 1.0 can include a client-facing "Changes from Rev X" page in the PDF (on by default, toggle under Terms & options).
+- Terms & options also toggles a Schedule of Values summary page (section totals and percent items with % of contract).
 
 ## 7. Change orders
 Modeled on the 26001 ECN tab.

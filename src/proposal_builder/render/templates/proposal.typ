@@ -168,6 +168,37 @@
   }
 }
 
+// ------------------------------------------------------------------ changes from previous revision
+
+#if d.changes != none {
+  pagebreak(weak: true)
+  section-heading[Changes from Rev #d.changes.from]
+  line(length: 100%, stroke: 0.8pt + ink)
+  if d.changes.notes.len() > 0 {
+    for n in d.changes.notes [- #eval(n, mode: "markup")]
+    v(4pt)
+  }
+  if d.changes.rows.len() > 0 {
+    table(
+      columns: (0.5in, 1.5in, 0.65in, 1fr, 0.85in, 0.85in),
+      inset: (x: 4pt, y: 4pt), stroke: (x, y) => (bottom: if y == 0 { 0.8pt + ink } else { 0.4pt + rule-c }),
+      table.header(..([Line], [Item], [Change], [Detail], align(right)[Before], align(right)[After])
+        .map(c => text(8.5pt, weight: "bold", c))),
+      ..d.changes.rows.map(r => (
+        text(8.5pt, r.id), text(8.5pt, r.title), text(8.5pt, r.kind), text(8.5pt, md(r.details)),
+        text(8.5pt, money(r.before)), text(8.5pt, money(r.after)),
+      )).flatten(),
+    )
+  }
+  block(breakable: false, above: 1em, grid(
+    columns: (1fr, 1.2in, 1.2in), inset: (x: 4pt, y: 4pt), stroke: (x, y) => (bottom: 0.4pt + rule-c),
+    text(9pt, weight: "bold")[], align(right, text(9pt, weight: "bold")[Rev #d.changes.from]),
+    align(right, text(9pt, weight: "bold")[Rev #d.proposal.revision]),
+    ..d.changes.summary.map(r => (text(9.5pt, weight: "bold", r.label), money(r.before), money(r.after, bold: true))).flatten(),
+    text(9.5pt, weight: "bold")[Change], [], align(right, text(9.5pt, weight: "bold", d.changes.change)),
+  ))
+}
+
 // ------------------------------------------------------------------ how to read
 
 #if d.how_to_read.len() > 0 {
@@ -180,6 +211,23 @@
 
 #pagebreak(weak: true)
 #for s in d.sections { section(s) }
+
+// ------------------------------------------------------------------ schedule of values
+
+#if d.sov != none {
+  block(breakable: false, above: 1em)[
+    #text(14pt, weight: "bold")[Schedule of Values]
+    #v(2pt)
+    #line(length: 100%, stroke: 0.8pt + ink)
+    #grid(
+      columns: (1fr, 1.3in, 0.8in), inset: (x: 4pt, y: 4pt),
+      stroke: (x, y) => (bottom: 0.4pt + rule-c),
+      fill: (x, y) => if y < d.sov.rows.len() and d.sov.rows.at(y).at("pctline", default: false) { pct-fill } else { none },
+      ..d.sov.rows.map(r => (text(9.5pt, r.label), text(9.5pt, money(r.amount)), align(right, text(9.5pt, r.pct)))).flatten(),
+      text(10pt, weight: "bold")[Total Price], money(d.sov.total, bold: true), align(right, text(10pt, weight: "bold")[100%]),
+    )
+  ]
+}
 
 // ------------------------------------------------------------------ totals + signature
 

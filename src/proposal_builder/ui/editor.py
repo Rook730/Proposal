@@ -1,4 +1,4 @@
-"""Proposal editor (milestone 2)."""
+"""Proposal editor: lines, variables, alternates, terms, issues, revisions."""
 
 from __future__ import annotations
 
@@ -25,7 +25,17 @@ from ..proposal import (
     line_from_item,
     pull_update,
 )
+from ..proposal import ProposalBlock, RevisionState
 from ..render.document import build_document, compile_document, pdf_filename
+from ..revisions import (
+    RevisionError,
+    create_revision,
+    finalize,
+    issue,
+    mark_accepted,
+    previous_issued,
+    revision_diff,
+)
 from .pages import md_breaks
 from .state import get_state
 from .widgets import BRAND, Col, EditableGrid, layout, to_decimal
@@ -44,10 +54,12 @@ def _num(v) -> float | None:
 
 
 class Editor:
-    def __init__(self, number: str):
+    def __init__(self, number: str, rev: str | None = None):
         self.st = get_state()
         self.project: Project = self.st.projects.load_project(number)
-        self.rev: Revision = self.st.projects.load_revision(number)
+        self.revs: list[str] = self.st.projects.list_revisions(number)
+        self.rev: Revision = self.st.projects.load_revision(number, rev if rev in self.revs else None)
+        self.is_latest = self.rev.rev == self.revs[-1]
         self.section_filter: int | None = None
         self.results: Results = self._calc()
 
@@ -62,7 +74,15 @@ class Editor:
     def variables(self) -> dict[str, str]:
         return variable_map(self.project, self.rev, self.st.settings)
 
+    @property
+    def locked(self) -> bool:
+        return self.rev.locked
+
     def save(self, refresh_grid: bool = True) -> None:
+        if self.locked:
+            ui.notify(f"Rev {self.rev.rev} is {self.rev.state.value.lower()} and read-only. "
+                      "Create a new revision to make changes.", type="warning")
+            return
         self.st.projects.save_revision(self.project.number, self.rev)
         self.results = self._calc()
         self.totals_bar.refresh()
@@ -96,6 +116,7 @@ class Editor:
             t_lines = ui.tab("Lines", icon="list")
             t_vars = ui.tab("Variables", icon="data_object")
             t_alts = ui.tab("Alternates", icon="call_split")
+            t_terms = ui.tab("Terms & options", icon="article")
             t_issues = ui.tab("Issues", icon="report")
         with ui.tab_panels(tabs, value=t_lines).classes("w-full"):
             with ui.tab_panel(t_lines).classes("p-0 pt-2"):
@@ -104,26 +125,65 @@ class Editor:
                 self.variables_tab()
             with ui.tab_panel(t_alts):
                 self.alternates_panel()
+            with ui.tab_panel(t_terms):
+                self.terms_panel()
             with ui.tab_panel(t_issues):
                 self.issues_panel()
 
     @ui.refreshable_method
     def header(self) -> None:
         p = self.project
-        with ui.row().classes("w-full items-center gap-4"):
+        with ui.row().classes("w-full items-start gap-4 no-wrap"):
             ui.button(icon="arrow_back", on_click=lambda: ui.navigate.to("/projects")).props("flat round dense")
-            with ui.column().classes("gap-0"):
+            with ui.column().classes("gap-0 min-w-0"):
                 ui.label(f"{p.number}  {p.project_name}").classes("text-xl font-semibold")
                 ui.label("  |  ".join(x for x in (p.client_name, p.site_address) if x)).classes("text-sm text-gray-600")
             ui.space()
-            ui.label(f"Rev {self.rev.rev}  |  {self.rev.state.value}  |  {self.rev.proposal_date:%Y.%m.%d}") \
-                .classes("text-sm")
-            ui.select([s.value for s in ProjectStatus], value=p.status.value, label="Status",
-                      on_change=lambda e: (setattr(p, "status", ProjectStatus(e.value)), self.save_project())) \
-                .props("dense outlined").classes("w-36")
-            ui.button("Project info", icon="edit", on_click=self.project_dialog).props("outline dense")
-            ui.button("Preview", icon="visibility", on_click=self.preview).props("outline dense")
-            ui.button("Export PDF", icon="picture_as_pdf", on_click=self.export_pdf).props("dense")
+            with ui.column().classes("items-end gap-2"):
+                with ui.row().classes("items-center gap-3 no-wrap"):
+                    ui.select({r: f"Rev {r}" for r in self.revs}, value=self.rev.rev, label="Revision",
+                              on_change=lambda e: ui.navigate.to(f"/project/{p.number}?rev={e.value}")) \
+                        .props("dense outlined").classes("w-28")
+                    color = {RevisionState.DRAFT: "grey-7", RevisionState.ISSUED: "blue-8",
+                             RevisionState.ACCEPTED: "green-8", RevisionState.SUPERSEDED: "grey-5"}[self.rev.state]
+                    ui.badge(self.rev.state.value, color=color).classes("text-sm px-2 py-1")
+                    ui.label(f"{self.rev.proposal_date:%Y.%m.%d}").classes("text-sm")
+                    ui.select([s.value for s in ProjectStatus], value=p.status.value, label="Project status",
+                              on_change=lambda e: (setattr(p, "status", ProjectStatus(e.value)), self.save_project())) \
+                        .props("dense outlined").classes("w-36")
+                with ui.row().classes("items-center gap-2 no-wrap"):
+                    ui.button("Project info", icon="edit", on_click=self.project_dialog).props("outline dense")
+                    ui.button("Preview", icon="visibility", on_click=self.preview).props("outline dense")
+                    ui.button("Export PDF", icon="picture_as_pdf", on_click=self.export_pdf).props("outline dense")
+                    if not self.locked:
+                        ui.button(f"Issue Rev {self.rev.rev}", icon="lock", on_click=self.issue_dialog).props("dense")
+                    elif self.is_latest and self.rev.state is RevisionState.ISSUED:
+                        ui.button("New revision", icon="note_add", on_click=self.new_revision).props("dense")
+                        if not self.rev.is_contract:
+                            ui.button("Finalize...", icon="fact_check", on_click=self.accept_dialog) \
+                                .props("dense color=positive")
+                        else:
+                            ui.button("Mark accepted", icon="handshake", on_click=self.mark_accepted_dialog) \
+                                .props("dense color=positive")
+        if self.locked:
+            with ui.row().classes("w-full items-center gap-2 px-3 py-2 rounded") \
+                    .style("background:#FFF4E5;border:1px solid #F0C36D"):
+                ui.icon("lock", color="orange-9")
+                issued = f" Issued {self.rev.issued_at:%Y-%m-%d %H:%M}." if self.rev.issued_at else ""
+                msg = f"Rev {self.rev.rev} is {self.rev.state.value.lower()} and read-only.{issued}"
+                if self.rev.state is RevisionState.SUPERSEDED or not self.is_latest:
+                    msg += f" The latest revision is {self.revs[-1]}."
+                elif self.rev.state is RevisionState.ACCEPTED:
+                    msg += " Scope changes after acceptance go through change orders."
+                elif self.rev.is_contract:
+                    msg += " Final revision out for signature: Mark accepted when signed, or New revision to adjust."
+                else:
+                    msg += " Use New revision to make changes, or Finalize once the client has chosen."
+                ui.label(msg).classes("text-sm")
+                if not self.is_latest:
+                    ui.button(f"Open Rev {self.revs[-1]}",
+                              on_click=lambda: ui.navigate.to(f"/project/{p.number}?rev={self.revs[-1]}")) \
+                        .props("flat dense")
 
     @ui.refreshable_method
     def totals_bar(self) -> None:
@@ -154,7 +214,7 @@ class Editor:
             with ui.card().classes("w-72 p-2 shrink-0"):
                 self.sections_panel()
             with ui.column().classes("grow gap-2 min-w-0"):
-                with ui.row().classes("gap-2 items-center"):
+                with ui.row().classes("gap-2 items-center").bind_visibility_from(self, "locked", lambda v: not v):
                     ui.button("Add from catalog", icon="playlist_add", on_click=self.catalog_picker).props("dense")
                     ui.button("Custom line", icon="add", on_click=self.custom_line).props("dense outline")
                     ui.separator().props("vertical")
@@ -167,9 +227,9 @@ class Editor:
                         .tooltip("Move down")
                     ui.button(icon="delete", on_click=self._delete_selected).props("dense flat color=negative") \
                         .tooltip("Delete")
-                    flt = ui.input(placeholder="Filter lines").props("dense clearable").classes("w-56")
                     ui.label("Double-click ID, notes or cost to open a line; other cells edit in place.") \
                         .classes("text-xs text-gray-500")
+                flt = ui.input(placeholder="Filter lines").props("dense clearable").classes("w-56")
                 self.grid = ui.aggrid(self._grid_options(), auto_size_columns=False) \
                     .classes("w-full").style("height:64vh")
                 self.grid.on("cellDoubleClicked", self._dblclick)
@@ -178,6 +238,7 @@ class Editor:
                                                                        e.value or ""))
 
     def _grid_options(self) -> dict:
+        ed = not self.locked
         perf = [p.value for p in Performer]
         units = [u.code for u in self.cat.units]
         return {
@@ -185,16 +246,16 @@ class Editor:
                 {"field": "id", "headerName": "ID", "width": 72, "pinned": "left"},
                 {"field": "code", "headerName": "Code", "width": 72},
                 {"field": "section_name", "headerName": "Section", "width": 130, "hide": self.section_filter is not None},
-                {"field": "title", "headerName": "Title", "width": 180, "editable": True},
+                {"field": "title", "headerName": "Title", "width": 180, "editable": ed},
                 {"field": "notes", "headerName": "Notes", "flex": 1, "minWidth": 160, "tooltipField": "notes"},
-                {"field": "performer", "headerName": "Performer", "width": 140, "editable": True,
+                {"field": "performer", "headerName": "Performer", "width": 140, "editable": ed,
                  "cellEditor": "agSelectCellEditor", "cellEditorParams": {"values": perf}},
-                {"field": "unit", "headerName": "Unit", "width": 70, "editable": True,
+                {"field": "unit", "headerName": "Unit", "width": 70, "editable": ed,
                  "cellEditor": "agSelectCellEditor", "cellEditorParams": {"values": units}},
                 {"field": "qty", "headerName": "Qty", "width": 80, "type": "rightAligned",
-                 "cellDataType": "number", ":editable": "p => !p.data.qty_locked"},
+                 "cellDataType": "number", ":editable": "p => !p.data.qty_locked" if ed else "p => false"},
                 {"field": "price", "headerName": "Unit price", "width": 110, "type": "rightAligned",
-                 "cellDataType": "number", "editable": True,
+                 "cellDataType": "number", "editable": ed,
                  ":valueFormatter": "p => p.value == null ? '' : (p.data.pct ? p.value + '%' : "
                                     "'$' + Number(p.value).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}))"},
                 {"field": "cost", "headerName": "Cost", "width": 115, "type": "rightAligned"},
@@ -265,7 +326,7 @@ class Editor:
     INLINE_EDIT = {"title", "performer", "unit", "qty", "price"}
 
     def _dblclick(self, e) -> None:
-        if e.args.get("colId") in self.INLINE_EDIT and not (e.args.get("colId") == "qty" and e.args["data"].get("qty_locked")):
+        if not self.locked and e.args.get("colId") in self.INLINE_EDIT and not (e.args.get("colId") == "qty" and e.args["data"].get("qty_locked")):
             return  # double-click on an editable cell edits in place
         self.line_dialog(self.rev.line(e.args["data"]["id"]))
 
@@ -363,16 +424,19 @@ class Editor:
             n_lines = len(self.rev.section_lines(num))
             with ui.row().classes("w-full items-center no-wrap gap-1 py-0") \
                     .style("background:#eef3f9;border-radius:4px" if self.section_filter == num else ""):
-                ui.checkbox(value=on, on_change=lambda e, n=num: self._toggle_section(n, e.value)).props("dense")
+                cb = ui.checkbox(value=on, on_change=lambda e, n=num: self._toggle_section(n, e.value)).props("dense")
+                if self.locked:
+                    cb.disable()
                 lbl = ui.label(self.section_name(num)).classes(
                     "text-sm grow cursor-pointer truncate " + ("" if on else "text-gray-400"))
                 lbl.on("click", lambda n=num: self._filter(n))
                 if on:
                     ui.label(money(r.base.section_total(num))).classes("text-xs text-gray-600")
-                    ui.button(icon="expand_less", on_click=lambda n=num: self._move_section(n, -1)) \
-                        .props("flat dense round size=xs")
-                    ui.button(icon="expand_more", on_click=lambda n=num: self._move_section(n, 1)) \
-                        .props("flat dense round size=xs")
+                    if not self.locked:
+                        ui.button(icon="expand_less", on_click=lambda n=num: self._move_section(n, -1)) \
+                            .props("flat dense round size=xs")
+                        ui.button(icon="expand_more", on_click=lambda n=num: self._move_section(n, 1)) \
+                            .props("flat dense round size=xs")
                 elif n_lines:
                     ui.label(f"{n_lines} hidden").classes("text-xs text-orange-700")
 
@@ -477,7 +541,8 @@ class Editor:
                         dlg.close()
                         self.save()
                         ui.notify(f"Pulled from catalog: {', '.join(changed)}", type="positive")
-                    ui.button("Pull update", icon="sync", on_click=pull).props("dense outline")
+                    if not self.locked:
+                        ui.button("Pull update", icon="sync", on_click=pull).props("dense outline")
 
             with ui.grid(columns=6).classes("w-full gap-x-3"):
                 title = ui.input("Title", value=work.title).props("dense").classes("col-span-3")
@@ -654,8 +719,9 @@ class Editor:
                 self.save()
 
             with ui.row().classes("w-full justify-end gap-2"):
-                ui.button("Cancel", on_click=dlg.close).props("flat")
-                ui.button("Save", icon="save", on_click=save)
+                ui.button("Close" if self.locked else "Cancel", on_click=dlg.close).props("flat")
+                if not self.locked:
+                    ui.button("Save", icon="save", on_click=save)
         dlg.open()
 
     # ------------------------------------------------------------ variables
@@ -671,7 +737,8 @@ class Editor:
         EditableGrid(lambda: self.rev.variables,
                      [Col("name", "Name", width=200), Col("value", "Value", flex=1), Col("unit", "Unit", width=90),
                       Col("description", "Description", flex=2)],
-                     save_vars, lambda: Variable(name=f"var{len(self.rev.variables) + 1}", value=""), height="32vh")
+                     save_vars, lambda: Variable(name=f"var{len(self.rev.variables) + 1}", value=""), height="32vh",
+                     readonly=self.locked)
 
         @ui.refreshable
         def builtin_tbl() -> None:
@@ -708,20 +775,21 @@ class Editor:
                         d = r.delta(alt.number)
                         ui.label(f"Subtotal {money(sc.subtotal)}  |  Total {money(sc.total)}  |  "
                                  f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base").classes("text-sm")
-                    ui.button(icon="delete", on_click=lambda a=alt: self._remove_alt(a)) \
-                        .props("flat dense round color=negative")
+                    if not self.locked:
+                        ui.button(icon="delete", on_click=lambda a=alt: self._remove_alt(a)) \
+                            .props("flat dense round color=negative")
                 with ui.grid(columns=3).classes("w-full gap-x-3"):
-                    ui.input("Name", value=alt.name).props("dense") \
+                    ui.input("Name", value=alt.name).props("dense readonly" if self.locked else "dense") \
                         .on_value_change(lambda e, a=alt: (setattr(a, "name", e.value or ""), self._save_quiet()))
-                    ui.input("Description (prints)", value=alt.description).props("dense").classes("col-span-2") \
+                    ui.input("Description (prints)", value=alt.description).props("dense readonly" if self.locked else "dense").classes("col-span-2") \
                         .on_value_change(lambda e, a=alt: (setattr(a, "description", e.value or ""), self._save_quiet()))
                 ui.select(base_lines, multiple=True, value=[x for x in alt.removes if x in base_lines],
                           label="Removes these base lines",
                           on_change=lambda e, a=alt: (setattr(a, "removes", list(e.value or [])), self.save())) \
-                    .props("dense use-chips").classes("w-full")
+                    .props("dense use-chips" + (" readonly" if self.locked else "")).classes("w-full")
                 ui.label("Adds: " + (", ".join(f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})" for ln in adds)
                                      or "none")).classes("text-sm")
-        if len(self.rev.alternates) < MAX_ALTERNATES:
+        if len(self.rev.alternates) < MAX_ALTERNATES and not self.locked:
             ui.button("Add alternate", icon="add", on_click=self._add_alt).props("outline dense")
         if r.conflicts:
             ui.label("Mutually exclusive (remove the same base line): " +
@@ -743,7 +811,8 @@ class Editor:
             self.section_filter = keep
 
     def _save_quiet(self) -> None:
-        self.st.projects.save_revision(self.project.number, self.rev)
+        if not self.locked:
+            self.st.projects.save_revision(self.project.number, self.rev)
 
     def _add_alt(self) -> None:
         used = {a.number for a in self.rev.alternates}
@@ -768,7 +837,17 @@ class Editor:
     def issues(self) -> list[tuple[str, str]]:
         out: list[tuple[str, str]] = [("error", e) for e in self.results.errors]
         v = self.variables()
+        if not any(ln.section in self.rev.sections and not ln.is_percent for ln in self.rev.lines):
+            out.append(("error", "The proposal has no priced lines"))
+        for a, b in self.results.conflicts:
+            out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined"))
         for ln in self.rev.lines:
+            lr = self.results.lines[ln.id]
+            if not ln.is_percent and not ln.not_included and not ln.owner_furnished and ln.section in self.rev.sections:
+                if lr.qty == 0:
+                    out.append(("warn", f"{ln.id} {ln.title}: quantity is 0"))
+                elif ln.unit_price is None and not ln.price_var:
+                    out.append(("warn", f"{ln.id} {ln.title}: no unit price"))
             miss = undefined_references(ln.notes, v)
             if miss:
                 out.append(("error", f"{ln.id}: undefined variable(s) {', '.join(sorted(miss))} in notes"))
@@ -821,9 +900,16 @@ class Editor:
         lp = self.st.settings.company.logo_path
         return self.st.store.path(lp) if lp else None
 
+    def _diff(self):
+        prev = previous_issued(self.st.projects, self.project.number, self.rev)
+        if prev is None:
+            return None
+        return revision_diff(prev, self.rev, self.st.settings, self.cat.stock_classes, self.project,
+                             {s.number: s.name for s in self.cat.sections})
+
     def _document(self) -> dict:
         return build_document(self.project, self.rev, self.st.settings, self.cat, self.st.boilerplate,
-                              self.results)
+                              self.results, diff=self._diff())
 
     async def preview(self) -> None:
         errors = [m for k, m in self.issues() if k == "error"]
@@ -851,9 +937,9 @@ class Editor:
                             .classes("w-[850px] max-w-full shadow-lg bg-white")
         dlg.open()
 
-    async def export_pdf(self) -> None:
+    async def export_pdf(self, after_issue: bool = False) -> None:
         errors = [m for k, m in self.issues() if k == "error"]
-        if errors:
+        if errors and not after_issue:
             ui.notify(f"Exporting with {len(errors)} issue(s); see Issues tab.", type="warning")
         n = ui.notification("Building PDF...", spinner=True, timeout=None)
         try:
@@ -870,9 +956,13 @@ class Editor:
             path.write_bytes(pdf)
         except PermissionError:
             ui.notify(f"{path.name} is open in another program. Close it and export again.", type="negative")
+            if after_issue:
+                ui.navigate.to(f"/project/{self.project.number}?rev={self.rev.rev}")
             return
-        with ui.dialog() as dlg, ui.card():
-            ui.label("PDF saved").classes("text-lg font-semibold")
+        reload = (lambda: ui.navigate.to(f"/project/{self.project.number}?rev={self.rev.rev}")) if after_issue else None
+        with ui.dialog().props("persistent" if after_issue else "") as dlg, ui.card():
+            ui.label(f"Rev {self.rev.rev} issued. PDF saved" if after_issue else "PDF saved") \
+                .classes("text-lg font-semibold")
             ui.label(str(path)).classes("text-xs break-all")
             with ui.row():
                 if sys.platform == "win32":
@@ -881,8 +971,240 @@ class Editor:
                               on_click=lambda: os.startfile(path.parent)).props("outline")  # noqa: S606
                 else:
                     ui.button("Download", icon="download", on_click=lambda: ui.download.content(pdf, path.name))
-                ui.button("Close", on_click=dlg.close).props("flat")
+                ui.button("Close", on_click=lambda: (dlg.close(), reload() if reload else None)).props("flat")
         dlg.open()
+
+    # ------------------------------------------------------------ terms & options
+    @ui.refreshable_method
+    def terms_panel(self) -> None:
+        rev, lib = self.rev, self.st.boilerplate
+        with ui.card().classes("w-full"):
+            ui.label("Document options").classes("font-semibold")
+            with ui.row().classes("gap-6"):
+                sw1 = ui.switch("Print 'Changes from previous revision' page", value=rev.print_changes,
+                                on_change=lambda e: (setattr(rev, "print_changes", e.value), self._save_quiet()))
+                sw2 = ui.switch("Print Schedule of Values summary", value=rev.print_sov,
+                                on_change=lambda e: (setattr(rev, "print_sov", e.value), self._save_quiet()))
+                if self.locked:
+                    sw1.disable()
+                    sw2.disable()
+        ui.label("Terms and text in this proposal. Edits here change only this revision; the library under "
+                 "Catalog > Boilerplate is untouched.").classes("text-xs text-gray-500 mt-3")
+        headings = list(lib.headings) + sorted({b.heading for b in rev.blocks} - set(lib.headings))
+        lib_ids = {b.id: b for b in lib.blocks}
+        for heading in headings:
+            blocks = sorted((b for b in rev.blocks if b.heading == heading), key=lambda b: b.order)
+            missing = [b for b in lib.by_heading(heading) if b.id not in {x.id for x in rev.blocks}]
+            on_count = sum(b.on for b in blocks)
+            with ui.expansion(f"{heading} ({on_count} of {len(blocks)} on)").classes("w-full border rounded mb-2"):
+                for b in blocks:
+                    with ui.row().classes("w-full items-start no-wrap gap-3 py-1 border-b"):
+                        sw = ui.switch(value=b.on, on_change=lambda e, b=b: self._block_set(b, "on", e.value))
+                        if self.locked:
+                            sw.disable()
+                        with ui.column().classes("flex-1 gap-0"):
+                            lb = lib_ids.get(b.id)
+                            edited = lb is not None and (lb.body != b.body or lb.title != b.title)
+                            ui.label((b.title or f"[{b.id}]") + ("  (edited for this proposal)" if edited else "")) \
+                                .classes("font-semibold" + ("" if b.on else " text-gray-400"))
+                            ui.label(render(b.body, self.variables())[:240]) \
+                                .classes("text-xs text-gray-600 whitespace-pre-line")
+                        if not self.locked:
+                            ui.button(icon="arrow_upward", on_click=lambda b=b: self._block_move(b, -1)) \
+                                .props("flat dense round")
+                            ui.button(icon="arrow_downward", on_click=lambda b=b: self._block_move(b, 1)) \
+                                .props("flat dense round")
+                        ui.button(icon="visibility" if self.locked else "edit",
+                                  on_click=lambda b=b: self._block_dialog(b, b.heading)).props("flat dense round")
+                        if not self.locked:
+                            ui.button(icon="delete", on_click=lambda b=b: self._block_remove(b)) \
+                                .props("flat dense round color=negative")
+                if not self.locked:
+                    with ui.row().classes("gap-2 mt-1"):
+                        ui.button("Custom block", icon="add",
+                                  on_click=lambda h=heading: self._block_dialog(None, h)).props("flat dense")
+                        if missing:
+                            ui.select({b.id: b.title or b.id for b in missing}, label="Add from library",
+                                      on_change=lambda e: self._block_add_library(e.value)) \
+                                .props("dense outlined").classes("w-72")
+
+    def _block_set(self, b: ProposalBlock, field: str, value) -> None:
+        setattr(b, field, value)
+        self.save(refresh_grid=False)
+        self.terms_panel.refresh()
+
+    def _block_move(self, b: ProposalBlock, d: int) -> None:
+        sib = sorted((x for x in self.rev.blocks if x.heading == b.heading), key=lambda x: x.order)
+        for n, x in enumerate(sib):
+            x.order = (n + 1) * 10
+        i = sib.index(b)
+        j = i + d
+        if 0 <= j < len(sib):
+            sib[i].order, sib[j].order = sib[j].order, sib[i].order
+            self.save(refresh_grid=False)
+            self.terms_panel.refresh()
+
+    def _block_remove(self, b: ProposalBlock) -> None:
+        self.rev.blocks.remove(b)
+        self.save(refresh_grid=False)
+        self.terms_panel.refresh()
+
+    def _block_add_library(self, block_id: str | None) -> None:
+        lb = next((b for b in self.st.boilerplate.blocks if b.id == block_id), None)
+        if lb is None:
+            return
+        order = max((b.order for b in self.rev.blocks if b.heading == lb.heading), default=0) + 10
+        self.rev.blocks.append(ProposalBlock(id=lb.id, heading=lb.heading, title=lb.title, body=lb.body,
+                                             on=True, order=order))
+        self.save(refresh_grid=False)
+        self.terms_panel.refresh()
+
+    def _block_dialog(self, b: ProposalBlock | None, heading: str) -> None:
+        lib = next((x for x in self.st.boilerplate.blocks if b is not None and x.id == b.id), None)
+        with ui.dialog() as dlg, ui.card().classes("w-[920px] max-w-full"):
+            ui.label(f"{heading}: {b.title if b else 'new block'}").classes("text-lg font-semibold")
+            title = ui.input("Sub-heading", value=b.title if b else "").props(
+                "dense readonly" if self.locked else "dense").classes("w-full")
+            with ui.row().classes("w-full no-wrap gap-4"):
+                body = ui.textarea(value=b.body if b else "").props(
+                    "outlined autogrow" + (" readonly" if self.locked else "")).classes("w-1/2 font-mono text-sm")
+                preview = ui.markdown().classes("w-1/2 border rounded p-2 text-sm")
+            upd = lambda: preview.set_content(md_breaks(render(body.value or "", self.variables())))  # noqa: E731
+            body.on_value_change(lambda _: upd())
+            upd()
+
+            def save() -> None:
+                if b is None:
+                    order = max((x.order for x in self.rev.blocks if x.heading == heading), default=0) + 10
+                    bid, n = f"custom-{order}", 2
+                    while any(x.id == bid for x in self.rev.blocks):
+                        bid, n = f"custom-{order}-{n}", n + 1
+                    self.rev.blocks.append(ProposalBlock(id=bid, heading=heading, title=title.value or "",
+                                                         body=body.value or "", on=True, order=order))
+                else:
+                    b.title, b.body = title.value or "", body.value or ""
+                dlg.close()
+                self.save(refresh_grid=False)
+                self.terms_panel.refresh()
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                if lib is not None and not self.locked:
+                    ui.button("Reset to library text",
+                              on_click=lambda: (title.set_value(lib.title), body.set_value(lib.body))).props("flat")
+                ui.button("Close" if self.locked else "Cancel", on_click=dlg.close).props("flat")
+                if not self.locked:
+                    ui.button("Save", icon="save", on_click=save)
+        dlg.open()
+
+    # ------------------------------------------------------------ revisions
+    async def issue_dialog(self) -> None:
+        items = self.issues()
+        errors = [m for k, m in items if k == "error"]
+        warns = [m for k, m in items if k == "warn"]
+        diff = self._diff()
+        contract = self.rev.is_contract
+        with ui.dialog() as dlg, ui.card().classes("w-[720px] max-w-full"):
+            ui.label(f"Issue Rev {self.rev.rev}" + (" (final, for signature)" if contract else "")) \
+                .classes("text-lg font-semibold")
+            ui.label("Issuing locks this revision, supersedes earlier ones and saves the PDF to the project's "
+                     "pdf folder. Later changes need a new revision.").classes("text-sm")
+            if diff is not None:
+                d = diff.total_change
+                ui.label(f"Compared with Rev {diff.old_rev}: {len(diff.changes)} line change(s), "
+                         f"total {'+' if d >= 0 else '-'}{money(abs(d))} ({money(diff.old_total)} to "
+                         f"{money(diff.new_total)}).").classes("text-sm")
+            ui.label(f"Total Price: {money(self.results.base.total)}").classes("text-sm font-semibold")
+            for m in errors:
+                with ui.row().classes("items-center gap-2"):
+                    ui.icon("error").classes("text-red-700")
+                    ui.label(m).classes("text-sm")
+            for m in warns:
+                with ui.row().classes("items-center gap-2"):
+                    ui.icon("warning").classes("text-orange-700")
+                    ui.label(m).classes("text-sm")
+            if not errors and not warns:
+                ui.label("No issues found.").classes("text-sm text-green-700")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Issue anyway" if errors else "Issue and save PDF", icon="lock",
+                          on_click=lambda: dlg.submit(True)).props("color=negative" if errors else "")
+        if not await dlg:
+            return
+        try:
+            issue(self.st.projects, self.project, self.rev)
+        except (RevisionError, PermissionError) as e:
+            ui.notify(str(e), type="negative")
+            return
+        await self.export_pdf(after_issue=True)
+
+    def new_revision(self) -> None:
+        try:
+            rev = create_revision(self.st.projects, self.project)
+        except RevisionError as e:
+            ui.notify(str(e), type="warning")
+            return
+        ui.navigate.to(f"/project/{self.project.number}?rev={rev.rev}")
+
+    async def accept_dialog(self) -> None:
+        from ..proposal import contract_revision
+        alts = sorted(self.rev.alternates, key=lambda a: a.number)
+        chosen: dict[int, bool] = {a.number: False for a in alts}
+        with ui.dialog() as dlg, ui.card().classes("w-[620px] max-w-full"):
+            ui.label(f"Finalize Rev {self.rev.rev}").classes("text-lg font-semibold")
+            ui.label("Creates Rev 2.0, the final revision for signature. It is base only: the alternates the "
+                     "client chose are merged into the base and the rest are dropped. Review it, issue it, "
+                     "then Mark accepted once it is signed.").classes("text-sm")
+            result = ui.label().classes("text-sm font-semibold")
+
+            def update() -> None:
+                sel = [n for n, v in chosen.items() if v]
+                try:
+                    preview = contract_revision(self.rev, sel)
+                except ValueError as e:
+                    result.set_text(str(e))
+                    result.classes(replace="text-sm font-semibold text-red-700")
+                    return
+                total = calculate(preview, self.st.settings, self.cat.stock_classes, self.project).base.total
+                result.set_text(f"Final total: {money(total)}")
+                result.classes(replace="text-sm font-semibold")
+
+            for a in alts:
+                ui.checkbox(f"Alt {a.number}: {a.name}  ({money(self.results.alternates[a.number].total)} alone)",
+                            on_change=lambda e, n=a.number: (chosen.__setitem__(n, e.value), update()))
+            if not alts:
+                ui.label("No alternates; the base proposal becomes the contract.").classes("text-sm")
+            update()
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=lambda: dlg.submit(None)).props("flat")
+                ui.button("Create Rev 2.0", icon="handshake",
+                          on_click=lambda: dlg.submit([n for n, v in chosen.items() if v])).props("color=positive")
+        sel = await dlg
+        if sel is None:
+            return
+        try:
+            rev = finalize(self.st.projects, self.project, sel)
+        except RevisionError as e:
+            ui.notify(str(e), type="negative")
+            return
+        ui.navigate.to(f"/project/{self.project.number}?rev={rev.rev}")
+
+    async def mark_accepted_dialog(self) -> None:
+        with ui.dialog() as dlg, ui.card():
+            ui.label(f"Mark Rev {self.rev.rev} accepted?").classes("text-lg font-semibold")
+            ui.label("Use this once the client has signed. The project status becomes Accepted and later "
+                     "scope changes go through change orders.").classes("text-sm")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Mark accepted", icon="handshake", on_click=lambda: dlg.submit(True)) \
+                    .props("color=positive")
+        if not await dlg:
+            return
+        try:
+            mark_accepted(self.st.projects, self.project, self.rev)
+        except RevisionError as e:
+            ui.notify(str(e), type="negative")
+            return
+        ui.navigate.to(f"/project/{self.project.number}?rev={self.rev.rev}")
 
     # ------------------------------------------------------------ project info
     def project_dialog(self) -> None:
@@ -902,13 +1224,15 @@ class Editor:
                 try:
                     p.client_name, p.site_address = client.value or "", address.value or ""
                     p.project_name = name.value or p.project_name
-                    rev.proposal_date = date.fromisoformat(d.value)
+                    if not self.locked:
+                        rev.proposal_date = date.fromisoformat(d.value)
                 except ValueError as e:
                     ui.notify(str(e), type="negative")
                     return
                 self.save_project()
                 dlg.close()
-                self.save()
+                if not self.locked:
+                    self.save()
 
             with ui.row().classes("w-full justify-end"):
                 ui.button("Cancel", on_click=dlg.close).props("flat")
@@ -917,9 +1241,9 @@ class Editor:
 
 
 @ui.page("/project/{number}")
-def editor_page(number: str) -> None:
+def editor_page(number: str, rev: str | None = None) -> None:
     try:
-        ed = Editor(number)
+        ed = Editor(number, rev)
     except FileNotFoundError as e:
         layout("Project")
         ui.label(str(e)).classes("text-red-700")

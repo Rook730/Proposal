@@ -255,11 +255,18 @@ class ProjectStore:
         d = self.project_dir(number)
         return Revision.model_validate_json((d / f"rev_{rev}.json").read_text(encoding="utf-8"))
 
-    def save_revision(self, number: str, revision) -> None:
+    def save_revision(self, number: str, revision, allow_locked: bool = False) -> None:
+        """Issued revisions are write-once: saving over one needs allow_locked (state changes only)."""
         d = self.project_dir(number)
         if d is None:
             raise FileNotFoundError(f"project {number} not found")
-        self._save(d / f"rev_{revision.rev}.json", revision)
+        path = d / f"rev_{revision.rev}.json"
+        if path.exists() and not allow_locked:
+            from .proposal import Revision
+            on_disk = Revision.model_validate_json(path.read_text(encoding="utf-8"))
+            if on_disk.locked:
+                raise PermissionError(f"revision {revision.rev} is {on_disk.state.value.lower()} and locked")
+        self._save(path, revision)
 
     def _save(self, path: Path, model: BaseModel) -> None:
         text = dump_model(model)

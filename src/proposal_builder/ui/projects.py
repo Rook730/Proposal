@@ -20,16 +20,17 @@ def _project_rows() -> list[dict]:
     rows = []
     for p in st.projects.list_projects():
         revs = st.projects.list_revisions(p.number)
-        total = ""
+        total, state = "", ""
         try:
             rev = st.projects.load_revision(p.number)
+            state = rev.state.value
             res = calculate(rev, st.settings, st.catalog.stock_classes, p)
             total = f"${res.base.total:,.2f}"
         except Exception:  # noqa: BLE001 - list must render even if one file is bad
             pass
         rows.append({"number": p.number, "client": p.client_name, "project": p.project_name,
                      "address": p.site_address, "status": p.status.value,
-                     "rev": revs[-1] if revs else "", "total": total})
+                     "rev": f"{revs[-1]} {state}" if revs else "", "total": total})
     return rows
 
 
@@ -150,7 +151,7 @@ def projects_page() -> None:
             {"field": "project", "headerName": "Project", "width": 220},
             {"field": "address", "headerName": "Address", "flex": 1},
             {"field": "status", "headerName": "Status", "width": 120},
-            {"field": "rev", "headerName": "Rev", "width": 80},
+            {"field": "rev", "headerName": "Rev", "width": 130},
             {"field": "total", "headerName": "Total", "width": 130, "type": "rightAligned"},
         ],
         "rowData": _project_rows(),
