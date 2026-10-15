@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import base64
+import os
+import sys
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
-from nicegui import ui
+from nicegui import run, ui
 from pydantic import ValidationError
 
 from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
@@ -21,6 +25,7 @@ from ..proposal import (
     line_from_item,
     pull_update,
 )
+from ..render.document import build_document, compile_document, pdf_filename
 from .pages import md_breaks
 from .state import get_state
 from .widgets import BRAND, Col, EditableGrid, layout, to_decimal
@@ -117,6 +122,8 @@ class Editor:
                       on_change=lambda e: (setattr(p, "status", ProjectStatus(e.value)), self.save_project())) \
                 .props("dense outlined").classes("w-36")
             ui.button("Project info", icon="edit", on_click=self.project_dialog).props("outline dense")
+            ui.button("Preview", icon="visibility", on_click=self.preview).props("outline dense")
+            ui.button("Export PDF", icon="picture_as_pdf", on_click=self.export_pdf).props("dense")
 
     @ui.refreshable_method
     def totals_bar(self) -> None:
@@ -808,6 +815,74 @@ class Editor:
             with ui.row().classes("items-center gap-2"):
                 ui.icon(icon).classes(cls)
                 ui.label(msg).classes("text-sm")
+
+    # ------------------------------------------------------------ PDF
+    def _logo(self) -> Path | None:
+        lp = self.st.settings.company.logo_path
+        return self.st.store.path(lp) if lp else None
+
+    def _document(self) -> dict:
+        return build_document(self.project, self.rev, self.st.settings, self.cat, self.st.boilerplate,
+                              self.results)
+
+    async def preview(self) -> None:
+        errors = [m for k, m in self.issues() if k == "error"]
+        n = ui.notification("Rendering preview...", spinner=True, timeout=None)
+        try:
+            pages = await run.io_bound(compile_document, self._document(), self._logo(), "png", 80)
+        except Exception as e:  # noqa: BLE001
+            n.dismiss()
+            ui.notify(f"Preview failed: {e}", type="negative", multi_line=True)
+            return
+        n.dismiss()
+        with ui.dialog().props("maximized") as dlg, ui.card().classes("w-full h-full p-0"):
+            with ui.row().classes("w-full items-center px-4 py-2").style(f"background:{BRAND};color:white"):
+                ui.label(f"Preview: {pdf_filename(self.project, self.rev)}  ({len(pages)} pages)")
+                if errors:
+                    ui.label(f"{len(errors)} issue(s): see Issues tab").classes("text-orange-200")
+                ui.space()
+                ui.button("Export PDF", icon="picture_as_pdf",
+                          on_click=lambda: (dlg.close(), self.export_pdf())).props("flat color=white")
+                ui.button(icon="close", on_click=dlg.close).props("flat round color=white")
+            with ui.scroll_area().classes("w-full grow").style("background:#80868b"):
+                with ui.column().classes("w-full items-center gap-4 py-4"):
+                    for png in pages:
+                        ui.image("data:image/png;base64," + base64.b64encode(png).decode()) \
+                            .classes("w-[850px] max-w-full shadow-lg bg-white")
+        dlg.open()
+
+    async def export_pdf(self) -> None:
+        errors = [m for k, m in self.issues() if k == "error"]
+        if errors:
+            ui.notify(f"Exporting with {len(errors)} issue(s); see Issues tab.", type="warning")
+        n = ui.notification("Building PDF...", spinner=True, timeout=None)
+        try:
+            pdf = await run.io_bound(compile_document, self._document(), self._logo(), "pdf")
+        except Exception as e:  # noqa: BLE001
+            n.dismiss()
+            ui.notify(f"Export failed: {e}", type="negative", multi_line=True)
+            return
+        n.dismiss()
+        folder = self.st.projects.project_dir(self.project.number) / "pdf"
+        folder.mkdir(exist_ok=True)
+        path = folder / pdf_filename(self.project, self.rev)
+        try:
+            path.write_bytes(pdf)
+        except PermissionError:
+            ui.notify(f"{path.name} is open in another program. Close it and export again.", type="negative")
+            return
+        with ui.dialog() as dlg, ui.card():
+            ui.label("PDF saved").classes("text-lg font-semibold")
+            ui.label(str(path)).classes("text-xs break-all")
+            with ui.row():
+                if sys.platform == "win32":
+                    ui.button("Open PDF", icon="open_in_new", on_click=lambda: os.startfile(path))  # noqa: S606
+                    ui.button("Open folder", icon="folder",
+                              on_click=lambda: os.startfile(path.parent)).props("outline")  # noqa: S606
+                else:
+                    ui.button("Download", icon="download", on_click=lambda: ui.download.content(pdf, path.name))
+                ui.button("Close", on_click=dlg.close).props("flat")
+        dlg.open()
 
     # ------------------------------------------------------------ project info
     def project_dialog(self) -> None:

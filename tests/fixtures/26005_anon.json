@@ -2040,7 +2040,7 @@
     "id": "payment-sche-contract-execution-mobilization",
     "heading": "Payment Schedule",
     "title": "Contract Execution / Mobilization",
-    "body": "{deposit_pct} Due Upon Signing\nPayment due at execution of this Agreement to secure scheduling, initiate project management, preconstruction coordination, permitting, and mobilization. No work shall commence until payment is received.\nThe deposit is applied to project costs as they are incurred. If this Agreement is cancelled, see Contract Cancellation or Termination below.",
+    "body": "**{deposit_pct} Due Upon Signing**\nPayment due at execution of this Agreement to secure scheduling, initiate project management, preconstruction coordination, permitting, and mobilization. No work shall commence until payment is received.\nThe deposit is applied to project costs as they are incurred. If this Agreement is cancelled, see Contract Cancellation or Termination below.",
     "on": true,
     "order": 10
    },
@@ -2064,7 +2064,7 @@
     "id": "payment-sche-substantial-completion",
     "heading": "Payment Schedule",
     "title": "Substantial Completion",
-    "body": "Remaining balance due less {retainage_pct}\nSubstantial Completion is achieved when the project is sufficiently complete for its intended use, notwithstanding minor punch list items.",
+    "body": "**Remaining balance due less {retainage_pct}**\nSubstantial Completion is achieved when the project is sufficiently complete for its intended use, notwithstanding minor punch list items.",
     "on": true,
     "order": 40
    },
@@ -2072,7 +2072,7 @@
     "id": "payment-sche-final-payment",
     "heading": "Payment Schedule",
     "title": "Final Payment",
-    "body": "Balance Due Upon Final Completion\nFinal payment is due upon completion of punch list items and issuance of final invoice, including reconciliation of allowances and Change Orders",
+    "body": "**Balance Due Upon Final Completion**\nFinal payment is due upon completion of punch list items and issuance of final invoice, including reconciliation of allowances and Change Orders",
     "on": true,
     "order": 50
    },
@@ -2159,9 +2159,9 @@
    {
     "id": "scope-clarif-kitchen-availability",
     "heading": "Scope Clarifications & Exclusions",
-    "title": "Room Availability",
+    "title": "Kitchen Availability",
     "body": "The kitchen remains usable between work blocks, with two exceptions:\n1. Countertop replacement: counters and sink are out of service from tear-out until the new tops are installed and plumbing is reconnected. Tops are templated over the existing counters to keep this to approximately 1-2 days.\n2. Cabinet painting: cabinets may need to be emptied, and use is limited during application and cure, approximately 3-5 days.",
-    "on": false,
+    "on": true,
     "order": 60
    },
    {

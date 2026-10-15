@@ -134,7 +134,7 @@
       "id": "payment-sche-contract-execution-mobilization",
       "heading": "Payment Schedule",
       "title": "Contract Execution / Mobilization",
-      "body": "{deposit_pct} Due Upon Signing\nPayment due at execution of this Agreement to secure scheduling, initiate project management, preconstruction coordination, permitting, and mobilization. No work shall commence until payment is received.\nThe deposit is applied to project costs as they are incurred. If this Agreement is cancelled, see Contract Cancellation or Termination below.",
+      "body": "**{deposit_pct} Due Upon Signing**\nPayment due at execution of this Agreement to secure scheduling, initiate project management, preconstruction coordination, permitting, and mobilization. No work shall commence until payment is received.\nThe deposit is applied to project costs as they are incurred. If this Agreement is cancelled, see Contract Cancellation or Termination below.",
       "default_on": true,
       "order": 10
     },
@@ -158,7 +158,7 @@
       "id": "payment-sche-substantial-completion",
       "heading": "Payment Schedule",
       "title": "Substantial Completion",
-      "body": "Remaining balance due less {retainage_pct}\nSubstantial Completion is achieved when the project is sufficiently complete for its intended use, notwithstanding minor punch list items.",
+      "body": "**Remaining balance due less {retainage_pct}**\nSubstantial Completion is achieved when the project is sufficiently complete for its intended use, notwithstanding minor punch list items.",
       "default_on": true,
       "order": 40
     },
@@ -166,7 +166,7 @@
       "id": "payment-sche-final-payment",
       "heading": "Payment Schedule",
       "title": "Final Payment",
-      "body": "Balance Due Upon Final Completion\nFinal payment is due upon completion of punch list items and issuance of final invoice, including reconciliation of allowances and Change Orders",
+      "body": "**Balance Due Upon Final Completion**\nFinal payment is due upon completion of punch list items and issuance of final invoice, including reconciliation of allowances and Change Orders",
       "default_on": true,
       "order": 50
     },

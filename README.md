@@ -10,8 +10,8 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 |---|---|---|
 | 1 | Data model, file storage, Excel import, catalog manager | done |
 | 2 | Proposal editor, calculations, variables, snapshot rule | done |
-| 3 | PDF engine (Typst), pagination rules | next |
-| 4 | Revisions, alternates, boilerplate per proposal, validation | |
+| 3 | PDF engine (Typst), pagination rules | done |
+| 4 | Revisions, alternates, boilerplate per proposal, validation | next |
 | 5 | Change orders, schedule of values, reconciliation | |
 | 6 | Windows .exe packaging | |
 
@@ -32,6 +32,8 @@ On first start the app creates `%USERPROFILE%\KeptSpec Proposals` and fills it w
 - **Variables** tab: per-proposal values; every {name} and bound field updates when a value changes.
 - **Alternates** tab: up to 3; each removes base lines and/or adds lines assigned to it.
 - **Issues** tab: undefined variables, excluded lines, catalog changes, unused variables.
+- **Preview / Export PDF** (editor header): preview renders every page in the app; Export writes `projects/<project>/pdf/<number>_<client>_<project>_Proposal_V<rev>.pdf` and offers to open it.
+  Boilerplate can also use `{total_price}`, `{subtotal}`, `{deposit_amount}`, `{progress_amount}` and `{retainage_amount}`.
 
 Every edit saves immediately to the data folder; previous versions go to `backups/`.
 

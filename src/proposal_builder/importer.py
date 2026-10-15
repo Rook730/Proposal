@@ -386,6 +386,13 @@ def build_boilerplate(wb) -> Boilerplate:
         for n, (title, body) in enumerate(_pairs(ws, a, b)):
             add(heading, _slug(heading[:12], title), title, body, 10 * (n + 1))
 
+    # Payment schedule blocks open with a short terms line (e.g. "25% Due Upon Signing"): bold it.
+    for blk in blocks:
+        if blk.heading == "Payment Schedule":
+            first, sep, rest = blk.body.partition("\n")
+            if sep and len(first) < 60 and not first.startswith(("-", "*")) and not first.endswith("."):
+                blk.body = f"**{first}**\n{rest}"
+
     # Project-specific wording becomes a generic room-availability block, off by default.
     for blk in blocks:
         if blk.title == "Kitchen Availability":

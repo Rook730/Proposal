@@ -151,6 +151,21 @@ def import_proposal_sheet(xlsx: Path, sheet: str, catalog: Catalog, settings: Se
 
     all_text = "\n".join(_text(wv.cell(r, 2).value) for r in range(1, wv.max_row + 1))
     rev.variables = _extract_variables(all_text)
+
+    # boilerplate: match the sheet. A library block is on when its sub-heading appears in the sheet;
+    # the generic "Room Availability" block takes the sheet's "<Room> Availability" title.
+    titles = {_text(wv.cell(r, 2).value) for r in range(1, wv.max_row + 1)}
+    for b in rev.blocks:
+        if not b.title:
+            continue
+        if b.title == "Room Availability":
+            found = next((t for t in titles if t.endswith(" Availability") and len(t) < 40), None)
+            if found:
+                b.title, b.on = found, True
+            continue
+        if b.heading in ("Payment Schedule", "Payment Terms & Contract Cancellation",
+                         "Scope Clarifications & Exclusions"):
+            b.on = b.title in titles
     return project, rev
 
 

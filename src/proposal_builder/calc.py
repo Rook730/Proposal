@@ -23,6 +23,7 @@ from .proposal import Line, Project, Revision
 CENT = Decimal("0.01")
 VAR_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 SPECIAL_PLACEHOLDERS = {"units_table"}   # rendered by the document layer
+DOCUMENT_VARIABLES = {"total_price", "subtotal", "deposit_amount", "progress_amount", "retainage_amount"}
 
 
 def money(v: Decimal) -> Decimal:
@@ -79,7 +80,8 @@ def referenced(text: str) -> set[str]:
 
 
 def undefined_references(text: str, variables: dict[str, str]) -> set[str]:
-    return {n for n in referenced(text) if n not in variables and n not in SPECIAL_PLACEHOLDERS}
+    return {n for n in referenced(text)
+            if n not in variables and n not in SPECIAL_PLACEHOLDERS and n not in DOCUMENT_VARIABLES}
 
 
 def numeric(value: str) -> Decimal:
