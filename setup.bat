@@ -10,7 +10,7 @@ echo Using %PY%
 if exist .venv rmdir /s /q .venv
 %PY% -m venv .venv || goto :err
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
-".venv\Scripts\python.exe" -m pip install --only-binary=:all: -e .[native,dev] || goto :err
+".venv\Scripts\python.exe" -m pip install --prefer-binary -e .[native,dev] || goto :err
 echo.
 echo Setup complete. Start the app with run.bat
 pause
