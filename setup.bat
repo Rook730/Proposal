@@ -1,24 +1,23 @@
 @echo off
-REM One-time setup: creates .venv and installs the app with the native-window extra.
+REM One-time setup: creates .venv with Python 3.13 or 3.12 and installs the app.
+REM Newer Pythons (3.14+) lack prebuilt packages for some dependencies and fail to install.
 cd /d "%~dp0"
 set PY=
-where py >nul 2>nul && set PY=py -3
-if not defined PY (where python >nul 2>nul && set PY=python)
+py -3.13 -c "pass" >nul 2>nul && set PY=py -3.13
+if not defined PY (py -3.12 -c "pass" >nul 2>nul && set PY=py -3.12)
 if not defined PY goto :nopython
-%PY% -c "import sys; sys.exit(0 if sys.version_info >= (3, 12) else 1)" || goto :oldpython
+echo Using %PY%
+if exist .venv rmdir /s /q .venv
 %PY% -m venv .venv || goto :err
 ".venv\Scripts\python.exe" -m pip install --upgrade pip
-".venv\Scripts\python.exe" -m pip install -e .[native,dev] || goto :err
+".venv\Scripts\python.exe" -m pip install --only-binary=:all: -e .[native,dev] || goto :err
 echo.
 echo Setup complete. Start the app with run.bat
 pause
 exit /b 0
 :nopython
-echo Python not found. Install Python 3.12+ from python.org with "Add python.exe to PATH" checked, then rerun.
-pause
-exit /b 1
-:oldpython
-echo Python 3.12 or newer is required. Install it from python.org, then rerun.
+echo Python 3.13 (or 3.12) not found. Install Python 3.13 from python.org
+echo (Windows installer 64-bit), then rerun setup.bat. Other Python versions can stay installed.
 pause
 exit /b 1
 :err
