@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "proposal-builder"
+version = "0.1.0"
+description = "Proposal builder for Kept Spec Advisors"
+requires-python = ">=3.12"
+dependencies = [
+    "nicegui>=3.0,<4",
+    "pydantic>=2.7,<3",
+    "openpyxl>=3.1",
+]
+
+[project.optional-dependencies]
+native = ["pywebview>=5"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+proposal-builder = "proposal_builder.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+proposal_builder = ["seed/*.json"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

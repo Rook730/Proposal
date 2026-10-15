@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "company": {
+    "legal_name": "Convenient Enterprises LLC",
+    "dba": "Kept Spec Advisors",
+    "address": "224 Rutledge Rd Fletcher, NC 28732",
+    "phone": "423.218.6067",
+    "email": "Nick@KeptSpec.com",
+    "logo_path": ""
+  },
+  "proposal_year": 26,
+  "next_proposal_seq": 6,
+  "default_waste_pct": "0.10",
+  "deposit_pct": "0.25",
+  "retainage_pct": "0.05",
+  "validity_days": 30,
+  "global_variables": []
+}

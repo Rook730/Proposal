@@ -1,0 +1,302 @@
+{
+  "schema_version": 1,
+  "headings": [
+    "Intro",
+    "How to read this proposal",
+    "Totals",
+    "Signature",
+    "Payment Schedule",
+    "Payment Terms & Contract Cancellation",
+    "Scope Clarifications & Exclusions"
+  ],
+  "blocks": [
+    {
+      "id": "cover-letter",
+      "heading": "Intro",
+      "title": "",
+      "body": "Hello,\n\nBelow is an itemized breakdown for the {project_name} at {site_address}. This proposal is based on the conversations had between the clients and myself at their home on {meeting_dates}.\n\nKept Spec Advisors will manage the project as general contractor. Line items marked \"Convenient Woodworking\" will be performed by me directly. Total working time is approximately {working_time}, scheduled in blocks of no more than five consecutive days with the goal to keep the kitchen functional as much as possible; see Kitchen Availability under Scope Clarifications for the two periods where use is limited. Client-selected materials are carried as allowances at the high end of average cost, reconciled against actual selections.\n\nClient to provide Form E-589CI, Affidavit of Capital Improvement, prior to start of work.\n\nIf you have any questions or concerns about any items listed, do not hesitate to reach out to me, I'm here to help.\n\nLooking forward to hearing from you,\nNick",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "cost-plus",
+      "heading": "Intro",
+      "title": "",
+      "body": "As a reminder, Kept Spec uses a cost-plus pricing structure, meaning we act as a passthrough for all labor and materials without adding a mark-up. Our profit is included as a separate line item on the final page of this proposal. Any design/engineering changes or additions are subject to additional fees.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "sections",
+      "heading": "How to read this proposal",
+      "title": "Sections and line items",
+      "body": "The work is organized into sections by trade, such as Demolition, MEP and Millwork. Each section ends with a section total.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "line-items",
+      "heading": "How to read this proposal",
+      "title": "Line items",
+      "body": "Each line item has a title, a description of the work, a unit, a quantity, a unit price and a cost. Cost is quantity times unit price. Unit definitions are listed below.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "hourly",
+      "heading": "How to read this proposal",
+      "title": "Hourly quantities",
+      "body": "Hourly (HR) quantities are our estimate of the time required. They are billed at actual hours.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "allowances",
+      "heading": "How to read this proposal",
+      "title": "Allowances",
+      "body": "Lines described as an “Allowance” are budget amounts for items you select, such as countertops, tile, fixtures and hardware. They are billed at actual cost and reconciled on the final invoice. A selection above the allowance is billed as an overage. A selection below it is credited.",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "performer",
+      "heading": "How to read this proposal",
+      "title": "Who performs the work",
+      "body": "Kept Spec Advisors manages the project as general contractor. Lines marked “Convenient Woodworking” are performed by Nick directly. All other labor is done by licensed subcontractors or suppliers.",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "zero-lines",
+      "heading": "How to read this proposal",
+      "title": "$0 lines",
+      "body": "A line showing $0 is one of two things:\n\nWork that is not included in this proposal, listed so the scope is clear.\nAn owner-furnished item, which you purchase directly. We show it so the coordination and installation scope is clear.",
+      "default_on": true,
+      "order": 60
+    },
+    {
+      "id": "gray-lines",
+      "heading": "How to read this proposal",
+      "title": "Gray lines",
+      "body": "These have a percentage unit price: builder’s risk, contingency, change order management, overhead and profit. They are not part of the subtotal. Each is calculated as a percentage of the subtotal and added to reach the Total Price. Unused contingency is credited on the final invoice.",
+      "default_on": true,
+      "order": 70
+    },
+    {
+      "id": "blue-lines",
+      "heading": "How to read this proposal",
+      "title": "Blue lines",
+      "body": "These are alternates, priced options you can choose in place of a base line item. They are not included in the subtotal or Total Price. An Alternate Subtotal and Alternate Total Price, showing the project with the alternate substituted, follow the Total Price.",
+      "default_on": true,
+      "order": 80
+    },
+    {
+      "id": "exclusions-note",
+      "heading": "How to read this proposal",
+      "title": "Exclusions",
+      "body": "Scope clarifications, exclusions, payment terms and the schedule follow the signature page. Please review them with the line items. Anything not listed is not included.",
+      "default_on": true,
+      "order": 90
+    },
+    {
+      "id": "units-table",
+      "heading": "How to read this proposal",
+      "title": "Unit definitions",
+      "body": "{units_table}",
+      "default_on": true,
+      "order": 25
+    },
+    {
+      "id": "alternate-note",
+      "heading": "Totals",
+      "title": "",
+      "body": "Note: Gray highlighted items in the body of this proposal are calculated from \"Subtotal\" above. The \"Alternate\" option has a lower cost and therefore those percentage items are less for the alternate option. These values are not displayed, but are taken into account in the \"Total Price *Alternate\" figure.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "thanks",
+      "heading": "Signature",
+      "title": "",
+      "body": "Thanks again for choosing Kept Spec Advisors to manage your project. We are looking forward to getting started!",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "acknowledgement",
+      "heading": "Signature",
+      "title": "",
+      "body": "I confirm that my action here, whether digital or analog, represents my signature and is legally binding.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "payment-sche-contract-execution-mobilization",
+      "heading": "Payment Schedule",
+      "title": "Contract Execution / Mobilization",
+      "body": "{deposit_pct} Due Upon Signing\nPayment due at execution of this Agreement to secure scheduling, initiate project management, preconstruction coordination, permitting, and mobilization. No work shall commence until payment is received.\nThe deposit is applied to project costs as they are incurred. If this Agreement is cancelled, see Contract Cancellation or Termination below.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "payment-sche-construction-progress-payments",
+      "heading": "Payment Schedule",
+      "title": "Construction Progress Payments",
+      "body": "- Bi-weekly progress payments based on Schedule of Values\n- Invoices issued every other week based on percentage of work completed\n- Payment due within 5 business days of invoice date\n- Work may be suspended for nonpayment without penalty to Kept Spec Advisors",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "payment-sche-allowances-change-orders",
+      "heading": "Payment Schedule",
+      "title": "Allowances & Change Orders",
+      "body": "- Allowance items billed as incurred and reconciled at final invoice (see Allowances under Scope Clarifications)\n- Change Orders require written approval and may require advance payment\n- Labor and management time associated with Change Orders are non-refundable once performed",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "payment-sche-substantial-completion",
+      "heading": "Payment Schedule",
+      "title": "Substantial Completion",
+      "body": "Remaining balance due less {retainage_pct}\nSubstantial Completion is achieved when the project is sufficiently complete for its intended use, notwithstanding minor punch list items.",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "payment-sche-final-payment",
+      "heading": "Payment Schedule",
+      "title": "Final Payment",
+      "body": "Balance Due Upon Final Completion\nFinal payment is due upon completion of punch list items and issuance of final invoice, including reconciliation of allowances and Change Orders",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "payment-term-payment-schedule",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Payment Schedule",
+      "body": "Client agrees to pay Contractor according to the payment schedule outlined in this Agreement. All invoices are due within 5 business days of issuance unless otherwise stated. Late payments may result in suspension of work.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "payment-term-labor-management-and-time-based-services",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Labor, Management, and Time-Based Services",
+      "body": "All labor, supervision, management, consulting, design, coordination, and administrative hours performed by Contractor are non-refundable once incurred, regardless of project completion status or contract termination.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "payment-term-contract-cancellation-or-termination",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Contract Cancellation or Termination",
+      "body": "In the event the Client cancels or terminates this Agreement for any reason:\n\nClient shall remain responsible for full payment of all hours worked and services rendered up to the effective date of cancellation.\nNo refunds shall be issued for time already spent, whether billed hourly, as part of General Conditions, Management/Supervision, or lump-sum line items that include labor or time-based services.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "payment-term-materials-and-special-orders",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Materials and Special Orders",
+      "body": "Materials that have been purchased, fabricated, or specially ordered for the project are the responsibility of the Client and are non-refundable, unless otherwise agreed in writing.\n\nMaterials that are unused and returnable may be returned at Contractor’s discretion. Any refund issued to the Client shall be limited to the actual amount refunded to Contractor by the supplier, less:\n- restocking fees\n- return shipping or handling costs\n- time and administrative costs associated with returns",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "payment-term-net-refund-calculation",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Net Refund Calculation",
+      "body": "Any approved material refund shall be applied as a credit to the Client’s account or issued after final reconciliation. Under no circumstances shall refunds exceed amounts actually recovered by the Contractor.",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "scope-clarif-exclusions",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Exclusions",
+      "body": "The following are not included unless listed as a line item above:\n- Flooring repair or replacement, including at removed cabinetry and appliance locations\n- Make-up air for the range hood (hood limited to {hood_cfm} CFM)\n- Exterior siding, trim, or masonry repair beyond the hood wall cap penetration\n- Ceiling painting, and wall painting beyond the areas listed\n- Replacement of cabinet hinges, drawer slides, or cabinet boxes\n- Asbestos or lead testing and abatement\n- Electrical panel, service, or new circuit work beyond the items listed\n- Plumbing beyond the sink, faucet, disposal, dishwasher reconnection, and supply stops\n- Appliance warranty service and manufacturer defects",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "scope-clarif-concealed-conditions",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Concealed Conditions",
+      "body": "Pricing is based on conditions visible at the time of the site visits. Conditions concealed behind cabinets, appliances, countertops, backsplash, or walls (water damage, rot, damaged or non-compliant wiring or plumbing, unfinished wall or floor surfaces, pests) will be documented and addressed by Change Order. Contingency is intended to cover these costs; unused contingency is credited on the final invoice.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "scope-clarif-owner-furnished-items",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Owner-Furnished Items",
+      "body": "The range is purchased directly by the Client so the manufacturer warranty is in the Client's name. Kept Spec Advisors will coordinate delivery timing; Convenient Woodworking will receive, set, and level the range. Owner-furnished items are not subject to contingency, overhead, or profit. Delays or defects in owner-furnished items are the Client's responsibility.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "scope-clarif-allowances",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Allowances",
+      "body": "Allowance items are budget amounts for Client selections. Actual cost is billed as incurred and reconciled on the final invoice. Overhead and profit percentages apply to the net allowance variance, whether an overage (billed) or underage (credited).",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "scope-clarif-schedule-lead-times-selections",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Schedule, Lead Times & Selections",
+      "body": "Total working time is approximately {working_time}, scheduled in blocks of no more than five consecutive days. The schedule depends on Client selections and supplier lead times; semi-custom cabinetry, countertops, glass, and appliances can take several weeks. Selections are due within 10 business days of signing to hold the schedule. Delays caused by late selections, owner-furnished items, or supplier backorders extend the schedule.",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "scope-clarif-kitchen-availability",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Room Availability",
+      "body": "The kitchen remains usable between work blocks, with two exceptions:\n1. Countertop replacement: counters and sink are out of service from tear-out until the new tops are installed and plumbing is reconnected. Tops are templated over the existing counters to keep this to approximately 1-2 days.\n2. Cabinet painting: cabinets may need to be emptied, and use is limited during application and cure, approximately 3-5 days.",
+      "default_on": false,
+      "order": 60
+    },
+    {
+      "id": "scope-clarif-owner-responsibilities",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Owner Responsibilities",
+      "body": "Client will empty cabinets and clear counters in work areas before each work block; provide access, parking, power, and water; keep children and pets out of work areas; and avoid use of painted cabinets during cure.",
+      "default_on": true,
+      "order": 70
+    },
+    {
+      "id": "scope-clarif-lead-based-paint",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Lead-Based Paint",
+      "body": "If the home was built before 1978, EPA Renovation, Repair and Painting (RRP) lead-safe work practices apply when painted surfaces are disturbed. Lead testing and any added cost for lead-safe practices are not included and will be addressed by Change Order if required.",
+      "default_on": true,
+      "order": 80
+    },
+    {
+      "id": "scope-clarif-warranty",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Warranty",
+      "body": "Workmanship is warranted for one (1) year from Substantial Completion. Materials, fixtures, and appliances carry their manufacturers' warranties. Damage from misuse, abuse, or normal wear is excluded.",
+      "default_on": true,
+      "order": 90
+    },
+    {
+      "id": "scope-clarif-contracting-parties",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Contracting Parties",
+      "body": "This Agreement is between the Client and Convenient Enterprises LLC, doing business as Kept Spec Advisors, as general contractor. Line items marked Convenient Woodworking are self-performed by Convenient Enterprises LLC, doing business as Convenient Woodworking. All invoices are issued by, and payments made to, Kept Spec Advisors.",
+      "default_on": true,
+      "order": 100
+    },
+    {
+      "id": "scope-clarif-proposal-validity",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Proposal Validity",
+      "body": "Pricing in this proposal is valid for {validity_days} days from the Proposal Date.",
+      "default_on": true,
+      "order": 110
+    }
+  ]
+}

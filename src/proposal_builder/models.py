@@ -1,0 +1,240 @@
+"""Data model for the proposal builder.
+
+Money and percentages are Decimal so totals match to the cent. Percent values
+are stored as fractions (0.05 = 5%).
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from enum import Enum
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+SCHEMA_VERSION = 1
+
+
+class _Model(BaseModel):
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+
+
+# ---------------------------------------------------------------- enums
+
+
+class PriceSource(str, Enum):
+    FIXED = "fixed"          # unit price typed on the item
+    RATE = "rate"            # unit price comes from the rate table
+    ALLOWANCE = "allowance"  # unit price comes from an allowance range tier
+    PERCENT = "percent"      # price is a fraction of the subtotal
+
+
+class Performer(str, Enum):
+    NONE = ""
+    KEPT_SPEC = "Kept Spec Advisors"
+    CW = "Convenient Woodworking"
+    SUB = "Licensed Sub"
+    CLIENT = "Client (owner-furnished)"
+
+
+class Tier(str, Enum):
+    LOW = "low"
+    MID = "mid"
+    HIGH = "high"
+
+
+# ---------------------------------------------------------------- catalog
+
+
+class Unit(_Model):
+    code: str
+    description: str
+
+
+class Rate(_Model):
+    key: str
+    name: str
+    unit: str = "HR"
+    rate: Decimal
+
+
+class Section(_Model):
+    number: int                 # 100, 200 ... 1400
+    name: str
+    key: str                    # short identifier, e.g. "MEP"
+
+    @property
+    def index(self) -> int:     # 11 for section 1100; used in line IDs
+        return self.number // 100
+
+
+class StockClass(_Model):
+    key: str
+    name: str
+    lengths_ft: list[Decimal]
+
+
+class AllowanceRange(_Model):
+    id: str
+    category: str
+    description: str
+    unit: str
+    low: Decimal
+    high: Decimal
+    basis: str = ""
+
+    @property
+    def mid(self) -> Decimal:
+        return ((self.low + self.high) / 2).quantize(Decimal("0.01"))
+
+    def price(self, tier: Tier) -> Decimal:
+        return {Tier.LOW: self.low, Tier.MID: self.mid, Tier.HIGH: self.high}[tier]
+
+
+class CatalogItem(_Model):
+    code: int
+    section: int                          # Section.number
+    group: str = ""                       # sub-heading inside a section, e.g. "Electrical"
+    title: str
+    description: str = ""                 # general description, printed on every use
+    unit: str = "LS"
+    price_source: PriceSource = PriceSource.FIXED
+    price: Decimal | None = None          # FIXED: unit price; PERCENT: fraction
+    rate_key: str | None = None           # RATE
+    allowance_ids: list[str] = Field(default_factory=list)
+    default_tier: Tier = Tier.HIGH
+    performer: Performer = Performer.NONE
+    stock_class: str | None = None        # stick goods rounding
+    not_included: bool = False            # $0 scope-clarity line
+    owner_furnished: bool = False
+    credit_if_unused: bool = False
+    internal_notes: str = ""
+    active: bool = True
+
+    @model_validator(mode="after")
+    def _check_source(self) -> "CatalogItem":
+        if self.price_source is PriceSource.RATE and not self.rate_key:
+            raise ValueError(f"item {self.code}: price_source 'rate' needs rate_key")
+        if self.price_source is PriceSource.PERCENT and self.price is None:
+            raise ValueError(f"item {self.code}: price_source 'percent' needs price")
+        return self
+
+
+class Catalog(_Model):
+    schema_version: int = SCHEMA_VERSION
+    units: list[Unit] = Field(default_factory=list)
+    rates: list[Rate] = Field(default_factory=list)
+    sections: list[Section] = Field(default_factory=list)
+    items: list[CatalogItem] = Field(default_factory=list)
+    allowances: list[AllowanceRange] = Field(default_factory=list)
+    stock_classes: list[StockClass] = Field(default_factory=list)
+
+    # lookups
+    def item(self, code: int) -> CatalogItem | None:
+        return next((i for i in self.items if i.code == code), None)
+
+    def rate(self, key: str) -> Rate | None:
+        return next((r for r in self.rates if r.key == key), None)
+
+    def allowance(self, id_: str) -> AllowanceRange | None:
+        return next((a for a in self.allowances if a.id == id_), None)
+
+    def section(self, number: int) -> Section | None:
+        return next((s for s in self.sections if s.number == number), None)
+
+    def unit_price(self, item: CatalogItem, tier: Tier | None = None) -> Decimal | None:
+        """Resolved default unit price (fraction for percent items)."""
+        if item.price_source is PriceSource.RATE:
+            r = self.rate(item.rate_key or "")
+            return r.rate if r else None
+        if item.price_source is PriceSource.ALLOWANCE:
+            if item.allowance_ids:
+                a = self.allowance(item.allowance_ids[0])
+                if a:
+                    return a.price(tier or item.default_tier)
+            return item.price
+        return item.price
+
+    def validate_refs(self) -> list[str]:
+        """Return human-readable integrity problems (empty list = clean)."""
+        problems: list[str] = []
+        codes = [i.code for i in self.items]
+        for c in sorted({c for c in codes if codes.count(c) > 1}):
+            problems.append(f"duplicate item code {c}")
+        sec = {s.number for s in self.sections}
+        units = {u.code for u in self.units}
+        rates = {r.key for r in self.rates}
+        allow = {a.id for a in self.allowances}
+        stock = {s.key for s in self.stock_classes}
+        for i in self.items:
+            if i.section not in sec:
+                problems.append(f"item {i.code}: unknown section {i.section}")
+            if i.unit not in units:
+                problems.append(f"item {i.code}: unknown unit {i.unit}")
+            if i.rate_key and i.rate_key not in rates:
+                problems.append(f"item {i.code}: unknown rate {i.rate_key}")
+            for a in i.allowance_ids:
+                if a not in allow:
+                    problems.append(f"item {i.code}: unknown allowance {a}")
+            if i.stock_class and i.stock_class not in stock:
+                problems.append(f"item {i.code}: unknown stock class {i.stock_class}")
+        for a in self.allowances:
+            if a.unit not in units:
+                problems.append(f"allowance {a.id}: unknown unit {a.unit}")
+            if a.low > a.high:
+                problems.append(f"allowance {a.id}: low > high")
+        return problems
+
+
+# ---------------------------------------------------------------- boilerplate
+
+
+class BoilerplateBlock(_Model):
+    id: str
+    heading: str            # group heading, e.g. "Payment Schedule"
+    title: str              # sub-heading printed above the body ("" = none)
+    body: str               # Markdown; may contain {variables}
+    default_on: bool = True
+    order: int = 0
+
+
+class Boilerplate(_Model):
+    schema_version: int = SCHEMA_VERSION
+    headings: list[str] = Field(default_factory=list)   # print order of groups
+    blocks: list[BoilerplateBlock] = Field(default_factory=list)
+
+    def by_heading(self, heading: str) -> list[BoilerplateBlock]:
+        return sorted((b for b in self.blocks if b.heading == heading), key=lambda b: b.order)
+
+
+# ---------------------------------------------------------------- settings
+
+
+class Variable(_Model):
+    name: str               # referenced as {name}
+    value: str
+    unit: str = ""
+    description: str = ""
+
+
+class Company(_Model):
+    legal_name: str = ""
+    dba: str = ""
+    address: str = ""
+    phone: str = ""
+    email: str = ""
+    logo_path: str = ""     # relative to the data folder
+
+
+class Settings(_Model):
+    schema_version: int = SCHEMA_VERSION
+    company: Company = Field(default_factory=Company)
+    proposal_year: int = 26
+    next_proposal_seq: int = 6
+    default_waste_pct: Decimal = Decimal("0.10")
+    deposit_pct: Decimal = Decimal("0.25")
+    retainage_pct: Decimal = Decimal("0.05")
+    validity_days: int = 30
+    global_variables: list[Variable] = Field(default_factory=list)
+
+    def next_proposal_number(self) -> str:
+        return f"{self.proposal_year:02d}{self.next_proposal_seq:03d}"
