@@ -1,7 +1,7 @@
 # Proposal Builder: Requirements Spec
 
-Version 0.2 | 2026-10-15 | Owner: Nick (Kept Spec Advisors)
-Answers to Q1 to Q13 are incorporated. Remaining open items are listed in section 15.
+Version 1.0 | 2026-10-15 | Owner: Nick (Kept Spec Advisors)
+All open questions are resolved. Section 15 records the assumptions made.
 
 ## 1. Purpose and success criteria
 
@@ -223,9 +223,9 @@ The Exclusions block is a checklist of library bullets plus free text. Example b
    - Progress payments = Total minus deposit minus retainage.
 
 ### 5.5 Quantity rounding to stock lengths (stick goods only)
-- **Stock lengths:** a lookup table of available lengths per material class (e.g., trim at 8, 10 and 16 ft). Catalog items are linked to a class.
+- **Stock lengths:** a lookup table of available lengths per material class. Catalog items are linked to a class. The default class is trim, at 8, 10, 12, 16 and 20 ft.
 - **Input:** a single takeoff total, e.g. 50 LF.
-- **Need** = takeoff x (1 + waste %). The waste % is a global variable, with a per-line override.
+- **Need** = takeoff x (1 + waste %). The waste % is a global variable (default 10%), with a per-line override.
 - **Pick:** the software chooses the combination of stock lengths that covers the need with the least excess. On a tie, it picks fewer pieces.
 - **Line quantity** = total purchased LF.
 - **Internal view:** shows the piece list and the excess.
@@ -268,7 +268,9 @@ Modeled on the 26001 ECN tab.
 - Absorbed by Kept Spec.
 
 **Markup**
-- Percent items apply to change order amounts. The exact rule is open (Q14).
+- CO price = cost delta x (1 + overhead % + profit %). That is 15% at current rates.
+- Builder's risk, contingency and CO management do not apply to change orders.
+- A CO funded from contingency draws contingency down by the CO price. Any amount beyond the remaining contingency is billed to the client.
 
 **Other**
 - Status: Draft, Issued, Approved, Rejected.
@@ -409,8 +411,7 @@ A toggle shows fields that never print:
 5. Change orders, SOV, reconciliation. Acceptance: 26001 rebuilt and its ledger matches.
 6. Windows .exe packaging, backups, install notes.
 
-## 15. Open questions
-- **Q14** CO markup rule.
-  - Which percent items apply to a CO cost delta: all five (25.5%), or a subset such as OH + profit (15%)?
-  - When a CO is funded from contingency, is contingency drawn down at raw cost or at marked-up cost?
-- **Q15** Default waste % for stick goods, and the stock lengths per material class (trim 8/10/16 ft confirmed; anything else?).
+## 15. Assumptions (correct if wrong)
+- **Contingency draws:** a contingency-funded CO draws contingency down at CO price (cost + OH&P), not at raw cost.
+- **Trim stock lengths:** 8, 10, 12, 16 and 20 ft (12 and 20 added to the original 8/10/16). All lengths are editable in the catalog manager.
+- **Rate assignments** in 4.3 are a starting point. Rates and their links to items are editable.
