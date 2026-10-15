@@ -446,4 +446,4 @@ def settings_page() -> None:
 
 @ui.page("/")
 def index() -> None:
-    ui.navigate.to("/items")
+    ui.navigate.to("/projects")

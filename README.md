@@ -9,8 +9,8 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 | Milestone | Scope | State |
 |---|---|---|
 | 1 | Data model, file storage, Excel import, catalog manager | done |
-| 2 | Proposal editor, calculations, variables, snapshot rule | next |
-| 3 | PDF engine (Typst), pagination rules | |
+| 2 | Proposal editor, calculations, variables, snapshot rule | done |
+| 3 | PDF engine (Typst), pagination rules | next |
 | 4 | Revisions, alternates, boilerplate per proposal, validation | |
 | 5 | Change orders, schedule of values, reconciliation | |
 | 6 | Windows .exe packaging | |
@@ -23,6 +23,17 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 4. Double-click `run.bat`. The app opens in its own window. `run.bat --browser` opens it in a browser tab instead.
 
 On first start the app creates `%USERPROFILE%\KeptSpec Proposals` and fills it with the catalog imported from Proposal_Template4.xlsx. To keep data in Proton Drive, open Settings, paste the Proton Drive folder path under Data folder, and click "Use this folder". An empty folder is seeded automatically.
+
+## Using it
+
+- **Projects**: New project starts blank (percent items only) or as a copy of an existing project. "Import from Excel" converts a proposal sheet from the old workbook (e.g. "26005 Proposal").
+- **Editor**: tick sections on the left (order arrows set print order), add lines from the catalog, edit title, performer, unit, qty and price in the grid, double-click an ID, notes or cost cell for the full line form.
+- **Line form**: detail notes with {variables}, quantity bound to a variable or computed from a takeoff and stock lengths, price from a rate, allowance tier, fixed value or variable, flags, internal fields, and "Pull update" when the catalog changed.
+- **Variables** tab: per-proposal values; every {name} and bound field updates when a value changes.
+- **Alternates** tab: up to 3; each removes base lines and/or adds lines assigned to it.
+- **Issues** tab: undefined variables, excluded lines, catalog changes, unused variables.
+
+Every edit saves immediately to the data folder; previous versions go to `backups/`.
 
 ## Re-import from Excel
 

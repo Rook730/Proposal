@@ -1,0 +1,852 @@
+"""Proposal editor (milestone 2)."""
+
+from __future__ import annotations
+
+from datetime import date
+from decimal import Decimal
+
+from nicegui import ui
+from pydantic import ValidationError
+
+from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
+from ..models import Performer, PriceSource, Variable
+from ..proposal import (
+    Alternate,
+    Line,
+    LineTier,
+    Project,
+    ProjectStatus,
+    Revision,
+    catalog_differences,
+    line_from_item,
+    pull_update,
+)
+from .pages import md_breaks
+from .state import get_state
+from .widgets import BRAND, Col, EditableGrid, layout, to_decimal
+
+ALT_COLORS = {1: "#DCE8F7", 2: "#E3F1E8", 3: "#F6ECDD"}
+PCT_COLOR = "#E6E8EB"
+MAX_ALTERNATES = 3
+
+
+def money(v: Decimal | None) -> str:
+    return "" if v is None else f"${v:,.2f}"
+
+
+def _num(v) -> float | None:
+    return None if v is None else float(v)
+
+
+class Editor:
+    def __init__(self, number: str):
+        self.st = get_state()
+        self.project: Project = self.st.projects.load_project(number)
+        self.rev: Revision = self.st.projects.load_revision(number)
+        self.section_filter: int | None = None
+        self.results: Results = self._calc()
+
+    # ------------------------------------------------------------ model plumbing
+    @property
+    def cat(self):
+        return self.st.catalog
+
+    def _calc(self) -> Results:
+        return calculate(self.rev, self.st.settings, self.cat.stock_classes, self.project)
+
+    def variables(self) -> dict[str, str]:
+        return variable_map(self.project, self.rev, self.st.settings)
+
+    def save(self, refresh_grid: bool = True) -> None:
+        self.st.projects.save_revision(self.project.number, self.rev)
+        self.results = self._calc()
+        self.totals_bar.refresh()
+        self.sections_panel.refresh()
+        self.alternates_panel.refresh()
+        self.issues_panel.refresh()
+        if refresh_grid:
+            self.refresh_grid()
+
+    def save_project(self) -> None:
+        self.st.projects.save_project(self.project)
+        self.header.refresh()
+
+    def section_name(self, number: int) -> str:
+        s = self.cat.section(number)
+        return f"{number} {s.name}" if s else str(number)
+
+    # ------------------------------------------------------------ page
+    def build(self) -> None:
+        layout(f"{self.project.number} {self.project.project_name}", drawer=False)
+        ui.add_css(f"""
+            .pb-pct {{ background: {PCT_COLOR} !important; }}
+            .pb-alt1 {{ background: {ALT_COLORS[1]} !important; }}
+            .pb-alt2 {{ background: {ALT_COLORS[2]} !important; }}
+            .pb-alt3 {{ background: {ALT_COLORS[3]} !important; }}
+            .pb-out {{ color: #9aa0a6; font-style: italic; }}
+        """)
+        self.header()
+        self.totals_bar()
+        with ui.tabs().props("dense inline-label align=left").classes("w-full border-b") as tabs:
+            t_lines = ui.tab("Lines", icon="list")
+            t_vars = ui.tab("Variables", icon="data_object")
+            t_alts = ui.tab("Alternates", icon="call_split")
+            t_issues = ui.tab("Issues", icon="report")
+        with ui.tab_panels(tabs, value=t_lines).classes("w-full"):
+            with ui.tab_panel(t_lines).classes("p-0 pt-2"):
+                self.lines_tab()
+            with ui.tab_panel(t_vars):
+                self.variables_tab()
+            with ui.tab_panel(t_alts):
+                self.alternates_panel()
+            with ui.tab_panel(t_issues):
+                self.issues_panel()
+
+    @ui.refreshable_method
+    def header(self) -> None:
+        p = self.project
+        with ui.row().classes("w-full items-center gap-4"):
+            ui.button(icon="arrow_back", on_click=lambda: ui.navigate.to("/projects")).props("flat round dense")
+            with ui.column().classes("gap-0"):
+                ui.label(f"{p.number}  {p.project_name}").classes("text-xl font-semibold")
+                ui.label("  |  ".join(x for x in (p.client_name, p.site_address) if x)).classes("text-sm text-gray-600")
+            ui.space()
+            ui.label(f"Rev {self.rev.rev}  |  {self.rev.state.value}  |  {self.rev.proposal_date:%Y.%m.%d}") \
+                .classes("text-sm")
+            ui.select([s.value for s in ProjectStatus], value=p.status.value, label="Status",
+                      on_change=lambda e: (setattr(p, "status", ProjectStatus(e.value)), self.save_project())) \
+                .props("dense outlined").classes("w-36")
+            ui.button("Project info", icon="edit", on_click=self.project_dialog).props("outline dense")
+
+    @ui.refreshable_method
+    def totals_bar(self) -> None:
+        r = self.results
+        with ui.row().classes("w-full items-stretch gap-3 my-2"):
+            def tile(label, value, sub="", color=BRAND, bg="white"):
+                with ui.card().classes("px-4 py-2 gap-0").style(f"background:{bg}"):
+                    ui.label(label).classes("text-xs uppercase text-gray-500")
+                    ui.label(value).classes("text-lg font-semibold").style(f"color:{color}")
+                    if sub:
+                        ui.label(sub).classes("text-xs text-gray-500")
+            tile("Subtotal", money(r.base.subtotal))
+            tile("Percent items", money(r.base.percent_total),
+                 f"{(r.base.percent_total / r.base.subtotal * 100):.1f}% of subtotal" if r.base.subtotal else "")
+            tile("Total", money(r.base.total))
+            for n, sc in r.alternates.items():
+                d = r.delta(n)
+                tile(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base",
+                     bg=ALT_COLORS.get(n, "white"))
+            ps = payment_schedule(r.base.total, self.st.settings)
+            tile("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
+            if r.errors:
+                tile("Issues", str(len(r.errors)), "see Issues tab", color="#B00020")
+
+    # ------------------------------------------------------------ lines tab
+    def lines_tab(self) -> None:
+        with ui.row().classes("w-full no-wrap gap-3 items-start"):
+            with ui.card().classes("w-72 p-2 shrink-0"):
+                self.sections_panel()
+            with ui.column().classes("grow gap-2 min-w-0"):
+                with ui.row().classes("gap-2 items-center"):
+                    ui.button("Add from catalog", icon="playlist_add", on_click=self.catalog_picker).props("dense")
+                    ui.button("Custom line", icon="add", on_click=self.custom_line).props("dense outline")
+                    ui.separator().props("vertical")
+                    ui.button(icon="edit", on_click=self._edit_selected).props("dense flat").tooltip("Edit line")
+                    ui.button(icon="content_copy", on_click=self._duplicate_selected).props("dense flat") \
+                        .tooltip("Duplicate")
+                    ui.button(icon="arrow_upward", on_click=lambda: self._move_selected(-1)).props("dense flat") \
+                        .tooltip("Move up")
+                    ui.button(icon="arrow_downward", on_click=lambda: self._move_selected(1)).props("dense flat") \
+                        .tooltip("Move down")
+                    ui.button(icon="delete", on_click=self._delete_selected).props("dense flat color=negative") \
+                        .tooltip("Delete")
+                    flt = ui.input(placeholder="Filter lines").props("dense clearable").classes("w-56")
+                    ui.label("Double-click ID, notes or cost to open a line; other cells edit in place.") \
+                        .classes("text-xs text-gray-500")
+                self.grid = ui.aggrid(self._grid_options(), auto_size_columns=False) \
+                    .classes("w-full").style("height:64vh")
+                self.grid.on("cellDoubleClicked", self._dblclick)
+                self.grid.on("cellValueChanged", self._cell_changed)
+                flt.on_value_change(lambda e: self.grid.run_grid_method("setGridOption", "quickFilterText",
+                                                                       e.value or ""))
+
+    def _grid_options(self) -> dict:
+        perf = [p.value for p in Performer]
+        units = [u.code for u in self.cat.units]
+        return {
+            "columnDefs": [
+                {"field": "id", "headerName": "ID", "width": 72, "pinned": "left"},
+                {"field": "code", "headerName": "Code", "width": 72},
+                {"field": "section_name", "headerName": "Section", "width": 130, "hide": self.section_filter is not None},
+                {"field": "title", "headerName": "Title", "width": 180, "editable": True},
+                {"field": "notes", "headerName": "Notes", "flex": 1, "minWidth": 160, "tooltipField": "notes"},
+                {"field": "performer", "headerName": "Performer", "width": 140, "editable": True,
+                 "cellEditor": "agSelectCellEditor", "cellEditorParams": {"values": perf}},
+                {"field": "unit", "headerName": "Unit", "width": 70, "editable": True,
+                 "cellEditor": "agSelectCellEditor", "cellEditorParams": {"values": units}},
+                {"field": "qty", "headerName": "Qty", "width": 80, "type": "rightAligned",
+                 "cellDataType": "number", ":editable": "p => !p.data.qty_locked"},
+                {"field": "price", "headerName": "Unit price", "width": 110, "type": "rightAligned",
+                 "cellDataType": "number", "editable": True,
+                 ":valueFormatter": "p => p.value == null ? '' : (p.data.pct ? p.value + '%' : "
+                                    "'$' + Number(p.value).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}))"},
+                {"field": "cost", "headerName": "Cost", "width": 115, "type": "rightAligned"},
+                {"field": "basis", "headerName": "Basis", "width": 100},
+                {"field": "flags", "headerName": "Flags", "width": 120, "tooltipField": "flags"},
+            ],
+            "rowData": self._rows(),
+            "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
+            "rowHeight": 32, "headerHeight": 36,
+            "stopEditingWhenCellsLoseFocus": True,
+            "defaultColDef": {"resizable": True},
+            "rowClassRules": {"pb-pct": "data.pct", "pb-alt1": "data.alt === 1", "pb-alt2": "data.alt === 2",
+                              "pb-alt3": "data.alt === 3", "pb-out": "data.excluded"},
+            "tooltipShowDelay": 400,
+        }
+
+    def _ordered_lines(self) -> list[Line]:
+        order = list(self.rev.sections) + sorted({ln.section for ln in self.rev.lines} - set(self.rev.sections))
+        out = []
+        for sec in order:
+            if self.section_filter is not None and sec != self.section_filter:
+                continue
+            out += self.rev.section_lines(sec)
+        return out
+
+    def _rows(self) -> list[dict]:
+        rows = []
+        r = self.results
+        pct = r.base.percent_items
+        for ln in self._ordered_lines():
+            lr = r.lines[ln.id]
+            flags = []
+            if ln.not_included:
+                flags.append("not incl.")
+            if ln.owner_furnished:
+                flags.append("owner")
+            if ln.is_allowance:
+                flags.append("allow." + (f" {ln.tier.value}" if ln.allowance_id else ""))
+            if ln.alternate:
+                flags.append(f"Alt {ln.alternate}")
+            if any(ln.id in a.removes for a in self.rev.alternates):
+                flags.append("swapped")
+            if catalog_differences(ln, self.cat):
+                flags.append("catalog changed")
+            if lr.errors:
+                flags.append("error")
+            basis = ln.price_basis.value + (f" ({ln.rate_key})" if ln.rate_key and ln.price_basis is PriceSource.RATE else "")
+            qty_note = ""
+            if ln.qty_var:
+                qty_note = f" ={{{ln.qty_var}}}"
+            elif lr.stock:
+                qty_note = " (stock)"
+            cost = pct.get(ln.id) if ln.is_percent else lr.cost
+            if ln.is_percent and ln.alternate:
+                cost = None
+            rows.append({
+                "id": ln.id, "code": ln.code, "section_name": self.section_name(ln.section),
+                "title": ln.title, "notes": render(ln.notes, self.variables()) or ln.general_description,
+                "performer": ln.performer.value, "unit": ln.unit,
+                "qty": _num(lr.qty), "qty_locked": bool(ln.qty_var or lr.stock or ln.is_percent),
+                "price": _num(lr.unit_price * 100 if ln.is_percent else lr.unit_price),
+                "cost": money(cost) + qty_note if cost is not None else qty_note,
+                "basis": basis, "flags": ", ".join(flags), "pct": ln.is_percent, "alt": ln.alternate,
+                "excluded": ln.section not in self.rev.sections,
+            })
+        return rows
+
+    INLINE_EDIT = {"title", "performer", "unit", "qty", "price"}
+
+    def _dblclick(self, e) -> None:
+        if e.args.get("colId") in self.INLINE_EDIT and not (e.args.get("colId") == "qty" and e.args["data"].get("qty_locked")):
+            return  # double-click on an editable cell edits in place
+        self.line_dialog(self.rev.line(e.args["data"]["id"]))
+
+    def refresh_grid(self) -> None:
+        self.grid.options["rowData"] = self._rows()
+        for c in self.grid.options["columnDefs"]:
+            if c["field"] == "section_name":
+                c["hide"] = self.section_filter is not None
+        self.grid.update()
+
+    def _cell_changed(self, e) -> None:
+        ln = self.rev.line(e.args["data"]["id"])
+        field, val = e.args["colId"], e.args.get("newValue")
+        if ln is None:
+            return
+        try:
+            if field == "title":
+                ln.title = val or ln.title
+            elif field == "performer":
+                ln.performer = Performer(val or "")
+            elif field == "unit":
+                ln.unit = val
+            elif field == "qty":
+                ln.qty = to_decimal(val) or Decimal(0)
+                ln.takeoff = None
+            elif field == "price":
+                p = to_decimal(val)
+                if ln.is_percent:
+                    ln.unit_price = p / 100 if p is not None else None
+                else:
+                    ln.unit_price = p
+                    if ln.price_basis is PriceSource.RATE:
+                        ln.price_basis = PriceSource.FIXED
+                    elif ln.price_basis is PriceSource.ALLOWANCE:
+                        ln.tier = LineTier.CUSTOM
+                ln.price_var = None
+        except (ValidationError, ValueError) as err:
+            ui.notify(f"Not saved: {err}", type="negative")
+        self.save()
+
+    async def _selected(self) -> Line | None:
+        rows = await self.grid.get_selected_rows()
+        if not rows:
+            ui.notify("Select a line first.")
+            return None
+        return self.rev.line(rows[0]["id"])
+
+    async def _edit_selected(self) -> None:
+        ln = await self._selected()
+        if ln:
+            self.line_dialog(ln)
+
+    async def _duplicate_selected(self) -> None:
+        ln = await self._selected()
+        if ln:
+            copy = ln.model_copy(deep=True)
+            copy.id = self.rev.new_line_id(ln.section)
+            self.rev.add_line(copy)
+            copy.order = ln.order + 5
+            self.save()
+            ui.notify(f"Duplicated {ln.id} as {copy.id}")
+
+    async def _move_selected(self, d: int) -> None:
+        ln = await self._selected()
+        if ln:
+            self.rev.move_line(ln.id, d)
+            self.save()
+
+    async def _delete_selected(self) -> None:
+        ln = await self._selected()
+        if not ln:
+            return
+        with ui.dialog() as dlg, ui.card():
+            ui.label(f"Delete line {ln.id} {ln.title}? Its ID is retired.")
+            with ui.row():
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Delete", on_click=lambda: dlg.submit(True)).props("color=negative")
+        if await dlg:
+            self.rev.remove_line(ln.id)
+            self.save()
+
+    # ------------------------------------------------------------ sections panel
+    @ui.refreshable_method
+    def sections_panel(self) -> None:
+        r = self.results
+        with ui.row().classes("w-full items-center justify-between"):
+            ui.label("Sections").classes("font-semibold")
+            ui.button("All", on_click=lambda: self._filter(None)) \
+                .props(f"dense {'unelevated' if self.section_filter is None else 'flat'} size=sm")
+        ui.label("Checked sections print; order sets print order.").classes("text-xs text-gray-500")
+        included = list(self.rev.sections)
+        others = [s.number for s in self.cat.sections if s.number not in included]
+        for num in included + others:
+            on = num in included
+            n_lines = len(self.rev.section_lines(num))
+            with ui.row().classes("w-full items-center no-wrap gap-1 py-0") \
+                    .style("background:#eef3f9;border-radius:4px" if self.section_filter == num else ""):
+                ui.checkbox(value=on, on_change=lambda e, n=num: self._toggle_section(n, e.value)).props("dense")
+                lbl = ui.label(self.section_name(num)).classes(
+                    "text-sm grow cursor-pointer truncate " + ("" if on else "text-gray-400"))
+                lbl.on("click", lambda n=num: self._filter(n))
+                if on:
+                    ui.label(money(r.base.section_total(num))).classes("text-xs text-gray-600")
+                    ui.button(icon="expand_less", on_click=lambda n=num: self._move_section(n, -1)) \
+                        .props("flat dense round size=xs")
+                    ui.button(icon="expand_more", on_click=lambda n=num: self._move_section(n, 1)) \
+                        .props("flat dense round size=xs")
+                elif n_lines:
+                    ui.label(f"{n_lines} hidden").classes("text-xs text-orange-700")
+
+    def _filter(self, section: int | None) -> None:
+        self.section_filter = section
+        self.sections_panel.refresh()
+        self.refresh_grid()
+
+    def _toggle_section(self, num: int, on: bool) -> None:
+        if on and num not in self.rev.sections:
+            self.rev.sections.append(num)
+        elif not on and num in self.rev.sections:
+            self.rev.sections.remove(num)
+        self.save()
+
+    def _move_section(self, num: int, d: int) -> None:
+        s = self.rev.sections
+        i = s.index(num)
+        j = i + d
+        if 0 <= j < len(s):
+            s[i], s[j] = s[j], s[i]
+            self.save()
+
+    # ------------------------------------------------------------ add lines
+    def catalog_picker(self) -> None:
+        rows = []
+        for it in self.cat.items:
+            if not it.active:
+                continue
+            price = self.cat.unit_price(it)
+            rows.append({"code": it.code, "section": self.section_name(it.section), "title": it.title,
+                         "unit": it.unit, "source": it.price_source.value,
+                         "price": (f"{price * 100:.1f}%" if it.price_source is PriceSource.PERCENT
+                                   else money(price)) if price is not None else "",
+                         "description": it.description})
+        with ui.dialog().props("maximized=false") as dlg, ui.card().classes("w-[1100px] max-w-full"):
+            ui.label("Add from catalog").classes("text-lg font-semibold")
+            ui.label("Tick one or more items. Each becomes a line in its own section; "
+                     "the line keeps a copy of the catalog values.").classes("text-xs text-gray-500")
+            flt = ui.input(placeholder="Search").props("dense clearable autofocus").classes("w-80")
+            g = ui.aggrid({
+                "columnDefs": [
+                    {"field": "code", "headerName": "Code", "width": 80},
+                    {"field": "section", "headerName": "Section", "width": 200},
+                    {"field": "title", "headerName": "Title", "width": 220},
+                    {"field": "unit", "headerName": "Unit", "width": 70},
+                    {"field": "source", "headerName": "Source", "width": 90},
+                    {"field": "price", "headerName": "Price", "width": 100},
+                    {"field": "description", "headerName": "Description", "flex": 1, "tooltipField": "description"},
+                ],
+                "rowData": rows,
+                "rowSelection": {"mode": "multiRow"},
+                "rowHeight": 30,
+            }, auto_size_columns=False).classes("w-full").style("height:60vh")
+            flt.on_value_change(lambda e: g.run_grid_method("setGridOption", "quickFilterText", e.value or ""))
+
+            async def add() -> None:
+                sel = await g.get_selected_rows()
+                if not sel:
+                    ui.notify("Tick at least one item.")
+                    return
+                added = []
+                for r in sel:
+                    it = self.cat.item(r["code"])
+                    ln = line_from_item(it, self.cat, self.rev.new_line_id(it.section))
+                    self.rev.add_line(ln)
+                    added.append(ln.id)
+                dlg.close()
+                self.save()
+                ui.notify(f"Added {', '.join(added)}", type="positive")
+
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=dlg.close).props("flat")
+                ui.button("Add selected", icon="playlist_add", on_click=add)
+        dlg.open()
+
+    def custom_line(self) -> None:
+        sec = self.section_filter or (self.rev.sections[0] if self.rev.sections else self.cat.sections[0].number)
+        ln = Line(id=self.rev.new_line_id(sec), section=sec, title="New line", unit_price=Decimal(0))
+        self.rev.add_line(ln)
+        self.save()
+        self.line_dialog(ln)
+
+    # ------------------------------------------------------------ line dialog
+    def line_dialog(self, ln: Line | None) -> None:
+        if ln is None:
+            return
+        cat, rev = self.cat, self.rev
+        work = ln.model_copy(deep=True)
+        var_names = sorted(self.variables())
+        with ui.dialog() as dlg, ui.card().classes("w-[1000px] max-w-full"):
+            with ui.row().classes("w-full items-center"):
+                ui.label(f"Line {ln.id}" + (f"  (catalog {ln.code})" if ln.code else "  (custom)")) \
+                    .classes("text-lg font-semibold")
+                ui.space()
+                diffs = catalog_differences(ln, cat)
+                if diffs:
+                    ui.label("Catalog changed: " + ", ".join(diffs)).classes("text-xs text-orange-700")
+
+                    def pull() -> None:
+                        changed = pull_update(ln, cat)
+                        dlg.close()
+                        self.save()
+                        ui.notify(f"Pulled from catalog: {', '.join(changed)}", type="positive")
+                    ui.button("Pull update", icon="sync", on_click=pull).props("dense outline")
+
+            with ui.grid(columns=6).classes("w-full gap-x-3"):
+                title = ui.input("Title", value=work.title).props("dense").classes("col-span-3")
+                section = ui.select({s.number: f"{s.number} {s.name}" for s in cat.sections}, label="Section",
+                                    value=work.section).props("dense").classes("col-span-2")
+                unit = ui.select([u.code for u in cat.units], label="Unit", value=work.unit).props("dense")
+                performer = ui.select({p.value: p.value or "-" for p in Performer}, label="Performer (prints)",
+                                      value=work.performer.value).props("dense").classes("col-span-2")
+                sub_name = ui.input("Sub / vendor name (internal)", value=work.sub_name).props("dense") \
+                    .classes("col-span-2")
+                alt = ui.select({0: "Base", **{a.number: f"Alt {a.number} only" for a in rev.alternates}},
+                                label="Belongs to", value=work.alternate or 0).props("dense").classes("col-span-2")
+
+            with ui.row().classes("w-full items-start no-wrap gap-4"):
+                with ui.column().classes("w-1/2 gap-1"):
+                    ui.label("General description (from catalog)").classes("text-xs text-gray-500")
+                    ui.label(work.general_description or "-").classes("text-sm whitespace-pre-line")
+                    print_general = ui.switch("Print general description", value=work.print_general).props("dense")
+                    notes = ui.textarea("Detail notes (prints; Markdown; {variables})", value=work.notes) \
+                        .props("outlined autogrow").classes("w-full")
+                    with ui.row().classes("gap-1 flex-wrap"):
+                        for name in var_names:
+                            ui.chip(name, on_click=lambda n=name: notes.set_value((notes.value or "") + f"{{{n}}}")) \
+                                .props("dense outline clickable size=sm")
+                with ui.column().classes("w-1/2 gap-1"):
+                    ui.label("Preview").classes("text-xs text-gray-500")
+                    preview = ui.markdown().classes("text-sm border rounded p-2 w-full min-h-[80px]")
+
+                    def upd_preview() -> None:
+                        parts = []
+                        if print_general.value and work.general_description:
+                            parts.append(work.general_description)
+                        if notes.value:
+                            parts.append(render(notes.value, self.variables()))
+                        preview.set_content(md_breaks("\n\n".join(parts)))
+                        missing = undefined_references(notes.value or "", self.variables())
+                        warn_lbl.set_text(f"Undefined: {', '.join(sorted(missing))}" if missing else "")
+                    warn_lbl = ui.label().classes("text-xs text-red-700")
+                    notes.on_value_change(lambda _: upd_preview())
+                    print_general.on_value_change(lambda _: upd_preview())
+                    upd_preview()
+
+            ui.separator()
+            ui.label("Quantity").classes("font-semibold text-sm")
+            with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
+                qty = ui.number("Qty", value=_num(work.qty)).props("dense")
+                qty_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind to variable",
+                                    value=work.qty_var or "").props("dense")
+                takeoff = ui.number("or takeoff LF (stick goods)", value=_num(work.takeoff)).props("dense")
+                stock = ui.select({"": "-", **{s.key: s.name for s in cat.stock_classes}}, label="Stock class",
+                                  value=work.stock_class or "").props("dense")
+                waste = ui.number("Waste % (blank = default)",
+                                  value=_num(work.waste_pct * 100) if work.waste_pct is not None else None) \
+                    .props("dense")
+                stock_lbl = ui.label().classes("text-xs text-gray-600")
+
+            ui.label("Price").classes("font-semibold text-sm mt-2")
+            with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
+                basis = ui.select({p.value: p.value for p in PriceSource}, label="Basis",
+                                  value=work.price_basis.value).props("dense")
+                rate = ui.select({"": "-", **{r.key: f"{r.key} ${r.rate}" for r in cat.rates}}, label="Rate",
+                                 value=work.rate_key or "").props("dense")
+                allow = ui.select({"": "-", **{a.id: f"{a.category}: {a.description} ({a.unit} {a.low}-{a.high})"
+                                              for a in cat.allowances}},
+                                  label="Allowance range", value=work.allowance_id or "").props("dense") \
+                    .classes("col-span-2")
+                tier = ui.select({t.value: t.value for t in LineTier}, label="Tier", value=work.tier.value) \
+                    .props("dense")
+                price_shown = work.unit_price * 100 if (work.unit_price is not None and work.is_percent) else work.unit_price
+                price = ui.number("Unit price ($, or % for percent)", value=_num(price_shown)).props("dense")
+                price_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind price to variable",
+                                      value=work.price_var or "").props("dense").classes("col-span-2")
+                tier_lbl = ui.label().classes("text-xs text-gray-600 col-span-4")
+
+            def sync_price(source: str) -> None:
+                b = PriceSource(basis.value)
+                if source == "rate" and rate.value:
+                    r = cat.rate(rate.value)
+                    if r:
+                        price.set_value(float(r.rate))
+                        basis.set_value(PriceSource.RATE.value)
+                if source in ("allow", "tier") and allow.value:
+                    a = cat.allowance(allow.value)
+                    if a:
+                        if source == "allow":
+                            work.allowance_low, work.allowance_high = a.low, a.high
+                            unit.set_value(a.unit)
+                        t = LineTier(tier.value)
+                        tier_lbl.set_text(f"low ${work.allowance_low}  mid ${(work.allowance_low + work.allowance_high) / 2:.2f}"
+                                          f"  high ${work.allowance_high}")
+                        if t is not LineTier.CUSTOM:
+                            work.tier = t
+                            price.set_value(float(work.tier_price()))
+                            if b is not PriceSource.ALLOWANCE:
+                                basis.set_value(PriceSource.ALLOWANCE.value)
+
+            rate.on_value_change(lambda _: sync_price("rate"))
+            allow.on_value_change(lambda _: sync_price("allow"))
+            tier.on_value_change(lambda _: sync_price("tier"))
+            if work.allowance_low is not None and work.allowance_high is not None:
+                mid = (work.allowance_low + work.allowance_high) / 2
+                tier_lbl.set_text(f"low ${work.allowance_low}  mid ${mid:.2f}  high ${work.allowance_high}")
+
+            def upd_stock() -> None:
+                from ..calc import stock_round
+                sc = cat.stock_classes
+                cls = next((s for s in sc if s.key == stock.value), None)
+                if takeoff.value and cls:
+                    w = Decimal(str(waste.value)) / 100 if waste.value not in (None, "") else self.st.settings.default_waste_pct
+                    res = stock_round(Decimal(str(takeoff.value)), w, cls.lengths_ft)
+                    stock_lbl.set_text(f"need {res.need:.1f} LF: {res.describe()}")
+                    if unit.value != "LF" and any(u.code == "LF" for u in cat.units):
+                        unit.set_value("LF")
+                else:
+                    stock_lbl.set_text("")
+            for el in (takeoff, stock, waste):
+                el.on_value_change(lambda _: upd_stock())
+            upd_stock()
+
+            ui.separator()
+            with ui.row().classes("w-full gap-4"):
+                is_allow = ui.checkbox("Allowance", value=work.is_allowance)
+                ni = ui.checkbox("Not included ($0 line)", value=work.not_included)
+                of = ui.checkbox("Owner-furnished", value=work.owner_furnished)
+                cu = ui.checkbox("Credit if unused", value=work.credit_if_unused)
+            with ui.expansion("Internal (never prints)", icon="lock").classes("w-full"):
+                with ui.grid(columns=4).classes("w-full gap-x-3"):
+                    vendor = ui.input("Vendor", value=work.vendor).props("dense")
+                    quote_ref = ui.input("Quote ref", value=work.quote_ref).props("dense")
+                    quote_amt = ui.number("Quote amount", value=_num(work.quote_amount)).props("dense")
+                internal = ui.textarea("Internal notes", value=work.internal_notes).props("dense autogrow") \
+                    .classes("w-full")
+
+            def save() -> None:
+                try:
+                    b = PriceSource(basis.value)
+                    p = to_decimal(price.value)
+                    if b is PriceSource.PERCENT and p is not None:
+                        p = p / 100
+                    new_section = int(section.value)
+                    ln_id = ln.id
+                    if new_section != ln.section:
+                        ln_id = rev.new_line_id(new_section)
+                        for a in rev.alternates:
+                            a.removes = [ln_id if x == ln.id else x for x in a.removes]
+                    updated = work.model_copy(update=dict(
+                        id=ln_id, section=new_section, title=(title.value or "").strip() or ln.title,
+                        unit=unit.value, performer=Performer(performer.value), sub_name=sub_name.value or "",
+                        alternate=int(alt.value) or None, print_general=print_general.value,
+                        notes=notes.value or "",
+                        qty=to_decimal(qty.value) if qty.value not in (None, "") else Decimal(0),
+                        qty_var=qty_var.value or None,
+                        takeoff=to_decimal(takeoff.value), stock_class=stock.value or None,
+                        waste_pct=(to_decimal(waste.value) / 100) if waste.value not in (None, "") else None,
+                        price_basis=b, unit_price=p, rate_key=rate.value or None,
+                        allowance_id=allow.value or None, tier=LineTier(tier.value),
+                        price_var=price_var.value or None,
+                        is_allowance=is_allow.value, not_included=ni.value, owner_furnished=of.value,
+                        credit_if_unused=cu.value, vendor=vendor.value or "", quote_ref=quote_ref.value or "",
+                        quote_amount=to_decimal(quote_amt.value), internal_notes=internal.value or "",
+                    ))
+                    Line.model_validate(updated.model_dump())
+                except (ValidationError, ValueError, TypeError) as err:
+                    ui.notify(f"Not saved: {err}", type="negative", multi_line=True)
+                    return
+                idx = rev.lines.index(ln)
+                if updated.section != ln.section:
+                    if updated.section not in rev.sections:
+                        rev.sections.append(updated.section)
+                    existing = rev.section_lines(updated.section)
+                    updated.order = (existing[-1].order + 10) if existing else 10
+                rev.lines[idx] = updated
+                dlg.close()
+                self.save()
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=dlg.close).props("flat")
+                ui.button("Save", icon="save", on_click=save)
+        dlg.open()
+
+    # ------------------------------------------------------------ variables
+    def variables_tab(self) -> None:
+        ui.label("Proposal variables").classes("font-semibold")
+        ui.label("Use {name} in notes and boilerplate, or bind a line's quantity or price to a variable. "
+                 "Changing a value here updates every place it is used.").classes("text-xs text-gray-500")
+
+        def save_vars():
+            self.save()
+            builtin_tbl.refresh()
+
+        EditableGrid(lambda: self.rev.variables,
+                     [Col("name", "Name", width=200), Col("value", "Value", flex=1), Col("unit", "Unit", width=90),
+                      Col("description", "Description", flex=2)],
+                     save_vars, lambda: Variable(name=f"var{len(self.rev.variables) + 1}", value=""), height="32vh")
+
+        @ui.refreshable
+        def builtin_tbl() -> None:
+            own = {v.name for v in self.rev.variables}
+            rows = [{"name": k, "value": v, "source": "proposal" if k in own else
+                     ("global" if any(g.name == k for g in self.st.settings.global_variables) else "built-in")}
+                    for k, v in sorted(self.variables().items())]
+            ui.label("All values in effect").classes("font-semibold mt-4")
+            ui.table(columns=[{"name": "name", "label": "Name", "field": "name", "align": "left"},
+                              {"name": "value", "label": "Value", "field": "value", "align": "left"},
+                              {"name": "source", "label": "Source", "field": "source", "align": "left"}],
+                     rows=rows, row_key="name").props("dense flat bordered").classes("w-full")
+        builtin_tbl()
+
+    # ------------------------------------------------------------ alternates
+    @ui.refreshable_method
+    def alternates_panel(self) -> None:
+        r = self.results
+        ui.label("Alternates").classes("font-semibold")
+        ui.label("Each alternate removes base lines, adds its own lines, or both. Assign a line to an "
+                 "alternate in its line dialog (Belongs to). Totals recompute percent items on each "
+                 "alternate's own subtotal.").classes("text-xs text-gray-500")
+        base_lines = {ln.id: f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})"
+                      for ln in self._ordered_lines_all() if ln.alternate is None and not ln.is_percent}
+        for alt in sorted(self.rev.alternates, key=lambda a: a.number):
+            adds = [ln for ln in self.rev.lines if ln.alternate == alt.number]
+            sc = r.alternates.get(alt.number)
+            with ui.card().classes("w-full").style(f"border-left:6px solid {ALT_COLORS.get(alt.number, '#ccc')}"):
+                with ui.row().classes("w-full items-center"):
+                    ui.label(f"Alt {alt.number}").classes("text-lg font-semibold")
+                    ui.label(alt.kind(bool(adds))).classes("text-xs uppercase text-gray-500")
+                    ui.space()
+                    if sc:
+                        d = r.delta(alt.number)
+                        ui.label(f"Subtotal {money(sc.subtotal)}  |  Total {money(sc.total)}  |  "
+                                 f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base").classes("text-sm")
+                    ui.button(icon="delete", on_click=lambda a=alt: self._remove_alt(a)) \
+                        .props("flat dense round color=negative")
+                with ui.grid(columns=3).classes("w-full gap-x-3"):
+                    ui.input("Name", value=alt.name).props("dense") \
+                        .on_value_change(lambda e, a=alt: (setattr(a, "name", e.value or ""), self._save_quiet()))
+                    ui.input("Description (prints)", value=alt.description).props("dense").classes("col-span-2") \
+                        .on_value_change(lambda e, a=alt: (setattr(a, "description", e.value or ""), self._save_quiet()))
+                ui.select(base_lines, multiple=True, value=[x for x in alt.removes if x in base_lines],
+                          label="Removes these base lines",
+                          on_change=lambda e, a=alt: (setattr(a, "removes", list(e.value or [])), self.save())) \
+                    .props("dense use-chips").classes("w-full")
+                ui.label("Adds: " + (", ".join(f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})" for ln in adds)
+                                     or "none")).classes("text-sm")
+        if len(self.rev.alternates) < MAX_ALTERNATES:
+            ui.button("Add alternate", icon="add", on_click=self._add_alt).props("outline dense")
+        if r.conflicts:
+            ui.label("Mutually exclusive (remove the same base line): " +
+                     ", ".join(f"Alt {a} / Alt {b}" for a, b in r.conflicts)).classes("text-sm text-orange-700 mt-2")
+        if r.combinations:
+            ui.label("Combinations").classes("font-semibold mt-3")
+            ui.table(columns=[{"name": "n", "label": "Combination", "field": "n", "align": "left"},
+                              {"name": "s", "label": "Subtotal", "field": "s", "align": "right"},
+                              {"name": "t", "label": "Total", "field": "t", "align": "right"}],
+                     rows=[{"n": c.name, "s": money(c.subtotal), "t": money(c.total)} for c in r.combinations],
+                     row_key="n").props("dense flat bordered")
+
+    def _ordered_lines_all(self) -> list[Line]:
+        keep = self.section_filter
+        self.section_filter = None
+        try:
+            return self._ordered_lines()
+        finally:
+            self.section_filter = keep
+
+    def _save_quiet(self) -> None:
+        self.st.projects.save_revision(self.project.number, self.rev)
+
+    def _add_alt(self) -> None:
+        used = {a.number for a in self.rev.alternates}
+        n = next(i for i in range(1, MAX_ALTERNATES + 1) if i not in used)
+        self.rev.alternates.append(Alternate(number=n, name=f"Alternate {n}"))
+        self.save()
+
+    async def _remove_alt(self, alt: Alternate) -> None:
+        with ui.dialog() as dlg, ui.card():
+            ui.label(f"Delete Alt {alt.number}? Its own lines move back to the base proposal.")
+            with ui.row():
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Delete", on_click=lambda: dlg.submit(True)).props("color=negative")
+        if await dlg:
+            for ln in self.rev.lines:
+                if ln.alternate == alt.number:
+                    ln.alternate = None
+            self.rev.alternates.remove(alt)
+            self.save()
+
+    # ------------------------------------------------------------ issues
+    def issues(self) -> list[tuple[str, str]]:
+        out: list[tuple[str, str]] = [("error", e) for e in self.results.errors]
+        v = self.variables()
+        for ln in self.rev.lines:
+            miss = undefined_references(ln.notes, v)
+            if miss:
+                out.append(("error", f"{ln.id}: undefined variable(s) {', '.join(sorted(miss))} in notes"))
+            d = catalog_differences(ln, self.cat)
+            if d:
+                out.append(("info", f"{ln.id}: catalog has changed ({', '.join(d)}); open the line to pull"))
+            if ln.section not in self.rev.sections:
+                out.append(("warn", f"{ln.id}: section {ln.section} is unchecked, line is excluded"))
+            if (ln.price_basis is PriceSource.ALLOWANCE and ln.tier is LineTier.CUSTOM
+                    and ln.allowance_low is not None and ln.unit_price is not None
+                    and not ln.is_percent and not (ln.allowance_low <= ln.unit_price <= ln.allowance_high)):
+                out.append(("warn", f"{ln.id}: price {money(ln.unit_price)} is outside its allowance range "
+                                    f"{money(ln.allowance_low)} to {money(ln.allowance_high)}"))
+        for b in self.rev.blocks:
+            if b.on:
+                miss = undefined_references(b.body, v)
+                if miss:
+                    out.append(("error", f"Boilerplate '{b.title or b.id}': undefined {', '.join(sorted(miss))}"))
+        for sec in self.rev.sections:
+            if not self.rev.section_lines(sec):
+                out.append(("warn", f"Section {self.section_name(sec)} is checked but has no lines"))
+        used = set()
+        for ln in self.rev.lines:
+            used |= {ln.qty_var, ln.price_var} - {None}
+            used |= referenced(ln.notes)
+        for b in self.rev.blocks:
+            if b.on:
+                used |= referenced(b.body)
+        for pv in self.rev.variables:
+            if pv.name not in used:
+                out.append(("info", f"Variable '{pv.name}' is not used anywhere"))
+        return out
+
+    @ui.refreshable_method
+    def issues_panel(self) -> None:
+        items = self.issues()
+        if not items:
+            ui.label("No issues.").classes("text-green-700")
+            return
+        icons = {"error": ("error", "text-red-700"), "warn": ("warning", "text-orange-700"),
+                 "info": ("info", "text-blue-700")}
+        for kind, msg in sorted(items, key=lambda x: ["error", "warn", "info"].index(x[0])):
+            icon, cls = icons[kind]
+            with ui.row().classes("items-center gap-2"):
+                ui.icon(icon).classes(cls)
+                ui.label(msg).classes("text-sm")
+
+    # ------------------------------------------------------------ project info
+    def project_dialog(self) -> None:
+        p, rev = self.project, self.rev
+        with ui.dialog() as dlg, ui.card().classes("w-[520px]"):
+            ui.label("Project info").classes("text-lg font-semibold")
+            client = ui.input("Client", value=p.client_name).props("dense").classes("w-full")
+            address = ui.input("Site address", value=p.site_address).props("dense").classes("w-full")
+            name = ui.input("Project", value=p.project_name).props("dense").classes("w-full")
+            with ui.input("Proposal date", value=rev.proposal_date.isoformat()).props("dense") as d:
+                with ui.menu().props("no-parent-event") as menu:
+                    ui.date().bind_value(d)
+                with d.add_slot("append"):
+                    ui.icon("edit_calendar").on("click", menu.open).classes("cursor-pointer")
+
+            def save() -> None:
+                try:
+                    p.client_name, p.site_address = client.value or "", address.value or ""
+                    p.project_name = name.value or p.project_name
+                    rev.proposal_date = date.fromisoformat(d.value)
+                except ValueError as e:
+                    ui.notify(str(e), type="negative")
+                    return
+                self.save_project()
+                dlg.close()
+                self.save()
+
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=dlg.close).props("flat")
+                ui.button("Save", icon="save", on_click=save)
+        dlg.open()
+
+
+@ui.page("/project/{number}")
+def editor_page(number: str) -> None:
+    try:
+        ed = Editor(number)
+    except FileNotFoundError as e:
+        layout("Project")
+        ui.label(str(e)).classes("text-red-700")
+        return
+    ed.build()

@@ -233,15 +233,14 @@ def apply_catalog_price(ln: Line, item: CatalogItem, catalog: Catalog) -> None:
     if ln.price_basis is PriceSource.RATE:
         r = catalog.rate(ln.rate_key or item.rate_key or "")
         ln.unit_price = r.rate if r else None
-    elif ln.price_basis is PriceSource.ALLOWANCE or ln.allowance_id or item.allowance_ids:
+    elif ln.price_basis is PriceSource.ALLOWANCE:
         aid = ln.allowance_id or (item.allowance_ids[0] if item.allowance_ids else None)
         a = catalog.allowance(aid) if aid else None
         if a:
             ln.allowance_id, ln.allowance_low, ln.allowance_high = a.id, a.low, a.high
-            if ln.price_basis is PriceSource.ALLOWANCE:
-                ln.unit = a.unit
-                ln.unit_price = ln.tier_price()
-        if ln.price_basis is not PriceSource.ALLOWANCE:
+            ln.unit = a.unit
+            ln.unit_price = ln.tier_price() if ln.tier is not LineTier.CUSTOM else ln.unit_price
+        else:
             ln.unit_price = item.price
     else:
         ln.unit_price = item.price

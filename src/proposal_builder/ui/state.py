@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..models import Boilerplate, Catalog, Settings
-from ..store import DataStore, resolve_data_dir
+from ..store import DataStore, ProjectStore, resolve_data_dir
 
 
 @dataclass
@@ -25,6 +25,10 @@ class AppState:
         self.settings = self.store.load_settings()
         self.catalog = self.store.load_catalog()
         self.boilerplate = self.store.load_boilerplate()
+
+    @property
+    def projects(self) -> ProjectStore:
+        return ProjectStore(self.store)
 
     def save_catalog(self) -> list[str]:
         """Save and return integrity warnings (saved regardless)."""

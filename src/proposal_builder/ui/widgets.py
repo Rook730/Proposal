@@ -9,6 +9,10 @@ from typing import Any, Callable
 from nicegui import ui
 from pydantic import BaseModel, ValidationError
 
+NAV_PROPOSALS = [
+    ("Projects", "/projects", "folder_open"),
+]
+
 NAV = [
     ("Catalog items", "/items", "list_alt"),
     ("Sections", "/sections", "view_agenda"),
@@ -23,7 +27,7 @@ NAV = [
 BRAND = "#1F3A5F"
 
 
-def layout(title: str) -> None:
+def layout(title: str, drawer: bool = True) -> None:
     ui.colors(primary=BRAND)
     ui.add_css("""
         .nicegui-content { padding: 16px 24px; }
@@ -33,8 +37,16 @@ def layout(title: str) -> None:
         ui.label("Kept Spec Proposal Builder").classes("text-lg font-semibold")
         ui.space()
         ui.label(title).classes("text-sm opacity-80")
-    with ui.left_drawer(value=True, bordered=True).classes("p-0").props("width=210"):
+    with ui.left_drawer(value=drawer, bordered=True).classes("p-0").props("width=210"):
         with ui.list().props("dense padding").classes("w-full"):
+            ui.item_label("Proposals").props("header").classes("text-xs uppercase")
+            for label, path, icon in NAV_PROPOSALS:
+                with ui.item(on_click=lambda p=path: ui.navigate.to(p)).props("clickable"):
+                    with ui.item_section().props("avatar"):
+                        ui.icon(icon, size="xs")
+                    with ui.item_section():
+                        ui.item_label(label).classes("font-semibold" if label == title else "")
+            ui.separator()
             ui.item_label("Catalog").props("header").classes("text-xs uppercase")
             for label, path, icon in NAV:
                 with ui.item(on_click=lambda p=path: ui.navigate.to(p)).props("clickable"):
