@@ -429,6 +429,12 @@ A toggle shows fields that never print:
 5. Change orders, SOV, reconciliation. Acceptance: 26001 rebuilt and its ledger matches.
 6. Windows .exe packaging, backups, install notes.
 
+**As built (M6)**
+- PyInstaller one-file exe plus a folder build (zip), both built and self-tested on Windows by GitHub Actions (`build-windows.yml`, manual run with a release tag, or a pushed v* tag), attached to a GitHub release.
+- `--self-test` checks the data folder seed, catalog integrity, calculation and PDF output.
+- Data stays in the user's data folder; the folder setting is in `%APPDATA%\KeptSpecProposal\config.json`, so replacing the exe keeps everything.
+- Settings has a full data-folder backup to zip; every save also keeps the previous file in backups/.
+
 ## 15. Assumptions (correct if wrong)
 - **Contingency draws:** a contingency-funded CO draws contingency down at CO price (cost + OH&P), not at raw cost.
 - **Trim stock lengths:** 8, 10, 12, 16 and 20 ft (12 and 20 added to the original 8/10/16). All lengths are editable in the catalog manager.
