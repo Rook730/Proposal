@@ -298,7 +298,7 @@ def line_from_item(item: CatalogItem, catalog: Catalog, line_id: str,
         performer=item.performer, stock_class=item.stock_class,
         not_included=item.not_included, owner_furnished=item.owner_furnished,
         credit_if_unused=item.credit_if_unused,
-        is_allowance=item.price_source is PriceSource.ALLOWANCE or bool(item.allowance_ids),
+        is_allowance=item.is_allowance,
         tier=LineTier((tier or item.default_tier).value),
     )
     apply_catalog_price(ln, item, catalog)
@@ -335,6 +335,8 @@ def catalog_differences(ln: Line, catalog: Catalog) -> dict[str, tuple]:
     diffs: dict[str, tuple] = {}
     if ln.general_description != item.description:
         diffs["general_description"] = (ln.general_description, item.description)
+    if ln.is_allowance != item.is_allowance:
+        diffs["allowance flag"] = (ln.is_allowance, item.is_allowance)
     if ln.price_basis is PriceSource.RATE:
         r = catalog.rate(ln.rate_key or "")
         if r and r.rate != ln.unit_price:
@@ -354,6 +356,8 @@ def pull_update(ln: Line, catalog: Catalog) -> list[str]:
         return []
     if "general_description" in diffs:
         ln.general_description = item.description
+    if "allowance flag" in diffs:
+        ln.is_allowance = item.is_allowance
     if ln.price_basis is PriceSource.RATE and "rate" in diffs:
         apply_catalog_price(ln, item, catalog)
     if "allowance range" in diffs:

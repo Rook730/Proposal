@@ -54,7 +54,8 @@ def _item_rows() -> list[dict]:
             shown += f"  ({i.rate_key})"
         elif i.price_source is PriceSource.ALLOWANCE:
             shown += f"  ({i.default_tier.value})" if price is not None else "range"
-        flags = " ".join(f for f, on in [("not incl.", i.not_included), ("owner", i.owner_furnished),
+        flags = " ".join(f for f, on in [("allow.", i.is_allowance), ("not incl.", i.not_included),
+                                         ("owner", i.owner_furnished),
                                          ("credit", i.credit_if_unused), ("inactive", not i.active)] if on)
         rows.append({
             "code": i.code, "section": f"{i.section} {sections.get(i.section, '?')}",
@@ -104,6 +105,7 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                                   value=f["performer"]).props("dense")
             stock = ui.select({"": "-", **{s.key: s.name for s in cat.stock_classes}}, label="Stock class",
                               value=f["stock_class"] or "").props("dense")
+            isa = ui.checkbox("Allowance (prints on proposal)", value=f["is_allowance"])
             ni = ui.checkbox("Not included ($0 line)", value=f["not_included"])
             of = ui.checkbox("Owner-furnished", value=f["owner_furnished"])
             cu = ui.checkbox("Credit if unused", value=f["credit_if_unused"])
@@ -128,8 +130,8 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                     price_source=ps, price=p, rate_key=rate.value or None,
                     allowance_ids=list(allow.value or []), default_tier=Tier(tier.value),
                     performer=Performer(performer.value), stock_class=stock.value or None,
-                    not_included=ni.value, owner_furnished=of.value, credit_if_unused=cu.value,
-                    internal_notes=notes.value or "", active=active.value,
+                    is_allowance=isa.value, not_included=ni.value, owner_furnished=of.value,
+                    credit_if_unused=cu.value, internal_notes=notes.value or "", active=active.value,
                 )
                 if not new.title:
                     raise ValueError("title is required")

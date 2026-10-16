@@ -677,7 +677,7 @@ class Editor:
 
             ui.separator()
             with ui.row().classes("w-full gap-4"):
-                is_allow = ui.checkbox("Allowance", value=work.is_allowance)
+                is_allow = ui.checkbox("Allowance (prints on proposal)", value=work.is_allowance)
                 ni = ui.checkbox("Not included ($0 line)", value=work.not_included)
                 of = ui.checkbox("Owner-furnished", value=work.owner_furnished)
                 cu = ui.checkbox("Credit if unused", value=work.credit_if_unused)

@@ -104,11 +104,21 @@ class CatalogItem(_Model):
     default_tier: Tier = Tier.HIGH
     performer: Performer = Performer.NONE
     stock_class: str | None = None        # stick goods rounding
+    is_allowance: bool = False            # lines print "Allowance"; defaults on for allowance-priced items
     not_included: bool = False            # $0 scope-clarity line
     owner_furnished: bool = False
     credit_if_unused: bool = False
     internal_notes: str = ""
     active: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _default_allowance(cls, data):
+        # catalogs saved before the field existed: flag items priced from or linked to allowance ranges
+        if isinstance(data, dict) and "is_allowance" not in data:
+            data = {**data, "is_allowance": data.get("price_source") in (PriceSource.ALLOWANCE, "allowance")
+                    or bool(data.get("allowance_ids"))}
+        return data
 
     @model_validator(mode="after")
     def _check_source(self) -> "CatalogItem":

@@ -188,6 +188,8 @@ def revision_diff(old: Revision, new: Revision, settings: Settings, stock: list[
                 det.append(f"unit price {_m(la.unit_price)} to {_m(lb.unit_price)}")
         if a.notes != b.notes or (a.print_general != b.print_general) or a.general_description != b.general_description:
             det.append("description updated")
+        if a.is_allowance != b.is_allowance:
+            det.append("now an allowance" if b.is_allowance else "no longer an allowance")
         if a.performer != b.performer:
             det.append(f"performer {a.performer.value or 'none'} to {b.performer.value or 'none'}")
         if a.alternate != b.alternate:

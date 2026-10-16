@@ -260,3 +260,14 @@ def test_project_store_roundtrip(tmp_path, p26005):
     assert [p.number for p in ps.list_projects()] == ["26005"]
     with pytest.raises(ValueError):
         ps.create(project, rev)
+
+
+def test_catalog_allowance_flag_default_and_pull(catalog):
+    assert catalog.item(1121).is_allowance and not catalog.item(510).is_allowance
+    item = catalog.item(1180)
+    ln = line_from_item(item, catalog, "11.01")
+    assert not ln.is_allowance
+    item.is_allowance, item.description = True, "Countertop material."
+    assert set(catalog_differences(ln, catalog)) == {"general_description", "allowance flag"}
+    pull_update(ln, catalog)
+    assert ln.is_allowance and ln.general_description == "Countertop material."

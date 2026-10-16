@@ -100,3 +100,13 @@ def test_last_line_stays_with_totals(env, n_lines, words):
             pytest.fail("continuation page without the column header")
     first_page_with_lines = next(i for i, p in enumerate(pages) if "Line 0" in p)
     assert "Line 1" in pages[first_page_with_lines], "first two lines split from the header"
+
+
+def test_allowance_flag_prints_on_line():
+    from proposal_builder.render.document import _line_body
+    from proposal_builder.models import Performer
+    ln = Line(id="11.01", section=1100, title="Tile", general_description="Tile material.", is_allowance=True,
+              performer=Performer.SUB)
+    assert _line_body(ln, {}).startswith("*Allowance.* _Performed by a licensed subcontractor._ Tile material.")
+    ln.is_allowance = False
+    assert "Allowance" not in _line_body(ln, {})

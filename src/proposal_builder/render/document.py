@@ -47,6 +47,8 @@ def fmt_pct(v: Decimal) -> str:
 
 def _line_body(ln: Line, variables: dict[str, str]) -> str:
     parts = []
+    if ln.is_allowance:
+        parts.append("*Allowance.*")
     note = PERFORMER_NOTE.get(ln.performer)
     if note and not (ln.notes or "").startswith(note):
         parts.append(f"_{escape(note)}_")
@@ -56,9 +58,7 @@ def _line_body(ln: Line, variables: dict[str, str]) -> str:
     if ln.notes:
         text.append(render(ln.notes, variables))
     body = md_to_typst("\n\n".join(text))
-    if parts and body:
-        return parts[0] + " " + body
-    return parts[0] if parts else body
+    return " ".join(parts + ([body] if body else []))
 
 
 def document_variables(res: Results, settings: Settings) -> dict[str, str]:
