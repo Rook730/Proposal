@@ -171,6 +171,7 @@ class Closeout:
             tile("Contract", money(c.total), f"Rev {c.rev.rev}")
             tile("Change orders billed", money(lg.co_billed), f"{len(lg.approved)} approved")
             tile("Contingency left", money(lg.unused_contingency), f"of {money(c.contingency)}")
+            tile("CO management left", money(lg.co_management_credit), f"of {money(c.co_management)}")
             tile("Line variance", money(lg.net_variance + lg.variance_markup), "incl. overhead and profit")
             tile("Final cost", money(lg.total_final))
             tile("Balance due", money(lg.balance_due), f"after {money(lg.payments_received)} received",
@@ -182,8 +183,10 @@ class Closeout:
     def co_tab(self) -> None:
         with ui.row().classes("gap-2 items-center mb-2"):
             ui.button("New change order", icon="add", on_click=self.new_co).props("dense")
-            ui.label(f"Price = cost change x (1 + {self.contract.markup_pct * 100:.0f}% overhead and profit). "
+            ui.label(f"Price = direct cost change x (1 + {self.contract.markup_pct * 100:.0f}% overhead and profit). "
                      "Contingency-funded orders draw contingency at price; any overflow is billed. "
+                     f"Management hours are drawn from the change order management allowance at "
+                     f"{money(self.contract.mgmt_rate)}/HR; time beyond it is billed at that rate. "
                      "Only approved orders count in the ledger.").classes("text-xs text-gray-500")
         self.co_list()
 
@@ -198,6 +201,7 @@ class Closeout:
             pr = pricing[o.number]
             rows.append({"number": o.number, "title": o.title, "status": o.status.value, "funding": o.funding.value,
                          "requested": o.requested.isoformat(), "delta": money(pr.cost_delta), "price": money(pr.price),
+                         "mgmt": f"{o.mgmt_hours.normalize():f} HR" if o.mgmt_hours else "",
                          "contingency": money(pr.from_contingency), "billed": money(pr.billed)})
         g = ui.aggrid({
             "columnDefs": [{"field": "number", "headerName": "CO #", "width": 110},
@@ -208,6 +212,7 @@ class Closeout:
                            {"field": "delta", "headerName": "Cost change", "width": 120, "type": "rightAligned"},
                            {"field": "price", "headerName": "Price", "width": 110, "type": "rightAligned"},
                            {"field": "contingency", "headerName": "From contingency", "width": 140, "type": "rightAligned"},
+                           {"field": "mgmt", "headerName": "Mgmt time", "width": 100, "type": "rightAligned"},
                            {"field": "billed", "headerName": "Billed", "width": 110, "type": "rightAligned"}],
             "rowData": rows, "rowHeight": 32, "headerHeight": 36,
         }, auto_size_columns=False).classes("w-full").style("height:50vh")
@@ -240,20 +245,26 @@ class Closeout:
                 requested = ui.input("Requested date (YYYY-MM-DD)", value=work.requested.isoformat()).props(ro)
                 funding = ui.select({f.value: f.value for f in COFunding}, label="Funding",
                                     value=work.funding.value).props(ro)
-            ui.label("Itemized changes. Lines: proposal line IDs this change touches, comma separated.") \
+                hours = ui.number("Management hours (scoping, pricing, paperwork)",
+                                  value=float(work.mgmt_hours) if work.mgmt_hours else None).props(ro)
+            ui.label("Itemized changes at direct cost (no management time; log that as hours above). "
+                     "Lines: proposal line IDs this change touches, comma separated.") \
                 .classes("text-xs text-gray-500")
 
             def recompute() -> None:
                 try:
                     tmp = self.log.model_copy(deep=True)
                     i = next(n for n, o in enumerate(tmp.orders) if o.number == co.number)
-                    tmp.orders[i] = work.model_copy(update={"funding": COFunding(funding.value)})
+                    hrs = Decimal(str(hours.value)) if hours.value not in (None, "") else ZERO
+                    tmp.orders[i] = work.model_copy(update={"funding": COFunding(funding.value), "mgmt_hours": hrs})
                     pr = price_change_orders(tmp, self.contract, include=(COStatus.APPROVED,))[co.number]
                 except (ValidationError, ValueError, StopIteration):
                     return
                 txt = f"Cost {money(pr.cost_delta)}  |  price {money(pr.price)}"
                 if funding.value == COFunding.CONTINGENCY.value:
                     txt += f"  |  from contingency {money(pr.from_contingency)}"
+                if pr.mgmt_hours:
+                    txt += f"  |  mgmt {money(pr.mgmt_cost)} ({money(pr.mgmt_from_allowance)} from allowance)"
                 txt += f"  |  billed {money(pr.billed)}"
                 price_lbl.set_text(txt)
                 bad = sorted({lid for it in work.items for lid in it.line_ids if lid not in line_ids})
@@ -269,6 +280,7 @@ class Closeout:
                          lambda: recompute(), lambda: COItem(), height="22vh", readonly=locked)
             lines_warn = ui.label().classes("text-xs text-orange-700")
             funding.on_value_change(lambda _: recompute())
+            hours.on_value_change(lambda _: recompute())
             with ui.grid(columns=3).classes("w-full gap-x-3"):
                 sow = ui.textarea("SOW modifications", value=work.sow).props(ro + " autogrow")
                 pay = ui.textarea("Payment impacts", value=work.payment_impacts).props(ro + " autogrow")
@@ -282,6 +294,7 @@ class Closeout:
                     work.title = title.value or ""
                     work.requested = date.fromisoformat(requested.value.strip())
                     work.funding = COFunding(funding.value)
+                    work.mgmt_hours = Decimal(str(hours.value)) if hours.value not in (None, "") else ZERO
                     work.sow, work.payment_impacts = sow.value or "", pay.value or ""
                     work.schedule_impacts = sched.value or ""
                     work.recommended_by, work.approved_by = rec.value or "", appr.value or ""
@@ -431,8 +444,7 @@ class Closeout:
                 ("Plus: net line variance", lg.net_variance),
                 ("Plus: overhead and profit on variance", lg.variance_markup),
                 ("Less: unused contingency", -lg.unused_contingency)]
-        if lg.co_management_credit:
-            rows.append(("Less: change order management (no change orders)", -lg.co_management_credit))
+        rows.append(("Less: unused change order management", -lg.co_management_credit))
         rows += [("Total final project cost", lg.total_final),
                  ("Less: paid by the client directly", -lg.client_direct),
                  ("Less: payments received", -lg.payments_received),

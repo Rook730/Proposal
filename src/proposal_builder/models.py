@@ -239,6 +239,7 @@ class Settings(_Model):
     co_markup_codes: list[int] = Field(default_factory=lambda: [1410, 1420])   # overhead, profit
     contingency_code: int = 1310
     co_management_code: int = 1320
+    co_management_rate_key: str = "pm"     # rate for change order management hours
     recommended_by: str = "Kept Spec - Nick Matney"
 
     def next_proposal_number(self) -> str:

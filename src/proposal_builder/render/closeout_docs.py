@@ -41,6 +41,14 @@ def change_order_document(project: Project, contract: Contract, co: ChangeOrder,
         rows.append(("Contingency remaining after this change order", m(pricing.contingency_after), ""))
     if co.funding is COFunding.ABSORBED:
         rows.append(("Absorbed by Kept Spec", m(-pricing.price), ""))
+    if pricing.mgmt_hours:
+        hrs = f"{pricing.mgmt_hours.normalize():f}"
+        rows.append((f"Change management: {hrs} HR at ${contract.mgmt_rate:,.2f}", m(pricing.mgmt_cost), ""))
+        rows.append(("Drawn from change order management allowance", m(-pricing.mgmt_from_allowance), ""))
+        if co.funding is COFunding.ABSORBED and pricing.mgmt_cost > pricing.mgmt_from_allowance:
+            rows.append(("Management beyond the allowance, absorbed by Kept Spec",
+                         m(-(pricing.mgmt_cost - pricing.mgmt_from_allowance)), ""))
+        rows.append(("Management allowance remaining after this change order", m(pricing.mgmt_allowance_after), ""))
     rows.append(("Change to contract price", m(pricing.billed), "total"))
     sections = [{"title": t, "body": md_to_typst(b)} for t, b in
                 (("SOW Modifications", co.sow), ("Payment Impacts", co.payment_impacts),
@@ -69,7 +77,7 @@ def ledger_document(project: Project, ledger: Ledger, recon: Reconciliation, set
     contract_rows = [
         (f"Original contract value (Rev {rev.rev})", m(c.total), "bold"),
         ("Contingency carried in contract", m(c.contingency), ""),
-        ("Change order management carried in contract", m(c.co_management), ""),
+        ("Change order management allowance carried in contract", m(c.co_management), ""),
     ]
     if rev.selected_alternates:
         contract_rows.insert(1, ("Includes " + ", ".join(f"Alternate {n}" for n in rev.selected_alternates),
@@ -79,9 +87,12 @@ def ledger_document(project: Project, ledger: Ledger, recon: Reconciliation, set
             "funding": o.funding.value, "price": m(ledger.pricing[o.number].price),
             "contingency": m(ledger.pricing[o.number].from_contingency),
             "billed": m(ledger.pricing[o.number].billed)} for o in ledger.approved]
+    hours = sum((o.mgmt_hours for o in ledger.approved), Decimal(0))
     co_summary = [("Change orders billed to the client", m(ledger.co_billed), "bold"),
                   ("Contingency used by change orders", m(ledger.contingency_used), ""),
-                  ("Unused contingency (credited)", m(ledger.unused_contingency), "")]
+                  ("Unused contingency (credited)", m(ledger.unused_contingency), ""),
+                  (f"Change order management used ({hours.normalize():f} HR)", m(ledger.mgmt_used), ""),
+                  ("Unused change order management (credited)", m(ledger.co_management_credit), "")]
     lines = []
     for lr in ledger.lines_with_activity:
         note = []
@@ -101,8 +112,7 @@ def ledger_document(project: Project, ledger: Ledger, recon: Reconciliation, set
         ("Plus: overhead and profit on variance", m(ledger.variance_markup), ""),
         ("Less: unused contingency", m(-ledger.unused_contingency), ""),
     ]
-    if ledger.co_management_credit:
-        final.append(("Less: change order management (no change orders)", m(-ledger.co_management_credit), ""))
+    final.append(("Less: unused change order management", m(-ledger.co_management_credit), ""))
     final += [
         ("Total final project cost", m(ledger.total_final), "bold"),
         ("Less: paid by the client directly to subcontractors and suppliers", m(-ledger.client_direct), ""),

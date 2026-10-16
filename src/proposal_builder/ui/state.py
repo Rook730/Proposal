@@ -25,6 +25,12 @@ class AppState:
         self.settings = self.store.load_settings()
         self.catalog = self.store.load_catalog()
         self.boilerplate = self.store.load_boilerplate()
+        from ..migrations import migrate_library
+        cat_changed, bp_changed = migrate_library(self.catalog, self.boilerplate)
+        if cat_changed:
+            self.store.save_catalog(self.catalog)
+        if bp_changed:
+            self.store.save_boilerplate(self.boilerplate)
         if not self.settings.company.logo_path and self.store.path("logo.png").exists():
             self.settings.company.logo_path = "logo.png"
             self.save_settings()

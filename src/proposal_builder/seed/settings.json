@@ -14,5 +14,13 @@
   "deposit_pct": "0.25",
   "retainage_pct": "0.05",
   "validity_days": 30,
-  "global_variables": []
+  "global_variables": [],
+  "co_markup_codes": [
+    1410,
+    1420
+  ],
+  "contingency_code": 1310,
+  "co_management_code": 1320,
+  "co_management_rate_key": "pm",
+  "recommended_by": "Kept Spec - Nick Matney"
 }

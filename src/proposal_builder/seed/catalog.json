@@ -2136,7 +2136,7 @@
       "section": 1300,
       "group": "",
       "title": "Change Order(s) Management",
-      "description": "5% allowance for the project management relating to change orders that may arise during the course of this project. \n*This amount to be deducted from the final invoice if no change orders are issued.",
+      "description": "5% allowance for project management of change orders that may arise during the project: scoping, pricing, documentation and rescheduling. Time spent is recorded on each change order and drawn from this allowance at the project management rate.\n*Unused allowance is credited on the final invoice.",
       "unit": "LS",
       "price_source": "percent",
       "price": "0.05",

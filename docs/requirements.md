@@ -287,6 +287,7 @@ Modeled on the 26001 ECN tab.
 - Contingency is drawn in CO number order by approved orders only.
 - Approved and rejected orders are read-only; drafts can be deleted.
 - Overhead/profit, contingency and CO management are found on the accepted revision by catalog code (Settings: co_markup_codes 1410/1420, contingency_code 1310, co_management_code 1320).
+- Change order management (decided 2026-10-15, replaces "credited only if no change orders"): item 1320 is an allowance. Each change order records its management hours (scoping, pricing, documentation, rescheduling); hours x the contract's project management rate are drawn from the allowance in CO order; time beyond the allowance is billed at that rate without markup (absorbed orders absorb it). The unused allowance is credited on the final ledger. Change order item costs are direct costs only and never include management time.
 
 ## 8. Schedule of values
 - The proposal layout (sections, lines, section totals) serves as the schedule of values. There is no separate SOV document.
@@ -310,7 +311,7 @@ Modeled on the 26001 Reconciliation tab and the 26001 side tracking table.
    - Allowance variance has OH&P applied to the net variance, per the Allowances clause.
 5. **Credits**
    - Unused contingency.
-   - CO management when no COs were issued.
+   - Unused change order management allowance.
    - Any line flagged credit-if-unused (e.g., painting sub).
 6. **Payments received**
    - Draw, milestone, date, amount.

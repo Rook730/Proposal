@@ -155,3 +155,17 @@ def test_importer_matches_seed():
     s, c, b = import_workbook(Path(os.environ["PROPOSAL_XLSX"]))
     assert c.model_dump() == Catalog.model_validate_json(seed("catalog.json")).model_dump()
     assert b.model_dump() == Boilerplate.model_validate_json(seed("boilerplate.json")).model_dump()
+
+
+def test_migration_updates_only_untouched_text():
+    from proposal_builder.migrations import OLD_1320, OLD_GRAY, migrate_library
+    cat = Catalog.model_validate_json(seed("catalog.json"))
+    bp = Boilerplate.model_validate_json(seed("boilerplate.json"))
+    new_1320 = cat.item(1320).description
+    cat.item(1320).description = OLD_1320
+    next(b for b in bp.blocks if b.id == "gray-lines").body = OLD_GRAY
+    assert migrate_library(cat, bp) == (True, True)
+    assert cat.item(1320).description == new_1320
+    cat.item(1320).description = "my own wording"
+    assert migrate_library(cat, bp) == (False, False)
+    assert cat.item(1320).description == "my own wording"

@@ -38,10 +38,10 @@ On first start the app creates `%USERPROFILE%\KeptSpec Proposals` and fills it w
   Boilerplate can also use `{total_price}`, `{subtotal}`, `{deposit_amount}`, `{progress_amount}` and `{retainage_amount}`.
 
 - **Change orders & ledger** (editor header, needs an accepted revision):
-  - Change orders: itemized changes with original and final cost, funding (client, contingency or absorbed), SOW / payment / schedule impacts, Approve or Reject, PDF. Price = cost change x (1 + overhead % + profit %); contingency-funded orders draw contingency at price and any overflow is billed.
+  - Change orders: itemized changes at direct cost (original and final), funding (client, contingency or absorbed), management hours, SOW / payment / schedule impacts, Approve or Reject, PDF. Price = cost change x (1 + overhead % + profit %); contingency-funded orders draw contingency at price and any overflow is billed. Management hours x the contract PM rate are drawn from the change order management allowance (1320); time beyond it is billed at the rate.
   - Actual costs: entries per line (amount + tax, or hours x the line rate), paid by Kept Spec or by the client directly; tick Unused to credit a line in full.
   - Payments: draws received.
-  - Ledger: original contract + change orders billed + net line variance + overhead and profit on the variance - unused contingency - change order management (when no change orders) = final cost; less client-direct costs and payments = balance due. Exports the Final Project Ledger PDF.
+  - Ledger: original contract + change orders billed + net line variance + overhead and profit on the variance - unused contingency - unused change order management = final cost; less client-direct costs and payments = balance due. Exports the Final Project Ledger PDF.
 
 Every edit saves immediately to the data folder; previous versions go to `backups/`.
 

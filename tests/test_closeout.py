@@ -39,8 +39,8 @@ def contract():
     return contract_context(rev, settings, catalog.stock_classes, Project.model_validate(data["project"]))
 
 
-def co(n, delta, funding, status=COStatus.APPROVED):
-    return ChangeOrder(number=f"26005-{n:02d}", funding=funding, status=status,
+def co(n, delta, funding, status=COStatus.APPROVED, hours=0):
+    return ChangeOrder(number=f"26005-{n:02d}", funding=funding, status=status, mgmt_hours=D(hours),
                        items=[COItem(description="x", original_cost=D(0), final_cost=D(delta))])
 
 
@@ -48,6 +48,7 @@ def test_contract_context(contract):
     assert contract.total == D("41186.59")
     assert contract.markup_pct == D("0.15")
     assert contract.contingency == D("1640.90") and contract.co_management == D("1640.90")
+    assert contract.mgmt_rate == D(75)                                     # contract PM rate
 
 
 def test_change_order_pricing_and_contingency(contract):
@@ -79,12 +80,12 @@ def test_ledger(contract):
     lg = build_ledger(contract, log, recon)
     assert lg.co_billed == D("486.60")
     assert lg.contingency_used == D("1640.90") and lg.unused_contingency == 0
-    assert lg.co_management_credit == 0
+    assert lg.co_management_credit == D("1640.90")                         # no management hours logged
     assert lg.net_variance == D(-705)                                      # +120 +75 -900
     assert lg.variance_markup == D("-105.75")
-    assert lg.total_final == D("40862.44")
+    assert lg.total_final == D("39221.54")
     assert lg.client_direct == D(900)
-    assert lg.balance_due == D("14665.79")
+    assert lg.balance_due == D("13024.89")
     assert {lr.line.id for lr in lg.lines_with_activity} == {"11.04", "6.01", "11.03"}
 
 
@@ -98,3 +99,25 @@ def test_ledger_without_change_orders_credits_contingency_and_management(contrac
 def test_next_number():
     log = ChangeOrderLog(orders=[ChangeOrder(number="26005-01"), ChangeOrder(number="26005-03")])
     assert log.next_number("26005") == "26005-02"
+
+
+def test_management_hours_draw_allowance(contract):
+    log = ChangeOrderLog(orders=[co(1, 350, COFunding.CLIENT, hours=2),          # 150 from allowance
+                                 co(2, 100, COFunding.CLIENT, hours=20),         # 1500: 1490.90 left, 9.10 billed
+                                 co(3, 100, COFunding.ABSORBED, hours=4),        # 300 beyond allowance, absorbed
+                                 co(4, 100, COFunding.CLIENT, COStatus.DRAFT, hours=50)])
+    p = price_change_orders(log, contract)
+    assert (p["26005-01"].mgmt_cost, p["26005-01"].mgmt_from_allowance, p["26005-01"].mgmt_billed) == \
+        (D("150.00"), D("150.00"), 0)
+    assert p["26005-01"].billed == D("402.50")                              # work only, management from allowance
+    assert (p["26005-02"].mgmt_from_allowance, p["26005-02"].mgmt_billed) == (D("1490.90"), D("9.10"))
+    assert p["26005-02"].billed == D("115.00") + D("9.10")
+    assert (p["26005-03"].mgmt_billed, p["26005-03"].billed) == (0, 0)
+    lg = build_ledger(contract, log, Reconciliation())
+    assert lg.mgmt_used == D("1640.90") and lg.co_management_credit == 0
+    assert lg.co_billed == D("402.50") + D("124.10")
+
+
+def test_partial_management_use_is_credited(contract):
+    lg = build_ledger(contract, ChangeOrderLog(orders=[co(1, 350, COFunding.CLIENT, hours=3)]), Reconciliation())
+    assert lg.mgmt_used == D("225.00") and lg.co_management_credit == D("1415.90")

@@ -1,9 +1,11 @@
 """Change orders and the whole-project reconciliation (spec sections 7 and 9).
 
 Change orders
-- cost delta = final cost - original cost, summed over the CO's items
+- cost delta = final cost - original cost, summed over the CO's items (direct cost, no management time)
 - CO price = cost delta x (1 + overhead % + profit %) from the accepted revision
 - funding: contingency (drawn at CO price, overflow billed to the client), client, or absorbed
+- management time: hours on each CO x the contract's project management rate, drawn from the
+  change order management allowance (item 1320); time beyond the allowance is billed at the rate
 
 Reconciliation ("Final Project Ledger")
   original contract value (accepted revision total)
@@ -11,7 +13,7 @@ Reconciliation ("Final Project Ledger")
 + net line variance (actual - budget, lines with actuals or marked unused)
 + overhead and profit on the net variance
 - unused contingency
-- change order management, when no change orders were approved
+- unused change order management allowance
 = total final project cost
 - costs the client paid directly to subs and suppliers
 - payments received by Kept Spec
@@ -83,6 +85,7 @@ class ChangeOrder(_Model):
     payment_impacts: str = "No impacts to payment progress or payment terms."
     schedule_impacts: str = "No impacts to schedule."
     funding: COFunding = COFunding.CLIENT
+    mgmt_hours: Decimal = ZERO         # time spent managing this change
     status: COStatus = COStatus.DRAFT
     approved: date | None = None
     recommended_by: str = ""
@@ -165,6 +168,7 @@ class Contract:
     co_management: Decimal
     contingency_line: str | None
     co_management_line: str | None
+    mgmt_rate: Decimal = ZERO           # contract's project management rate
 
     @property
     def total(self) -> Decimal:
@@ -181,12 +185,15 @@ def contract_context(rev: Revision, settings: Settings, stock: list[StockClass],
     markup = sum((res.lines[ln.id].unit_price for c in settings.co_markup_codes for ln in by_code.get(c, [])), ZERO)
     cont = by_code.get(settings.contingency_code, [])
     mgmt = by_code.get(settings.co_management_code, [])
+    pm_line = next((ln for ln in rev.lines if ln.rate_key == settings.co_management_rate_key
+                    and ln.unit_price is not None), None)
     return Contract(
         rev=rev, results=res, markup_pct=markup,
         contingency=sum((res.base.percent_items[ln.id] for ln in cont), ZERO),
         co_management=sum((res.base.percent_items[ln.id] for ln in mgmt), ZERO),
         contingency_line=cont[0].id if cont else None,
         co_management_line=mgmt[0].id if mgmt else None,
+        mgmt_rate=pm_line.unit_price if pm_line else ZERO,
     )
 
 
@@ -200,14 +207,20 @@ class COPricing:
     markup: Decimal
     price: Decimal                     # cost delta + markup
     from_contingency: Decimal          # drawn from contingency
-    billed: Decimal                    # added to the client's contract
+    billed: Decimal                    # added to the client's contract (work + management overflow)
     contingency_after: Decimal
+    mgmt_hours: Decimal = ZERO
+    mgmt_cost: Decimal = ZERO          # hours x rate
+    mgmt_from_allowance: Decimal = ZERO
+    mgmt_billed: Decimal = ZERO        # beyond the allowance
+    mgmt_allowance_after: Decimal = ZERO
 
 
 def price_change_orders(log: ChangeOrderLog, contract: Contract,
                         include: tuple[COStatus, ...] = (COStatus.APPROVED,)) -> dict[str, COPricing]:
-    """Price COs in number order; contingency is consumed only by COs in `include`."""
+    """Price COs in number order; contingency and the management allowance are consumed only by COs in `include`."""
     remaining = contract.contingency
+    mgmt_left = contract.co_management
     out: dict[str, COPricing] = {}
     for co in sorted(log.orders, key=lambda o: o.number):
         delta = co.cost_delta
@@ -223,9 +236,15 @@ def price_change_orders(log: ChangeOrderLog, contract: Contract,
         else:
             billed = price
         after = remaining - draw
+        mgmt_cost = money(co.mgmt_hours * contract.mgmt_rate)
+        mgmt_draw = min(mgmt_cost, mgmt_left) if mgmt_cost > 0 else ZERO
+        mgmt_billed = ZERO if co.funding is COFunding.ABSORBED else mgmt_cost - mgmt_draw
+        mgmt_after = mgmt_left - mgmt_draw
         if counts:
             remaining = after
-        out[co.number] = COPricing(co.number, delta, markup, price, draw, billed, after)
+            mgmt_left = mgmt_after
+        out[co.number] = COPricing(co.number, delta, markup, price, draw, billed + mgmt_billed, after,
+                                   co.mgmt_hours, mgmt_cost, mgmt_draw, mgmt_billed, mgmt_after)
     return out
 
 
@@ -256,7 +275,8 @@ class Ledger:
     co_billed: Decimal
     contingency_used: Decimal
     unused_contingency: Decimal
-    co_management_credit: Decimal
+    mgmt_used: Decimal
+    co_management_credit: Decimal      # unused change order management allowance
     net_variance: Decimal
     variance_markup: Decimal
     total_final: Decimal
@@ -284,6 +304,7 @@ def build_ledger(contract: Contract, log: ChangeOrderLog, recon: Reconciliation)
     approved = [o for o in sorted(log.orders, key=lambda o: o.number) if o.status is COStatus.APPROVED]
     co_billed = sum((pricing[o.number].billed for o in approved), ZERO)
     used = sum((pricing[o.number].from_contingency for o in approved), ZERO)
+    mgmt_used = sum((pricing[o.number].mgmt_from_allowance for o in approved), ZERO)
 
     warnings: list[str] = []
     by_line: dict[str, list[ActualCost]] = {}
@@ -308,7 +329,7 @@ def build_ledger(contract: Contract, log: ChangeOrderLog, recon: Reconciliation)
     net_var = sum((lr.variance for lr in lines), ZERO)
     var_markup = money(net_var * contract.markup_pct)
     unused_cont = contract.contingency - used
-    mgmt_credit = contract.co_management if not approved else ZERO
+    mgmt_credit = contract.co_management - mgmt_used
     total_final = contract.total + co_billed + net_var + var_markup - unused_cont - mgmt_credit
     client_direct = sum((lr.client_paid for lr in lines), ZERO)
     received = sum((p.amount for p in recon.payments), ZERO)
@@ -316,6 +337,8 @@ def build_ledger(contract: Contract, log: ChangeOrderLog, recon: Reconciliation)
         if lr.actual is None and not lr.unused and lr.line.credit_if_unused:
             warnings.append(f"{lr.line.id} {lr.line.title}: credit-if-unused line has no actuals; "
                             "mark it unused or enter its cost")
-    return Ledger(contract, pricing, approved, lines, co_billed, used, unused_cont, mgmt_credit, net_var,
+    if contract.co_management and not contract.mgmt_rate and any(o.mgmt_hours for o in approved):
+        warnings.append("No project management rate found on the contract; change order hours are priced at $0")
+    return Ledger(contract, pricing, approved, lines, co_billed, used, unused_cont, mgmt_used, mgmt_credit, net_var,
                   var_markup, total_final, client_direct, received,
                   total_final - client_direct - received, warnings)

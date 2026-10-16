@@ -78,7 +78,7 @@
       "id": "gray-lines",
       "heading": "How to read this proposal",
       "title": "Gray lines",
-      "body": "These have a percentage unit price: builder’s risk, contingency, change order management, overhead and profit. They are not part of the subtotal. Each is calculated as a percentage of the subtotal and added to reach the Total Price. Unused contingency is credited on the final invoice.",
+      "body": "These have a percentage unit price: builder’s risk, contingency, change order management, overhead and profit. They are not part of the subtotal. Each is calculated as a percentage of the subtotal and added to reach the Total Price. Unused contingency and unused change order management are credited on the final invoice.",
       "default_on": true,
       "order": 70
     },

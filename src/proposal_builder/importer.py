@@ -77,6 +77,9 @@ PERFORMER = {
 
 DESCRIPTION_FIXES = {
     450: "Allowance for utility connection fees associated with the project.",
+    1320: ("5% allowance for project management of change orders that may arise during the project: scoping, "
+           "pricing, documentation and rescheduling. Time spent is recorded on each change order and drawn from "
+           "this allowance at the project management rate.\n*Unused allowance is credited on the final invoice."),
 }
 
 NEW_ITEMS = [
@@ -297,6 +300,8 @@ TEMPLATE_SUBS = [
     ("25% Due Upon Signing", "{deposit_pct} Due Upon Signing"),
     ("Remaining balance due less 5%", "Remaining balance due less {retainage_pct}"),
     ("valid for 30 days", "valid for {validity_days} days"),
+    ("Unused contingency is credited on the final invoice.",
+     "Unused contingency and unused change order management are credited on the final invoice."),
     ("hood limited to 400 CFM", "hood limited to {hood_cfm} CFM"),
 ]
 
