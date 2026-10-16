@@ -282,6 +282,12 @@ Modeled on the 26001 ECN tab.
 - Signature block: Recommended by, Accepted and Approved by (Name / Signature / Date).
 - Exports to PDF in the same visual style as the proposal.
 
+**As built (M5)**
+- Change orders live in the project's change_orders.json; numbers are {proposal}-{nn}.
+- Contingency is drawn in CO number order by approved orders only.
+- Approved and rejected orders are read-only; drafts can be deleted.
+- Overhead/profit, contingency and CO management are found on the accepted revision by catalog code (Settings: co_markup_codes 1410/1420, contingency_code 1310, co_management_code 1320).
+
 ## 8. Schedule of values
 - The proposal layout (sections, lines, section totals) serves as the schedule of values. There is no separate SOV document.
 - An optional summary page can be toggled on in the proposal. It lists section totals and percent items, each with % of contract.
@@ -314,6 +320,12 @@ Modeled on the 26001 Reconciliation tab and the 26001 side tracking table.
    - minus payments to Kept Spec
    - = balance due.
 8. **PDF export** titled "Final Project Ledger", in the same style.
+
+**As built (M5)**
+- Line variance applies to every contract line with actual costs entered, or marked Unused (credited in full). Lines without actuals stay at their contract amount; blank entries are ignored.
+- Overhead and profit apply to the net line variance.
+- Hourly entries may give hours instead of an amount (hours x the line's rate).
+- Warnings flag credit-if-unused lines that have no actuals and are not marked unused.
 
 ## 10. Internal view
 A toggle shows fields that never print:

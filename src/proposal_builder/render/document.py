@@ -229,31 +229,40 @@ def _assets():
     return resources.files("proposal_builder") / "render"
 
 
-def compile_document(doc: dict, logo: Path | None, fmt: str = "pdf", ppi: int = 110):
+def compile_document(doc: dict, logo: Path | None, fmt: str = "pdf", ppi: int = 110,
+                     template: str = "proposal.typ"):
     """Return PDF bytes, or a list of PNG bytes (one per page) for fmt='png'."""
     import typst
 
     assets = _assets()
     with tempfile.TemporaryDirectory(prefix="proposal-") as tmp:
         tmpd = Path(tmp)
-        (tmpd / "proposal.typ").write_text((assets / "templates" / "proposal.typ").read_text(encoding="utf-8"),
-                                           encoding="utf-8")
-        (tmpd / "data.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
+        for t in (assets / "templates").iterdir():
+            if t.name.endswith(".typ"):
+                (tmpd / t.name).write_text(t.read_text(encoding="utf-8"), encoding="utf-8")
+        doc = dict(doc)
         if logo and logo.exists():
             shutil.copyfile(logo, tmpd / "logo.png")
         else:
-            doc["company"]["logo"] = ""
-            (tmpd / "data.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
+            doc["company"] = {**doc["company"], "logo": ""}
+        (tmpd / "data.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
         fonts = tmpd / "fonts"
         fonts.mkdir()
         for f in (assets / "fonts").iterdir():
             if f.name.endswith(".ttf"):
                 (fonts / f.name).write_bytes(f.read_bytes())
         kwargs = dict(root=str(tmpd), font_paths=[str(fonts)])
+        main = str(tmpd / template)
         if fmt == "png":
-            pages = typst.compile(str(tmpd / "proposal.typ"), format="png", ppi=ppi, **kwargs)
+            pages = typst.compile(main, format="png", ppi=ppi, **kwargs)
             return pages if isinstance(pages, list) else [pages]
-        return typst.compile(str(tmpd / "proposal.typ"), **kwargs)
+        return typst.compile(main, **kwargs)
+
+
+def company_block(settings: Settings) -> dict:
+    c = settings.company
+    return {"name": c.dba, "legal": c.legal_name, "address": c.address, "phone": c.phone,
+            "email": c.email, "logo": "logo.png" if c.logo_path else ""}
 
 
 def pdf_filename(project: Project, rev: Revision) -> str:

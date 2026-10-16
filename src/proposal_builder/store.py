@@ -281,3 +281,20 @@ class ProjectStore:
             for p in old[:-MAX_BACKUPS]:
                 p.unlink(missing_ok=True)
         _atomic_write(path, text)
+
+    # -- change orders and reconciliation (one file each per project)
+    def load_change_orders(self, number: str):
+        from .closeout import ChangeOrderLog
+        p = self.project_dir(number) / "change_orders.json"
+        return ChangeOrderLog.model_validate_json(p.read_text(encoding="utf-8")) if p.exists() else ChangeOrderLog()
+
+    def save_change_orders(self, number: str, log) -> None:
+        self._save(self.project_dir(number) / "change_orders.json", log)
+
+    def load_reconciliation(self, number: str):
+        from .closeout import Reconciliation
+        p = self.project_dir(number) / "reconciliation.json"
+        return Reconciliation.model_validate_json(p.read_text(encoding="utf-8")) if p.exists() else Reconciliation()
+
+    def save_reconciliation(self, number: str, recon) -> None:
+        self._save(self.project_dir(number) / "reconciliation.json", recon)

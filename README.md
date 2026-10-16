@@ -12,8 +12,8 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 | 2 | Proposal editor, calculations, variables, snapshot rule | done |
 | 3 | PDF engine (Typst), pagination rules | done |
 | 4 | Revisions, alternates, boilerplate per proposal, validation | done |
-| 5 | Change orders, reconciliation | next |
-| 6 | Windows .exe packaging | |
+| 5 | Change orders, reconciliation | done |
+| 6 | Windows .exe packaging | next |
 
 ## Run on Windows
 
@@ -36,6 +36,12 @@ On first start the app creates `%USERPROFILE%\KeptSpec Proposals` and fills it w
 - **Revisions**: Issue Rev locks the draft and saves its PDF. New revision copies it (1.0, 1.1, ...). Finalize creates 2.0 with the client's chosen alternates merged; issue it for signature, then Mark accepted. Older revisions open read-only from the Revision selector.
 - **Preview / Export PDF** (editor header): preview renders every page in the app; Export writes `projects/<project>/pdf/<number>_<client>_<project>_Proposal_V<rev>.pdf` and offers to open it.
   Boilerplate can also use `{total_price}`, `{subtotal}`, `{deposit_amount}`, `{progress_amount}` and `{retainage_amount}`.
+
+- **Change orders & ledger** (editor header, needs an accepted revision):
+  - Change orders: itemized changes with original and final cost, funding (client, contingency or absorbed), SOW / payment / schedule impacts, Approve or Reject, PDF. Price = cost change x (1 + overhead % + profit %); contingency-funded orders draw contingency at price and any overflow is billed.
+  - Actual costs: entries per line (amount + tax, or hours x the line rate), paid by Kept Spec or by the client directly; tick Unused to credit a line in full.
+  - Payments: draws received.
+  - Ledger: original contract + change orders billed + net line variance + overhead and profit on the variance - unused contingency - change order management (when no change orders) = final cost; less client-direct costs and payments = balance due. Exports the Final Project Ledger PDF.
 
 Every edit saves immediately to the data folder; previous versions go to `backups/`.
 

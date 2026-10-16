@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
 
@@ -71,6 +72,8 @@ def to_decimal(v: Any) -> Decimal | None:
 def to_json(v: Any) -> Any:
     if isinstance(v, Decimal):
         return float(v)
+    if isinstance(v, (date, datetime)):
+        return v.isoformat()
     if hasattr(v, "value"):          # Enum
         return v.value
     return v
@@ -89,7 +92,7 @@ def warn(problems: list[str]) -> None:
 class Col:
     field: str
     header: str
-    kind: str = "text"                  # text | number | bool | select | list
+    kind: str = "text"                  # text | number | bool | select | list | strlist | date
     options: list[str] = field(default_factory=list)
     width: int | None = None
     flex: int | None = None
@@ -137,7 +140,7 @@ class EditableGrid:
         elif c.kind == "select":
             d["cellEditor"] = "agSelectCellEditor"
             d["cellEditorParams"] = {"values": c.options}
-        elif c.kind == "list":
+        elif c.kind in ("list", "strlist", "date"):
             d["cellDataType"] = "text"
         return d
 
@@ -147,7 +150,7 @@ class EditableGrid:
             r = {"_i": i}
             for c in self.cols:
                 v = getattr(m, c.field)
-                r[c.field] = ", ".join(str(x) for x in v) if c.kind == "list" else to_json(v)
+                r[c.field] = ", ".join(str(x) for x in v) if c.kind in ("list", "strlist") else to_json(v)
             rows.append(r)
         return rows
 
@@ -160,6 +163,10 @@ class EditableGrid:
             return to_decimal(v)
         if c.kind == "list":
             return [to_decimal(x) for x in str(v or "").split(",") if x.strip()]
+        if c.kind == "strlist":
+            return [x.strip() for x in str(v or "").split(",") if x.strip()]
+        if c.kind == "date":
+            return date.fromisoformat(str(v).strip()[:10]) if v not in (None, "") else None
         return v
 
     def _changed(self, e) -> None:

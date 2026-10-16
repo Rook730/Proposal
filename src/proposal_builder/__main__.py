@@ -20,7 +20,7 @@ def main() -> None:
 
     from nicegui import ui
 
-    from .ui import editor, pages, projects  # noqa: F401  registers routes
+    from .ui import closeout, editor, pages, projects  # noqa: F401  registers routes
     from .ui.state import get_state
 
     get_state()  # create/seed the data folder before the first request

@@ -153,6 +153,8 @@ class Editor:
                         .props("dense outlined").classes("w-36")
                 with ui.row().classes("items-center gap-2 no-wrap"):
                     ui.button("Project info", icon="edit", on_click=self.project_dialog).props("outline dense")
+                    ui.button("Change orders & ledger", icon="balance",
+                              on_click=lambda: ui.navigate.to(f"/project/{p.number}/closeout")).props("outline dense")
                     ui.button("Preview", icon="visibility", on_click=self.preview).props("outline dense")
                     ui.button("Export PDF", icon="picture_as_pdf", on_click=self.export_pdf).props("outline dense")
                     if not self.locked:

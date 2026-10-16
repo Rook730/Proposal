@@ -235,6 +235,11 @@ class Settings(_Model):
     retainage_pct: Decimal = Decimal("0.05")
     validity_days: int = 30
     global_variables: list[Variable] = Field(default_factory=list)
+    # change orders and reconciliation: which catalog codes play which role
+    co_markup_codes: list[int] = Field(default_factory=lambda: [1410, 1420])   # overhead, profit
+    contingency_code: int = 1310
+    co_management_code: int = 1320
+    recommended_by: str = "Kept Spec - Nick Matney"
 
     def next_proposal_number(self) -> str:
         return f"{self.proposal_year:02d}{self.next_proposal_seq:03d}"
