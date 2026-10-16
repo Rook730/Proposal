@@ -9,7 +9,8 @@ import openpyxl
 from nicegui import ui
 
 from ..calc import calculate
-from ..models import PriceSource
+from ..calc import DOCUMENT_VARIABLES, SPECIAL_PLACEHOLDERS, referenced, variable_map
+from ..models import PriceSource, Variable
 from ..proposal import Project, ProjectStatus, Revision, default_blocks, line_from_item
 from .state import get_state
 from .widgets import layout
@@ -68,6 +69,11 @@ def new_project_dialog() -> None:
                 for it in st.catalog.items:
                     if it.active and it.price_source is PriceSource.PERCENT:
                         rev.add_line(line_from_item(it, st.catalog, rev.new_line_id(it.section)))
+            # every {placeholder} the chosen terms use gets a proposal variable to fill in
+            known = set(variable_map(p, rev, s)) | DOCUMENT_VARIABLES | SPECIAL_PLACEHOLDERS
+            needed = sorted({n for b in rev.blocks if b.on for n in referenced(b.body)} - known)
+            rev.variables += [Variable(name=n, value="", description="Used in the terms; fill in for this proposal")
+                              for n in needed]
             try:
                 st.projects.create(p, rev)
             except ValueError as e:

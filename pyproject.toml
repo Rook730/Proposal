@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proposal-builder"
-version = "0.1.0"
+version = "1.0.0"
 description = "Proposal builder for Kept Spec Advisors"
 requires-python = ">=3.12"
 dependencies = [
@@ -25,7 +25,7 @@ proposal-builder = "proposal_builder.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-proposal_builder = ["seed/*.json", "seed/*.png", "render/templates/*.typ", "render/fonts/*"]
+proposal_builder = ["seed/*.json", "seed/*.png", "render/templates/*.typ", "render/fonts/*", "assets/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

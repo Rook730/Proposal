@@ -8,7 +8,7 @@ All open questions are resolved. Section 15 records the assumptions made.
 Replace the Excel proposal workflow (Proposal_Template4.xlsx) with a standalone Windows application.
 
 - Build a typical renovation proposal in about 20 minutes, down from about 3 hours.
-- **Acceptance test:** rebuild proposal 26005 (Hotch Kitchen).
+- **Acceptance test:** rebuild proposal 26005 (kitchen renovation).
   - The rebuilt proposal must reproduce: Subtotal $32,818.00, Total $41,186.59, Alternate Subtotal $30,438.00, Alternate Total $38,199.69.
   - The PDF must match the current look.
 - Catalog edits never alter a saved proposal.
@@ -61,7 +61,7 @@ Storage layout (proposed):
   settings.json          company info, defaults, global variables, rates
   catalog.json           sections, items, allowance ranges, units, stock sizes
   boilerplate.json       clause library
-  projects/26005_Hotch_Kitchen/
+  projects/26005_Client_Kitchen/
     project.json         client, address, status
     rev_1.0.json         issued revisions are locked
     rev_1.1.json

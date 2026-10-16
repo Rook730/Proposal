@@ -7,3 +7,6 @@ dist/
 .pytest_cache/
 .nicegui/
 *.xlsx
+selftest.log
+build/
+dist/

@@ -161,6 +161,18 @@ class DataStore:
             p.unlink(missing_ok=True)
         return dest
 
+    def backup_zip(self) -> Path:
+        """Zip the whole data folder (except backups/) into backups/full-<timestamp>.zip."""
+        import zipfile
+        self.backup_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        dest = self.backup_dir / f"full-{stamp}.zip"
+        with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+            for f in sorted(self.root.rglob("*")):
+                if f.is_file() and self.backup_dir not in f.parents and not f.name.startswith("."):
+                    z.write(f, f.relative_to(self.root).as_posix())
+        return dest
+
     # -- typed accessors
     def load_settings(self) -> Settings:
         return self.load("settings.json", Settings)

@@ -879,6 +879,8 @@ class Editor:
             if b.on:
                 used |= referenced(b.body)
         for pv in self.rev.variables:
+            if pv.name in used and not pv.value.strip():
+                out.append(("warn", f"Variable '{pv.name}' is empty; fill it in on the Variables tab"))
             if pv.name not in used:
                 out.append(("info", f"Variable '{pv.name}' is not used anywhere"))
         return out

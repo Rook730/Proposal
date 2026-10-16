@@ -14,9 +14,12 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 - src/proposal_builder/render/: document.py builds print data and compiles; templates/ holds proposal.typ, co.typ, ledger.typ (+ common.typ); closeout_docs.py builds CO and ledger data; markup.py converts note Markdown to Typst; fonts/ bundles Carlito (OFL, Calibri metrics).
 - src/proposal_builder/ui/: NiceGUI pages (projects.py, editor.py, closeout.py, pages.py for catalog). Run with `python -m proposal_builder --browser`.
 - tests/fixtures/26005_anon.json: anonymized 26005 import; acceptance totals 41,186.59 / 38,199.69.
+- packaging/: build.py (PyInstaller, then --self-test), launcher.py, icon.ico. .github/workflows/build-windows.yml builds releases on version tags.
+- src/proposal_builder/selftest.py: end-to-end check behind `--self-test`.
 
 ## Conventions
 - Catalog edits must never change saved proposals (snapshot rule, spec 4.9).
 - User-facing text: no em dashes.
 - Tests: `python -m pytest -q`. Importer parity test needs PROPOSAL_XLSX=<path to workbook>.
+- Release: bump __version__ (src/proposal_builder/__init__.py) and pyproject version, then push a tag vX.Y.Z.
 - Regenerate seed: `python -m proposal_builder.importer <workbook.xlsx> --out src/proposal_builder/seed`.

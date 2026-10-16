@@ -433,6 +433,19 @@ def settings_page() -> None:
                 ui.navigate.reload()
 
             ui.button("Use this folder", on_click=change).props("dense outline")
+            ui.separator().classes("my-2")
+
+            def backup() -> None:
+                try:
+                    path = st.store.backup_zip()
+                except OSError as e:
+                    ui.notify(f"Backup failed: {e}", type="negative")
+                    return
+                ui.notify(f"Backup saved: {path}", type="positive", multi_line=True)
+
+            ui.label("Every save keeps the previous version in backups/. A full backup zips the whole "
+                     "data folder (catalog, settings, every project and PDF).").classes("text-xs text-gray-500")
+            ui.button("Create full backup (.zip)", icon="archive", on_click=backup).props("dense outline")
 
     ui.label("Global variables").classes("font-semibold mt-6")
     ui.label("Referenced in boilerplate and line notes as {name}. Proposal variables override these.") \

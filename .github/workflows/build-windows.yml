@@ -1,0 +1,54 @@
+name: Build Windows app
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --prefer-binary -e ".[native,dev]" pyinstaller
+
+      - name: Test
+        run: python -m pytest -q
+
+      - name: Build one-file exe
+        run: python packaging/build.py
+
+      - name: Build folder version
+        run: |
+          python packaging/build.py --onedir
+          Remove-Item -ErrorAction SilentlyContinue "dist/KeptSpec Proposal Builder/selftest.log"
+          Compress-Archive -Path "dist/KeptSpec Proposal Builder" -DestinationPath "dist/KeptSpec-Proposal-Builder-folder.zip"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KeptSpec-Proposal-Builder
+          path: |
+            dist/KeptSpec Proposal Builder.exe
+            dist/KeptSpec-Proposal-Builder-folder.zip
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "${{ github.ref_name }}"
+          "dist/KeptSpec Proposal Builder.exe#KeptSpec Proposal Builder.exe"
+          "dist/KeptSpec-Proposal-Builder-folder.zip"
+          --title "Proposal Builder ${{ github.ref_name }}"
+          --notes-file docs/RELEASE_NOTES.md

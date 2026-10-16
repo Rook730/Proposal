@@ -294,8 +294,7 @@ HOW_TO_READ_TITLES = [
 
 # Generic placeholders replacing values that belong to one proposal.
 TEMPLATE_SUBS = [
-    ("the Kitchen Renovation at 20 Trafalgar Circle", "the {project_name} at {site_address}"),
-    ("at their home on Friday 6/12/26 and Thursday 10/8/26", "at their home on {meeting_dates}"),
+
     ("Total working time is approximately three weeks", "Total working time is approximately {working_time}"),
     ("25% Due Upon Signing", "{deposit_pct} Due Upon Signing"),
     ("Remaining balance due less 5%", "Remaining balance due less {retainage_pct}"),
@@ -306,9 +305,19 @@ TEMPLATE_SUBS = [
 ]
 
 
+# Regex substitutions for the parts of the cover letter that name one client's project.
+TEMPLATE_REGEX = [
+    (r"itemized breakdown for the .+? at .+?\. This proposal",
+     "itemized breakdown for the {project_name} at {site_address}. This proposal"),
+    (r"at their home on [^.]+?\.", "at their home on {meeting_dates}."),
+]
+
+
 def _templatize(text: str) -> str:
     for old, new in TEMPLATE_SUBS:
         text = text.replace(old, new)
+    for pat, new in TEMPLATE_REGEX:
+        text = re.sub(pat, new, text, count=1)
     return text
 
 

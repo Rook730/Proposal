@@ -13,16 +13,30 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 | 3 | PDF engine (Typst), pagination rules | done |
 | 4 | Revisions, alternates, boilerplate per proposal, validation | done |
 | 5 | Change orders, reconciliation | done |
-| 6 | Windows .exe packaging | next |
+| 6 | Windows .exe packaging | done |
 
-## Run on Windows
+## Install on Windows
 
-1. Install Python 3.12 or newer from python.org (check "Add python.exe to PATH").
-2. Clone this repo (GitHub Desktop is fine).
-3. Double-click `setup.bat` once.
-4. Double-click `run.bat`. The app opens in its own window. `run.bat --browser` opens it in a browser tab instead.
+1. Open the repo's **Releases** page and download `KeptSpec Proposal Builder.exe` from the latest release.
+2. Put it wherever you like (Desktop, or a folder such as `C:\Users\<you>\Apps`) and double-click it.
+3. Windows may say "Windows protected your PC" (the app is not code-signed): **More info**, then **Run anyway**.
+4. First run: Settings, Data folder, paste your Proton Drive folder path, click "Use this folder". The setting is kept in `%APPDATA%\KeptSpecProposal\config.json`, so updates keep it.
 
-On first start the app creates `%USERPROFILE%\KeptSpec Proposals` and fills it with the catalog imported from Proposal_Template4.xlsx. To keep data in Proton Drive, open Settings, paste the Proton Drive folder path under Data folder, and click "Use this folder". An empty folder is seeded automatically.
+The first start takes 10 to 20 seconds while the single file unpacks. If that is too slow, or antivirus objects, use `KeptSpec-Proposal-Builder-folder.zip` from the same release: unzip it and run the `.exe` inside.
+
+**Update**: download the newer `.exe` and replace the old one. Data lives in your data folder, not next to the program.
+
+**Backups**: every save keeps the previous version in `backups/` inside the data folder. Settings, "Create full backup (.zip)" zips the whole data folder.
+
+**Check an install**: `"KeptSpec Proposal Builder.exe" --self-test` writes `selftest.log` next to the exe (data folder, calculation, PDF output).
+
+### Building a release
+
+Push a version tag (`git tag v1.0.1 && git push origin v1.0.1`). The GitHub Actions workflow `build-windows.yml` runs the tests on Windows, builds the one-file exe and the folder zip with PyInstaller, self-tests both, and attaches them to a GitHub release. To build locally on Windows: `pip install -e .[native] pyinstaller`, then `python packaging/build.py`.
+
+### Running from source (development)
+
+`setup.bat` once (needs Python 3.13 or 3.12), then `run.bat` (`run.bat --browser` for a browser tab).
 
 ## Using it
 
