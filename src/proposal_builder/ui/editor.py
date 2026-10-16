@@ -60,6 +60,14 @@ class Editor:
         self.revs: list[str] = self.st.projects.list_revisions(number)
         self.rev: Revision = self.st.projects.load_revision(number, rev if rev in self.revs else None)
         self.is_latest = self.rev.rev == self.revs[-1]
+        # line IDs that appeared in an issued revision keep their meaning (see Revision.new_line_id)
+        self.history: list[Line] = []
+        for r in self.revs:
+            if r != self.rev.rev:
+                old = self.st.projects.load_revision(number, r)
+                if old.locked:
+                    self.history += old.lines
+        self.reserved = {ln.id for ln in self.history}
         self.section_filter: int | None = None
         self.results: Results = self._calc()
 
@@ -77,6 +85,9 @@ class Editor:
     @property
     def locked(self) -> bool:
         return self.rev.locked
+
+    def new_id(self, section: int, code: int | None = None) -> str:
+        return self.rev.new_line_id(section, self.reserved, code, self.history)
 
     def save(self, refresh_grid: bool = True) -> None:
         if self.locked:
@@ -385,7 +396,7 @@ class Editor:
         ln = await self._selected()
         if ln:
             copy = ln.model_copy(deep=True)
-            copy.id = self.rev.new_line_id(ln.section)
+            copy.id = self.new_id(ln.section)
             self.rev.add_line(copy)
             copy.order = ln.order + 5
             self.save()
@@ -503,8 +514,8 @@ class Editor:
                 added = []
                 for r in sel:
                     it = self.cat.item(r["code"])
-                    ln = line_from_item(it, self.cat, self.rev.new_line_id(it.section))
-                    self.rev.add_line(ln)
+                    ln = line_from_item(it, self.cat, self.new_id(it.section, it.code))
+                    self.rev.add_line(ln, by_code=True)
                     added.append(ln.id)
                 dlg.close()
                 self.save()
@@ -517,7 +528,7 @@ class Editor:
 
     def custom_line(self) -> None:
         sec = self.section_filter or (self.rev.sections[0] if self.rev.sections else self.cat.sections[0].number)
-        ln = Line(id=self.rev.new_line_id(sec), section=sec, title="New line", unit_price=Decimal(0))
+        ln = Line(id=self.new_id(sec), section=sec, title="New line", unit_price=Decimal(0))
         self.rev.add_line(ln)
         self.save()
         self.line_dialog(ln)
@@ -687,7 +698,7 @@ class Editor:
                     new_section = int(section.value)
                     ln_id = ln.id
                     if new_section != ln.section:
-                        ln_id = rev.new_line_id(new_section)
+                        ln_id = self.new_id(new_section, work.code)
                         for a in rev.alternates:
                             a.removes = [ln_id if x == ln.id else x for x in a.removes]
                     updated = work.model_copy(update=dict(

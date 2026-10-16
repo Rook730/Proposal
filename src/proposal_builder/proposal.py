@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import Enum
+from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -138,7 +139,7 @@ class Revision(_Model):
     alternates: list[Alternate] = Field(default_factory=list)
     variables: list[Variable] = Field(default_factory=list)
     blocks: list[ProposalBlock] = Field(default_factory=list)
-    next_seq: dict[int, int] = Field(default_factory=dict)     # section -> next line sequence
+    next_seq: dict[int, int] = Field(default_factory=dict)     # unused since 1.0.1; kept for old files
     based_on: str | None = None                                # revision this one was copied from
     issued_at: datetime | None = None
     selected_alternates: list[int] = Field(default_factory=list)   # recorded on the contract revision
@@ -160,25 +161,43 @@ class Revision(_Model):
     def section_lines(self, section: int) -> list[Line]:
         return sorted((ln for ln in self.lines if ln.section == section), key=lambda ln: (ln.order, ln.id))
 
-    def new_line_id(self, section: int) -> str:
-        seq = self.next_seq.get(section, 1)
+    def new_line_id(self, section: int, reserved: Iterable[str] = (), code: int | None = None,
+                    history: Iterable[Line] = ()) -> str:
+        """Lowest free ID in the section, e.g. "2.04".
+
+        IDs that appeared in an issued revision (`reserved`) are not handed to a different item, so a
+        line ID always means the same thing to the client. A catalog item re-added after being
+        deleted gets back the ID it had in an issued revision (`history`), if that ID is free.
+        """
         used = {ln.id for ln in self.lines}
-        while f"{section // 100}.{seq:02d}" in used:
+        if code is not None:
+            for old in history:
+                if old.code == code and old.section == section and old.id not in used:
+                    return old.id
+        taken = used | set(reserved)
+        seq = 1
+        while f"{section // 100}.{seq:02d}" in taken:
             seq += 1
-        self.next_seq[section] = seq + 1
         return f"{section // 100}.{seq:02d}"
 
-    def add_line(self, line: Line) -> Line:
+    def add_line(self, line: Line, by_code: bool = False) -> Line:
+        """Append to the section, or with by_code insert it in catalog-code order."""
         if line.section not in self.sections:
             self.sections.append(line.section)
             self.sections.sort()
         existing = self.section_lines(line.section)
-        line.order = (existing[-1].order + 10) if existing else 10
+        if by_code and line.code is not None and existing:
+            idx = next((i for i, e in enumerate(existing) if e.code is not None and e.code > line.code),
+                       len(existing))
+            existing.insert(idx, line)
+            for n, e in enumerate(existing):
+                e.order = (n + 1) * 10
+        else:
+            line.order = (existing[-1].order + 10) if existing else 10
         self.lines.append(line)
         return line
 
     def remove_line(self, line_id: str) -> None:
-        """IDs are retired, never reused (next_seq only moves forward)."""
         self.lines = [ln for ln in self.lines if ln.id != line_id]
         for alt in self.alternates:
             if line_id in alt.removes:

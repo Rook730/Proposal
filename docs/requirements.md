@@ -171,7 +171,7 @@ The Exclusions block is a checklist of library bullets plus free text. Example b
 - Boilerplate selection and edits.
 
 **Line**
-- Line ID: section number plus sequence, e.g. 11.04. IDs never renumber once a revision is issued; a deleted ID is retired and new lines take the next number.
+- Line ID: section number plus sequence, e.g. 11.04. Existing IDs never renumber. A new line takes the lowest free number in its section, except numbers that appeared in an issued revision: those keep their meaning, so they go only to the same catalog item if it is re-added. Lines added from the catalog are placed in code order within the section (decided 2026-10-16; replaces "deleted IDs are retired").
 - Catalog code
 - Title
 - General description: snapshot from the catalog, read-only on the line

@@ -120,7 +120,8 @@ def test_diff(env):
     new.rev = "1.1"
     new.line("2.01").qty = D(14)                                      # 12 -> 14 HR @ 75
     new.remove_line("3.02")                                           # 150
-    new.add_line(Line(id=new.new_line_id(300), section=300, title="Extra", unit_price=D(100)))
+    new.add_line(Line(id=new.new_line_id(300, {ln.id for ln in old.lines}), section=300, title="Extra",
+                      unit_price=D(100)))                               # 3.02 is reserved by the old revision
     new.blocks[0].body += " Edited."
     d = revision_diff(old, new, settings, catalog.stock_classes)
     kinds = {(c.kind, c.line_id) for c in d.changes}

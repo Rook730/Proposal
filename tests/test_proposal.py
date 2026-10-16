@@ -219,13 +219,26 @@ def test_allowance_line_tiers(catalog):
     assert ln.tier_price() == a.low
 
 
-def test_line_ids_are_retired():
+def test_line_ids_reuse_and_reservation():
     rev = Revision()
-    a = rev.add_line(Line(id=rev.new_line_id(500), section=500, title="a"))
-    rev.remove_line(a.id)
-    b = rev.add_line(Line(id=rev.new_line_id(500), section=500, title="b"))
+    a = rev.add_line(Line(id=rev.new_line_id(500), section=500, title="a", code=510))
+    b = rev.add_line(Line(id=rev.new_line_id(500), section=500, title="b", code=520))
     assert (a.id, b.id) == ("5.01", "5.02")
-    assert 500 in rev.sections
+    rev.remove_line(a.id)
+    assert rev.new_line_id(500) == "5.01"                         # draft never issued: lowest free ID
+    issued = [Line(id="5.01", section=500, title="a", code=510), Line(id="5.02", section=500, title="b", code=520)]
+    reserved = {ln.id for ln in issued}
+    assert rev.new_line_id(500, reserved, code=999, history=issued) == "5.03"   # 5.01 meant item 510
+    assert rev.new_line_id(500, reserved, code=510, history=issued) == "5.01"   # 510 gets its ID back
+
+
+def test_add_line_by_code_order():
+    rev = Revision()
+    for code in (210, 230, 250):
+        rev.add_line(Line(id=rev.new_line_id(200), section=200, title=str(code), code=code))
+    rev.add_line(Line(id=rev.new_line_id(200), section=200, title="240", code=240), by_code=True)
+    assert [ln.code for ln in rev.section_lines(200)] == [210, 230, 240, 250]
+    assert 200 in rev.sections
 
 
 # ---------------------------------------------------------------- storage
