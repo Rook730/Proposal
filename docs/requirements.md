@@ -119,7 +119,7 @@ Each section has a number (100, 200 ... 1400), a name, a print order and a short
 - **Stock sizes** for quantity rounding (see 5.5).
 - **Flags:**
   - percent item
-  - allowance: prints a bold "Allowance." at the start of the line's description on the proposal, marking owner-selected items and estimates that may change after discovery. It is independent of the price basis (a sub's quote carried as an allowance is fixed or custom-tier and still flagged). Defaults on for items priced from or linked to an allowance range; set per catalog item and per line; Pull update copies it from the catalog; revision diffs report it.
+  - allowance: prints a bold "Allowance." at the start of the line's description on the proposal, marking owner-selected items and estimates that may change after discovery. It is independent of the price basis (a sub's quote carried as an allowance is fixed or custom-tier and still flagged). Set per catalog item (the default for new lines; on for items priced from or linked to an allowance range unless changed) and per line. Each line keeps its own setting: Pull update does not touch it. Revision diffs report it.
   - "not included" ($0 scope line)
   - owner-furnished
   - credit-if-unused (contingency, CO management, painting sub)

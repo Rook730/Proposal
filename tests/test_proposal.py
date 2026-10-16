@@ -262,12 +262,13 @@ def test_project_store_roundtrip(tmp_path, p26005):
         ps.create(project, rev)
 
 
-def test_catalog_allowance_flag_default_and_pull(catalog):
+def test_catalog_allowance_flag_is_default_only(catalog):
     assert catalog.item(1121).is_allowance and not catalog.item(510).is_allowance
     item = catalog.item(1180)
     ln = line_from_item(item, catalog, "11.01")
     assert not ln.is_allowance
-    item.is_allowance, item.description = True, "Countertop material."
-    assert set(catalog_differences(ln, catalog)) == {"general_description", "allowance flag"}
+    item.is_allowance = True
+    assert line_from_item(item, catalog, "11.02").is_allowance       # new lines take the default
+    assert catalog_differences(ln, catalog) == {}                     # existing lines keep their own choice
     pull_update(ln, catalog)
-    assert ln.is_allowance and ln.general_description == "Countertop material."
+    assert not ln.is_allowance
