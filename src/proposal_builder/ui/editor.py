@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import sys
 from datetime import date
 from decimal import Decimal
@@ -136,6 +137,7 @@ class Editor:
             t_terms = ui.tab("Terms & options", icon="article")
             t_issues = ui.tab("Issues", icon="report")
             t_income = ui.tab("Income", icon="savings")
+            t_quotes = ui.tab("Sub quotes", icon="request_quote")
         with ui.tab_panels(tabs, value=t_lines).classes("w-full"):
             with ui.tab_panel(t_lines).classes("p-0 pt-2"):
                 self.lines_tab()
@@ -149,6 +151,115 @@ class Editor:
                 self.issues_panel()
             with ui.tab_panel(t_income):
                 self.income_panel()
+            with ui.tab_panel(t_quotes):
+                self.quotes_panel()
+
+    # ------------------------------------------------------------ sub quotes
+    def _pdf_dir(self) -> Path:
+        d = self.st.projects.project_dir(self.project.number) / "pdf"
+        d.mkdir(exist_ok=True)
+        return d
+
+    def _logo_path(self):
+        lp = self.st.settings.company.logo_path
+        return self.st.store.path(lp) if lp else None
+
+    @ui.refreshable_method
+    def quotes_panel(self) -> None:
+        from ..crm import line_contractor
+        from ..quotes import Quote, comparison_document, contractor_lines, rfq_document
+        from .pdf_ui import export_pdf, preview_pdf
+        st, num = self.st, self.project.number
+        book = st.contractors
+        log = st.projects.load_quotes(num)
+
+        ui.label("Request a quote").classes("font-semibold")
+        ui.label("Builds a PDF of the lines assigned to one contractor (title, description, notes, unit, quantity) "
+                 "with the project number, name and site address. No prices and no client name. Assign contractors "
+                 "on the lines (line form, Contractor).").classes("text-xs text-gray-500")
+        on_lines = {}
+        for ln in self.rev.lines:
+            c = line_contractor(book, ln)
+            if c and not ln.is_percent:
+                on_lines.setdefault(c.id, []).append(ln.id)
+        with ui.row().classes("items-end gap-3"):
+            sel = ui.select({cid: f"{book.get(cid).company} ({', '.join(ids)})" for cid, ids in on_lines.items()},
+                            label="Contractor", value=next(iter(on_lines), None)).props("dense").classes("min-w-[360px]")
+
+            def rfq_doc():
+                con = book.get(sel.value)
+                if con is None:
+                    ui.notify("No contractor is assigned to any line yet.", type="warning")
+                    return None, None
+                doc = rfq_document(self.project, self.rev, con, contractor_lines(self.rev, book, con.id),
+                                   st.settings, self.cat.stock_classes)
+                name = re.sub(r"[^A-Za-z0-9_]+", "", f"{num}_RFQ_{con.company.replace(' ', '')}_V{self.rev.rev}") + ".pdf"
+                return doc, name
+
+            async def rfq_preview() -> None:
+                doc, _ = rfq_doc()
+                if doc:
+                    await preview_pdf(doc, "rfq.typ", "Request for quote", self._logo_path())
+
+            async def rfq_export() -> None:
+                doc, name = rfq_doc()
+                if doc:
+                    await export_pdf(doc, "rfq.typ", name, self._pdf_dir(), self._logo_path())
+            ui.button("Preview", icon="visibility", on_click=rfq_preview).props("dense outline")
+            ui.button("Export PDF", icon="picture_as_pdf", on_click=rfq_export).props("dense")
+
+        def save_quotes() -> None:
+            st.projects.save_quotes(num, log)
+            scopes_now = log.scopes()
+            cmp_sel.set_options(scopes_now, value=cmp_sel.value if cmp_sel.value in scopes_now
+                                else (scopes_now[0] if scopes_now else None))
+
+        ui.separator().classes("my-3")
+        ui.label("Quotes received").classes("font-semibold")
+        ui.label("Log each quote. Quotes with the same scope name are compared. With a single quote, put the price "
+                 "on the line (unit price, quote ref and quote amount) as before; pick the winner the same way.") \
+            .classes("text-xs text-gray-500")
+        EditableGrid(lambda: log.quotes,
+                     [Col("scope", "Scope", width=150),
+                      Col("contractor_id", "Contractor", "lookup", width=190,
+                          lookup={c.id: c.company for c in book.sorted()}),
+                      Col("line_ids", "Lines", "strlist", width=120),
+                      Col("amount", "Price", "number", width=110),
+                      Col("received", "Received", "date", width=115),
+                      Col("valid_until", "Valid until", "date", width=115),
+                      Col("notes", "Inclusions / exclusions / notes", flex=1)],
+                     save_quotes,
+                     lambda: Quote(scope=(log.quotes[-1].scope if log.quotes else ""), received=date.today()),
+                     height="30vh")
+
+        ui.label("Compare for the client").classes("font-semibold mt-3")
+        ui.label("A separate PDF (not part of the proposal) listing each contractor's price for one scope, lowest "
+                 "first.").classes("text-xs text-gray-500")
+        with ui.row().classes("items-end gap-3"):
+            scopes = log.scopes()
+            cmp_sel = ui.select(scopes, value=scopes[0] if scopes else None, label="Scope").props("dense") \
+                .classes("min-w-[240px]")
+
+            def cmp_doc():
+                qs = log.for_scope(cmp_sel.value or "")
+                if not qs:
+                    ui.notify("Pick a scope with logged quotes.", type="warning")
+                    return None, None
+                doc = comparison_document(self.project, self.rev, cmp_sel.value, qs, book, st.settings)
+                name = re.sub(r"[^A-Za-z0-9_]+", "", f"{num}_QuoteComparison_{cmp_sel.value.replace(' ', '')}") + ".pdf"
+                return doc, name
+
+            async def cmp_preview() -> None:
+                doc, _ = cmp_doc()
+                if doc:
+                    await preview_pdf(doc, "comparison.typ", "Quote comparison", self._logo_path())
+
+            async def cmp_export() -> None:
+                doc, name = cmp_doc()
+                if doc:
+                    await export_pdf(doc, "comparison.typ", name, self._pdf_dir(), self._logo_path())
+            ui.button("Preview", icon="visibility", on_click=cmp_preview).props("dense outline")
+            ui.button("Export PDF", icon="picture_as_pdf", on_click=cmp_export).props("dense")
 
     # ------------------------------------------------------------ income (internal)
     @ui.refreshable_method

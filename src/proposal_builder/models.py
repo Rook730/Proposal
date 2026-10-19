@@ -245,6 +245,11 @@ class Settings(_Model):
     retainage_pct: Decimal = Decimal("0.05")
     validity_days: int = 30
     license_threshold: Decimal = Decimal("40000")   # warn when a total reaches this; 0 turns the check off
+    rfq_note: str = ("Please quote the scope below for the project listed. Include materials, labor and any permits "
+                     "for your trade, and list exclusions, assumptions and lead time. Quantities are our takeoff; "
+                     "verify on site. Send your quote to {company_email}.")
+    comparison_note: str = ("Quotes are the subcontractors' prices for the scope listed. Contingency, overhead and "
+                            "profit apply to the selected quote as they do to the rest of the proposal.")
     global_variables: list[Variable] = Field(default_factory=list)
     # change orders and reconciliation: which catalog codes play which role
     co_markup_codes: list[int] = Field(default_factory=lambda: [1410, 1420])   # overhead, profit

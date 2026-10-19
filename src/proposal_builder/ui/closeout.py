@@ -28,6 +28,7 @@ from ..closeout import (
     price_change_orders,
 )
 from ..models import Performer
+from .pdf_ui import export_pdf, preview_pdf
 from .crm_pages import project_contractor_ids, vendor_names
 from ..crm import insurance_warnings
 from ..proposal import ProjectStatus
@@ -84,51 +85,10 @@ class Closeout:
         return d
 
     async def _export(self, doc: dict, template: str, name: str) -> None:
-        n = ui.notification("Building PDF...", spinner=True, timeout=None)
-        try:
-            pdf = await run.io_bound(compile_document, doc, self._logo(), "pdf", 110, template)
-        except Exception as e:  # noqa: BLE001
-            n.dismiss()
-            ui.notify(f"PDF failed: {e}", type="negative", multi_line=True)
-            return
-        n.dismiss()
-        path = self._pdf_dir() / name
-        try:
-            path.write_bytes(pdf)
-        except PermissionError:
-            ui.notify(f"{name} is open in another program. Close it and try again.", type="negative")
-            return
-        with ui.dialog() as dlg, ui.card():
-            ui.label("PDF saved").classes("text-lg font-semibold")
-            ui.label(str(path)).classes("text-xs break-all")
-            with ui.row():
-                if sys.platform == "win32":
-                    ui.button("Open PDF", icon="open_in_new", on_click=lambda: os.startfile(path))  # noqa: S606
-                else:
-                    ui.button("Download", icon="download", on_click=lambda: ui.download.content(pdf, name))
-                ui.button("Close", on_click=dlg.close).props("flat")
-        dlg.open()
+        await export_pdf(doc, template, name, self._pdf_dir(), self._logo())
 
     async def _preview(self, doc: dict, template: str, title: str) -> None:
-        n = ui.notification("Rendering preview...", spinner=True, timeout=None)
-        try:
-            pages = await run.io_bound(compile_document, doc, self._logo(), "png", 80, template)
-        except Exception as e:  # noqa: BLE001
-            n.dismiss()
-            ui.notify(f"Preview failed: {e}", type="negative", multi_line=True)
-            return
-        n.dismiss()
-        with ui.dialog().props("maximized") as dlg, ui.card().classes("w-full h-full p-0"):
-            with ui.row().classes("w-full items-center px-4 py-2").style(f"background:{BRAND};color:white"):
-                ui.label(title)
-                ui.space()
-                ui.button(icon="close", on_click=dlg.close).props("flat round color=white")
-            with ui.scroll_area().classes("w-full grow").style("background:#80868b"):
-                with ui.column().classes("w-full items-center gap-4 py-4"):
-                    for png in pages:
-                        ui.image("data:image/png;base64," + base64.b64encode(png).decode()) \
-                            .classes("w-[850px] max-w-full shadow-lg bg-white")
-        dlg.open()
+        await preview_pdf(doc, template, title, self._logo())
 
     # ------------------------------------------------------------ page
     def build(self) -> None:

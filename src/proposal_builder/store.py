@@ -307,6 +307,14 @@ class ProjectStore:
     def save_change_orders(self, number: str, log) -> None:
         self._save(self.project_dir(number) / "change_orders.json", log)
 
+    def load_quotes(self, number: str):
+        from .quotes import QuoteLog
+        p = self.project_dir(number) / "quotes.json"
+        return QuoteLog.model_validate_json(p.read_text(encoding="utf-8")) if p.exists() else QuoteLog()
+
+    def save_quotes(self, number: str, log) -> None:
+        self._save(self.project_dir(number) / "quotes.json", log)
+
     def load_reconciliation(self, number: str):
         from .closeout import Reconciliation
         p = self.project_dir(number) / "reconciliation.json"

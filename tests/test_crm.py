@@ -42,3 +42,36 @@ def test_contractors_from_sub_names_and_insurance():
     assert insurance_warnings(book, {c.id}, today) == ["Sparky Electric: insurance expired 2026.09.01"]
     book.contractors.append(Contractor(company="Good Co", insurance_expiry=date(2027, 1, 1)))
     assert insurance_warnings(book, {book.contractors[1].id}, today) == []
+
+
+def test_rfq_and_comparison_documents_compile():
+    import json
+    from decimal import Decimal
+    from importlib import resources
+    from pathlib import Path
+
+    from proposal_builder.models import Catalog, Settings
+    from proposal_builder.proposal import Revision
+    from proposal_builder.quotes import Quote, QuoteLog, comparison_document, contractor_lines, rfq_document
+    from proposal_builder.render.document import compile_document
+
+    seed = lambda n: (resources.files("proposal_builder") / "seed" / n).read_text(encoding="utf-8")  # noqa: E731
+    st, cat = Settings.model_validate_json(seed("settings.json")), Catalog.model_validate_json(seed("catalog.json"))
+    data = json.loads((Path(__file__).parent / "fixtures" / "26005_anon.json").read_text(encoding="utf-8"))
+    project, rev = Project.model_validate(data["project"]), Revision.model_validate(data["revision"])
+    book = ContractorBook(contractors=[Contractor(company="Brush Pros"), Contractor(company="Color Co")])
+    a, b = book.contractors
+    for ln in rev.lines:
+        if ln.code == 1110:
+            ln.contractor_id = a.id
+    lines = contractor_lines(rev, book, a.id)
+    assert lines and all(ln.code == 1110 for ln in lines)
+    doc = rfq_document(project, rev, a, lines, st, cat.stock_classes)
+    assert "price" not in json.dumps(doc["lines"]).lower() and project.client_name not in json.dumps(doc)
+    assert compile_document(doc, None, template="rfq.typ")[:4] == b"%PDF"
+    log = QuoteLog(quotes=[Quote(scope="Painting", contractor_id=a.id, amount=Decimal(9800)),
+                           Quote(scope="painting ", contractor_id=b.id, amount=Decimal(8900))])
+    assert log.scopes() == ["Painting"] and len(log.for_scope("Painting")) == 2
+    cmp = comparison_document(project, rev, "Painting", log.for_scope("Painting"), book, st)
+    assert [r["company"] for r in cmp["rows"]] == ["Color Co", "Brush Pros"]       # lowest first
+    assert compile_document(cmp, None, template="comparison.typ")[:4] == b"%PDF"
