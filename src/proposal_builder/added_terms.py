@@ -7,6 +7,12 @@ SC = "Scope Clarifications & Exclusions"
 HR = "How to read this proposal"
 
 NEW = {
+    "zero-lines": (HR, "$0 and owner-supplied lines",
+        "A line showing $0 is work that is not included in this proposal, listed so the scope is clear.\n\n"
+        "Owner-supplied items are purchased directly by you. We list them so the coordination and installation "
+        "scope is clear. When an estimated cost is known it is shown in parentheses; it is not part of the "
+        "subtotal or Total Price. The Total *Incl. Owner-supplied items line adds these costs to show the full "
+        "project cost.", 60),
     "hourly-rates": (HR, "Hourly Rates",
         "Hourly work performed by Kept Spec Advisors and Convenient Woodworking on this proposal, "
         "including any Change Order work, is billed at the following rates.\n\n{rates_table}", 35),

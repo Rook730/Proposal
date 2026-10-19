@@ -50,6 +50,8 @@ def _line_body(ln: Line, variables: dict[str, str]) -> str:
     if ln.is_allowance:
         parts.append("*Allowance.*")
     note = PERFORMER_NOTE.get(ln.performer)
+    if ln.owner_furnished and note is None:
+        note = PERFORMER_NOTE[Performer.CLIENT]          # owner-supplied always says so
     if note and not (ln.notes or "").startswith(note):
         parts.append(f"_{escape(note)}_")
     text = []
@@ -147,12 +149,13 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
                 amount = lr.cost
                 price = fmt_money(lr.unit_price) if lr.unit_price else "-"
             kind = "alt" if ln.alternate else ("pct" if ln.is_percent else "base")
+            owner = ln.owner_furnished and not ln.is_percent and bool(amount)
             rows.append({
                 "id": ln.id, "code": str(ln.code) if ln.code is not None else "", "title": ln.title,
                 "body": _line_body(ln, v), "unit": ln.unit, "qty": fmt_qty(lr.qty), "price": price,
                 "price_money": not ln.is_percent and bool(lr.unit_price),
                 "cost": fmt_money(amount) if amount is not None else "",
-                "kind": kind, "alt": ln.alternate or 0,
+                "kind": kind, "alt": ln.alternate or 0, "owner": owner,
             })
         has_pct = any(ln.is_percent for ln in lines)
         alts_here = [n for n in alt_nums
@@ -191,6 +194,15 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
     for c in res.combinations:
         totals.append({"label": f"Total Price *{c.name.replace('Alt', 'Alternate')}",
                        "amount": fmt_money(c.total), "style": "total", "alt": -1})
+    if res.base.owner_supplied:
+        totals.append({"label": "Total *Incl. Owner-supplied items",
+                       "amount": fmt_money(res.base.total_incl_owner), "style": "incl"})
+    for n in alt_nums:
+        alt = rev.alternate(n)
+        touches_owner = any(ln.owner_furnished and (ln.alternate == n or ln.id in alt.removes) for ln in rev.lines)
+        if touches_owner and res.alternates[n].owner_supplied != res.base.owner_supplied:
+            totals.append({"label": f"Total {alt_label(n)} Incl. Owner-supplied items",
+                           "amount": fmt_money(res.alternates[n].total_incl_owner), "style": "incl", "alt": n})
     alt_descriptions = [{"n": a.number, "name": a.name, "text": md_to_typst(render(a.description, v))}
                         for a in sorted(rev.alternates, key=lambda a: a.number) if a.description or a.name]
 

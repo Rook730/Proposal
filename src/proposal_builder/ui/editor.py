@@ -211,7 +211,8 @@ class Editor:
             tile("Subtotal", money(r.base.subtotal))
             tile("Percent items", money(r.base.percent_total),
                  f"{(r.base.percent_total / r.base.subtotal * 100):.1f}% of subtotal" if r.base.subtotal else "")
-            tile("Total", money(r.base.total))
+            tile("Total", money(r.base.total),
+                 f"{money(r.base.total_incl_owner)} incl. owner-supplied" if r.base.owner_supplied else "")
             for n, sc in r.alternates.items():
                 d = r.delta(n)
                 tile(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base",
@@ -879,9 +880,11 @@ class Editor:
             out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined"))
         limit = self.st.settings.license_threshold
         if limit:
-            totals = [("Total Price", self.results.base.total)]
-            totals += [(f"Alt {n} total", s.total) for n, s in sorted(self.results.alternates.items())]
-            totals += [(c.name, c.total) for c in self.results.combinations]
+            # owner-supplied items count toward the project cost here
+            totals = [("Total incl. owner-supplied", self.results.base.total_incl_owner)]
+            totals += [(f"Alt {n} incl. owner-supplied", s.total_incl_owner)
+                       for n, s in sorted(self.results.alternates.items())]
+            totals += [(c.name, c.total_incl_owner) for c in self.results.combinations]
             over = [f"{name} ${t:,.2f}" for name, t in totals if t >= limit]
             if over:
                 out.append(("warn", f"At or above the ${limit:,.0f} general contractor license threshold: "

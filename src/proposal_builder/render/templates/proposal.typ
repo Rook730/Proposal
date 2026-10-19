@@ -89,7 +89,7 @@
   align(center, text(8.5pt, r.unit)),
   align(center, text(8.5pt, r.qty)),
   if r.price_money { text(8.5pt, money(r.price)) } else { align(right, text(8.5pt, r.price)) },
-  text(8.5pt, money(r.cost)),
+  if r.at("owner", default: false) { text(8.5pt, fill: muted, money("(" + r.cost + ")")) } else { text(8.5pt, money(r.cost)) },
 )
 
 #let row-fill(r) = if r.kind == "pct" { pct-fill } else if r.kind == "alt" { altfill(r.alt) } else { none }
@@ -254,9 +254,8 @@
       if t.at("alt", default: 0) != 0 { altfill(t.alt) } else if t.style == "sub" { luma(242) } else { none }
     },
     ..d.totals.map(t => {
-      let big = t.style == "total"
-      (text(if big { 13pt } else { 10pt }, weight: "bold", t.label),
-       text(if big { 13pt } else { 10pt }, money(t.amount, bold: true)))
+      let size = if t.style == "total" { 13pt } else if t.style == "incl" { 11pt } else { 10pt }
+      (text(size, weight: "bold", t.label), text(size, money(t.amount, bold: true)))
     }).flatten(),
   )
   #if d.alternates.len() > 0 {

@@ -15,6 +15,9 @@ OLD_1320 = ("5% allowance for the project management relating to change orders t
 OLD_GRAY = ("These have a percentage unit price: builder’s risk, contingency, change order management, overhead "
             "and profit. They are not part of the subtotal. Each is calculated as a percentage of the subtotal and "
             "added to reach the Total Price. Unused contingency is credited on the final invoice.")
+OLD_ZERO = ("A line showing $0 is one of two things:\n\nWork that is not included in this proposal, listed so the "
+            "scope is clear.\nAn owner-furnished item, which you purchase directly. We show it so the coordination "
+            "and installation scope is clear.")
 
 
 def _seed_catalog() -> Catalog:
@@ -42,4 +45,10 @@ def migrate_library(catalog: Catalog, boilerplate: Boilerplate) -> tuple[bool, b
         if new is not None:
             blk.body = new.body
             bp_changed = True
+    blk = next((b for b in boilerplate.blocks if b.id == "zero-lines"), None)
+    if blk is not None and blk.body == OLD_ZERO:
+        from .added_terms import NEW
+        _, title, body, _ = NEW["zero-lines"]
+        blk.title, blk.body = title, body
+        bp_changed = True
     return cat_changed, bp_changed

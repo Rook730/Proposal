@@ -167,6 +167,8 @@ class Scenario:
     percent_items: dict[str, Decimal]  # line id -> amount
     section_base: dict[int, Decimal]   # section -> total excluding percent items
     section_pct: dict[int, Decimal]    # section -> percent items in that section
+    owner_supplied: Decimal = Decimal(0)        # owner-furnished lines' cost: outside subtotal and total
+    owner_lines: tuple[str, ...] = ()
 
     @property
     def percent_total(self) -> Decimal:
@@ -175,6 +177,11 @@ class Scenario:
     @property
     def total(self) -> Decimal:
         return self.subtotal + self.percent_total
+
+    @property
+    def total_incl_owner(self) -> Decimal:
+        """Whole project cost: Total Price plus what the owner buys directly."""
+        return self.total + self.owner_supplied
 
     def section_total(self, section: int, with_pct: bool = True) -> Decimal:
         base = self.section_base.get(section, Decimal(0))
@@ -238,8 +245,13 @@ def _scenario(name: str, alts: tuple[int, ...], rev: Revision, lr: dict[str, Lin
                 if ln.section in rev.sections
                 and ((ln.alternate is None and ln.id not in removed) or (ln.alternate in alts))]
     section_base: dict[int, Decimal] = {}
-    subtotal = Decimal(0)
+    subtotal = owner = Decimal(0)
+    owner_lines: list[str] = []
     for ln in included:
+        if ln.owner_furnished and not ln.is_percent:
+            owner += lr[ln.id].cost
+            owner_lines.append(ln.id)
+            continue
         if not ln.is_percent:
             c = lr[ln.id].cost
             subtotal += c
@@ -252,7 +264,8 @@ def _scenario(name: str, alts: tuple[int, ...], rev: Revision, lr: dict[str, Lin
             pct[ln.id] = amt
             section_pct[ln.section] = section_pct.get(ln.section, Decimal(0)) + amt
     return Scenario(name=name, alternates=alts, line_ids=[ln.id for ln in included], subtotal=subtotal,
-                    percent_items=pct, section_base=section_base, section_pct=section_pct)
+                    percent_items=pct, section_base=section_base, section_pct=section_pct,
+                    owner_supplied=owner, owner_lines=tuple(owner_lines))
 
 
 def calculate(rev: Revision, settings: Settings, stock_classes: list[StockClass],

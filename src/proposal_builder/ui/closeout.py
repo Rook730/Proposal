@@ -197,13 +197,13 @@ class Closeout:
         lg, c = self.ledger, self.contract
         if not (lg and c.license_threshold):
             return
-        total = c.total + lg.co_billed
+        total = c.total + c.results.base.owner_supplied + lg.co_billed
         if total >= c.license_threshold:
-            ui.label(f"Contract plus approved change orders: {money(total)}. This is at or above the "
-                     f"{money(c.license_threshold)} general contractor license threshold.") \
+            ui.label(f"Contract, owner-supplied items and approved change orders: {money(total)}. This is at or "
+                     f"above the {money(c.license_threshold)} general contractor license threshold.") \
                 .classes("text-sm font-semibold text-red-700")
         elif total >= c.license_threshold * Decimal("0.9"):
-            ui.label(f"Contract plus approved change orders: {money(total)}, within "
+            ui.label(f"Contract, owner-supplied items and approved change orders: {money(total)}, within "
                      f"{money(c.license_threshold - total)} of the {money(c.license_threshold)} license threshold.") \
                 .classes("text-sm text-orange-700")
 

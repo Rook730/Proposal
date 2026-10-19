@@ -324,6 +324,10 @@ def build_ledger(contract: Contract, log: ChangeOrderLog, recon: Reconciliation)
         if ln.is_percent or ln.section not in rev.sections or ln.alternate is not None:
             continue
         entries = by_line.get(ln.id, [])
+        if ln.owner_furnished:
+            if entries:
+                warnings.append(f"{ln.id} {ln.title}: owner-supplied, so its actual costs are not reconciled")
+            continue
         actual = sum((actual_amount(a, ln) for a in entries), ZERO) if entries else None
         client_paid = sum((actual_amount(a, ln) for a in entries if a.paid_by is PaidBy.CLIENT), ZERO)
         lines.append(LineRecon(ln, res.lines[ln.id].cost, actual, ln.id in recon.unused_lines, client_paid))
@@ -341,9 +345,10 @@ def build_ledger(contract: Contract, log: ChangeOrderLog, recon: Reconciliation)
                             "mark it unused or enter its cost")
     if contract.co_management and not contract.mgmt_rate and any(o.mgmt_hours for o in approved):
         warnings.append("No project management rate found on the contract; change order hours are priced at $0")
-    if contract.license_threshold and contract.total + co_billed >= contract.license_threshold:
-        warnings.append(f"Contract plus approved change orders is ${contract.total + co_billed:,.2f}, at or above "
-                        f"the ${contract.license_threshold:,.0f} general contractor license threshold")
+    project_cost = contract.total + res.base.owner_supplied + co_billed
+    if contract.license_threshold and project_cost >= contract.license_threshold:
+        warnings.append(f"Contract, owner-supplied items and approved change orders total ${project_cost:,.2f}, "
+                        f"at or above the ${contract.license_threshold:,.0f} general contractor license threshold")
     return Ledger(contract, pricing, approved, lines, co_billed, used, unused_cont, mgmt_used, mgmt_credit, net_var,
                   var_markup, total_final, client_direct, received,
                   total_final - client_direct - received, warnings)

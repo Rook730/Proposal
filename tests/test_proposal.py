@@ -272,3 +272,13 @@ def test_catalog_allowance_flag_is_default_only(catalog):
     assert catalog_differences(ln, catalog) == {}                     # existing lines keep their own choice
     pull_update(ln, catalog)
     assert not ln.is_allowance
+
+
+def test_owner_supplied_outside_totals(settings):
+    rev = _simple_rev()                                       # 1700 subtotal, 10% profit
+    rev.add_line(Line(id=rev.new_line_id(100), section=100, title="Range", unit_price=D(3200),
+                      owner_furnished=True))
+    res = calculate(rev, settings, [])
+    assert res.base.subtotal == D(1700) and res.base.total == D(1870)        # unchanged
+    assert res.base.owner_supplied == D(3200) and res.base.total_incl_owner == D(5070)
+    assert res.base.section_total(100, with_pct=False) == D(1700)

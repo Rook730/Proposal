@@ -126,3 +126,23 @@ def test_rates_table_uses_line_snapshots_for_cw_and_ks():
     rows = rates_table(rev, cat)
     assert rows == [["Project management / client meetings", "Kept Spec Advisors", "$75.00 / HR"],
                     ["Convenient Woodworking trade labor", "Convenient Woodworking", "$80.00 / HR"]]
+
+
+def test_owner_supplied_prints_in_parentheses_and_incl_total():
+    from proposal_builder.models import PriceSource
+    st = Settings.model_validate_json(seed("settings.json"))
+    cat = Catalog.model_validate_json(seed("catalog.json"))
+    bp = Boilerplate.model_validate_json(seed("boilerplate.json"))
+    rev = Revision(sections=[1100, 1400])
+    rev.add_line(Line(id="11.01", section=1100, title="Tile", unit_price=Decimal(1000)))
+    rev.add_line(Line(id="11.02", section=1100, title="Range", unit_price=Decimal(3200), owner_furnished=True))
+    rev.add_line(Line(id="14.01", section=1400, title="Profit", price_basis=PriceSource.PERCENT,
+                      unit_price=Decimal("0.10")))
+    doc = build_document(Project(number="26999", client_name="X", project_name="Y"), rev, st, cat, bp)
+    row = next(r for s in doc["sections"] for r in s["rows"] if r["id"] == "11.02")
+    assert row["owner"] and row["cost"] == "3,200.00"
+    labels = {t["label"]: t["amount"] for t in doc["totals"]}
+    assert labels["Total Price"] == "1,100.00"
+    assert labels["Total *Incl. Owner-supplied items"] == "4,300.00"
+    assert not any("Alternate" in k and "Owner" in k for k in labels)
+    compile_document(doc, None, "pdf")

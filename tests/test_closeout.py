@@ -129,3 +129,12 @@ def test_license_threshold_warning(contract):
     assert any("license threshold" in w for w in lg.warnings)              # 41,186.59 >= 40,000
     contract.license_threshold = D(0)
     assert not any("license threshold" in w for w in build_ledger(contract, ChangeOrderLog(), Reconciliation()).warnings)
+
+
+def test_owner_supplied_not_reconciled(contract):
+    ln = contract.rev.lines[0]
+    ln.owner_furnished = True
+    recon = Reconciliation(actuals=[ActualCost(line_id=ln.id, amount=D(500), paid_by=PaidBy.CLIENT)])
+    lg = build_ledger(contract, ChangeOrderLog(), recon)
+    assert ln.id not in {lr.line.id for lr in lg.lines}
+    assert lg.net_variance == 0 and any("owner-supplied" in w for w in lg.warnings)

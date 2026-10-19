@@ -446,3 +446,10 @@ A toggle shows fields that never print:
 - Line form: the catalog code can be changed on an existing line. Title, section and general description follow the new item; quantity, price, notes and flags stay.
 - Payment table: the progress line reads "Construction progress payments".
 - Terms added (src/proposal_builder/added_terms.py, applied by the importer on top of the workbook text): Hourly Rates, Lien Waivers, mutual Contract Cancellation or Termination, Insurance, Dispute Resolution, Permits & Inspections, and the allowance overage-approval sentence. No start dates.
+
+**Changes after release (1.2.0): owner-supplied items**
+- An owner-furnished line can carry an estimated cost. It is left out of the subtotal, section totals, percent items, Total Price, alternate totals and payment schedule, and prints in gray parentheses in the Cost column, with "Owner-furnished." in its description.
+- Totals add "Total *Incl. Owner-supplied items" when owner-supplied cost is above zero, plus "Total *Alternate Incl. Owner-supplied items" only when an alternate adds or removes an owner-supplied line.
+- The license threshold check uses totals including owner-supplied items (editor Issues, change order screen, ledger).
+- The ledger does not reconcile owner-supplied lines; actual costs entered against one raise a warning.
+- The "$0 lines" block becomes "$0 and owner-supplied lines" (library text updated automatically when unedited).
