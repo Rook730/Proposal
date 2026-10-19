@@ -450,6 +450,12 @@ def settings_page() -> None:
             ui.label("Every save keeps the previous version in backups/. A full backup zips the whole "
                      "data folder (catalog, settings, every project and PDF).").classes("text-xs text-gray-500")
             ui.button("Create full backup (.zip)", icon="archive", on_click=backup).props("dense outline")
+            ui.separator().classes("my-2")
+            from .. import __version__
+            from .update_ui import check_now
+            ui.label(f"Program version v{__version__}. The app checks for a newer version when it starts and "
+                     "shows an Update button in the top bar.").classes("text-xs text-gray-500")
+            ui.button("Check for updates", icon="system_update", on_click=check_now).props("dense outline")
 
     ui.label("Global variables").classes("font-semibold mt-6")
     ui.label("Referenced in boilerplate and line notes as {name}. Proposal variables override these.") \

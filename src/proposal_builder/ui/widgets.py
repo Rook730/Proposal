@@ -40,6 +40,8 @@ def layout(title: str, drawer: bool = True) -> None:
         ui.label(title).classes("text-sm opacity-80")
         from .. import __version__
         ui.label(f"v{__version__}").classes("text-xs opacity-60")
+        from .update_ui import header_slot
+        header_slot()
     with ui.left_drawer(value=drawer, bordered=True).classes("p-0").props("width=210"):
         with ui.list().props("dense padding").classes("w-full"):
             ui.item_label("Proposals").props("header").classes("text-xs uppercase")

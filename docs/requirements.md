@@ -455,3 +455,5 @@ A toggle shows fields that never print:
 - The "$0 lines" block becomes "$0 and owner-supplied lines" (library text updated automatically when unedited).
 
 **1.2.1:** saving a line (dialog or in-place edit) keeps the line list's scroll position. The last edited, moved, duplicated or added line is selected and marked with an amber bar and bold text until another line is edited.
+
+**1.3.0: in-app updates.** On start the app asks GitHub for the latest release (public repo, no account needed; offline just means no prompt). If it is newer, an "Update to vX" button appears in the top bar; Settings has "Check for updates". The one-file .exe downloads the new .exe beside itself, renames itself to .old, swaps the new one in, restarts, and deletes the .old on the next start. The folder version and source runs open the download page instead. CI checks the self-update path on Windows before each release (packaging/update_check.py). If the repository is made private, the check needs a token and will stop finding updates.

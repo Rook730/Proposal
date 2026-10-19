@@ -48,7 +48,15 @@ def main() -> None:
     ap.add_argument("--data", help="data folder (overrides saved setting for this run)")
     ap.add_argument("--no-show", action="store_true", help="do not open a window or tab (testing)")
     ap.add_argument("--self-test", action="store_true", help="check data, calculation and PDF output, then exit")
+    ap.add_argument("--apply-update", metavar="URL", help=argparse.SUPPRESS)  # CI check of the self-update path
     args, _ = ap.parse_known_args()
+
+    if args.apply_update:
+        from . import updater
+        exe = updater.update_to(updater.Release(version="test", tag="test", exe_url=args.apply_update,
+                                                exe_size=None, page=""))
+        updater.relaunch(exe, ("--self-test",))
+        sys.exit(0)
 
     if args.self_test:
         from .selftest import run_self_test
@@ -70,6 +78,14 @@ def main() -> None:
     from .ui.state import get_state
 
     get_state()  # create/seed the data folder before the first request
+
+    import threading
+
+    from nicegui import app
+
+    from . import updater
+    updater.cleanup_old()  # leftover from the previous version after a self-update
+    app.on_startup(lambda: threading.Thread(target=updater.check, daemon=True).start())
 
     native = not args.browser and not args.no_show and sys.platform == "win32"
     ui.run(title=f"Kept Spec Proposal Builder {__version__}", port=_free_port(args.port), reload=False,
