@@ -9,8 +9,8 @@ from decimal import Decimal
 from ..closeout import ChangeOrder, COFunding, Contract, COPricing, Ledger, Reconciliation
 from ..models import Settings
 from ..proposal import Project
-from .document import company_block, fmt_pct
-from .markup import md_to_typst
+from .document import PERFORMER_NOTE, company_block, fmt_pct
+from .markup import escape, md_to_typst
 
 
 def m(v: Decimal | None) -> str:
@@ -29,6 +29,12 @@ def _header(project: Project, contract: Contract) -> dict:
         "proposal": {"number": project.number, "date": contract.rev.proposal_date.strftime("%Y.%m.%d"),
                      "revision": contract.rev.rev},
     }
+
+
+def _with_performer(item) -> str:
+    note = PERFORMER_NOTE.get(item.performer)
+    body = md_to_typst(item.change)
+    return f"_{escape(note)}_ {body}".strip() if note else body
 
 
 def change_order_document(project: Project, contract: Contract, co: ChangeOrder, pricing: COPricing,
@@ -60,7 +66,7 @@ def change_order_document(project: Project, contract: Contract, co: ChangeOrder,
             "number": co.number, "title": co.title, "requested": co.requested.strftime("%Y.%m.%d"),
             "approved": co.approved.strftime("%Y.%m.%d") if co.approved else "",
             "items": [{"description": md_to_typst(i.description), "action": i.action.value,
-                       "change": md_to_typst(i.change), "lines": ", ".join(i.line_ids),
+                       "change": _with_performer(i), "lines": ", ".join(i.line_ids),
                        "original": m(i.original_cost), "final": m(i.final_cost)} for i in co.items],
             "pricing": [{"label": a, "amount": b, "style": c} for a, b, c in rows],
             "sections": sections,

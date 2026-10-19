@@ -27,6 +27,7 @@ from ..closeout import (
     contract_context,
     price_change_orders,
 )
+from ..models import Performer
 from ..render.closeout_docs import change_order_document, ledger_document, safe_name
 from ..render.document import compile_document
 from .state import get_state
@@ -292,6 +293,7 @@ class Closeout:
                           Col("action", "Action", "select", [a.value for a in COAction], width=100),
                           Col("change", "Change", flex=2),
                           Col("line_ids", "Lines", "strlist", width=110),
+                          Col("performer", "Performed by", "select", [p.value for p in Performer], width=170),
                           Col("original_cost", "Original cost", "number", width=120),
                           Col("final_cost", "Final cost", "number", width=110)],
                          lambda: recompute(), lambda: COItem(), height="22vh", readonly=locked)

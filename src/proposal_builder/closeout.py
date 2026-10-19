@@ -31,7 +31,7 @@ from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 
 from .calc import Results, calculate, money
-from .models import Settings, StockClass
+from .models import Performer, Settings, StockClass
 from .proposal import Line, Project, Revision, RevisionState
 
 ZERO = Decimal(0)
@@ -68,6 +68,7 @@ class COItem(_Model):
     action: COAction = COAction.MODIFY
     change: str = ""                   # what is added, deleted or modified
     line_ids: list[str] = Field(default_factory=list)
+    performer: Performer = Performer.NONE  # who does the work; Kept Spec / CW work counts as income
     original_cost: Decimal = ZERO
     final_cost: Decimal = ZERO
 

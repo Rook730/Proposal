@@ -157,6 +157,19 @@ def test_income_estimate_and_actual(contract):
     g = {x.name: x for x in rep.groups}
     assert g["Change order management time"].actual == D(150)                # 2 HR x $75 from the allowance
     assert g["Overhead and profit on change orders"].actual == D("52.50") - D(500)
+    assert g["Your work on change orders"].actual == 0
+
+    from proposal_builder.models import Performer
+    own = ChangeOrder(number="26005-03", funding=COFunding.CLIENT, status=COStatus.APPROVED,
+                      items=[COItem(description="x", final_cost=D(300), performer=Performer.CW),
+                             COItem(description="y", final_cost=D(100))])
+    absorbed = ChangeOrder(number="26005-04", funding=COFunding.ABSORBED, status=COStatus.APPROVED,
+                           items=[COItem(description="z", final_cost=D(200), performer=Performer.CW),
+                                  COItem(description="w", final_cost=D(50))])
+    g2 = {x.name: x for x in contract_report(build_ledger(contract, ChangeOrderLog(orders=[own, absorbed]),
+                                                          Reconciliation()), settings).groups}
+    assert g2["Your work on change orders"].actual == D(300)
+    assert g2["Overhead and profit on change orders"].actual == D(60) - D(50)   # 15% of 400; absorbed sub cost
     line = next(x for x in g["Convenient Woodworking lines"].lines if x.line_id == cw_line.line_id)
     assert line.entered and line.actual == contract.rev.line(cw_line.line_id).unit_price
     assert rep.actual_total == sum(x.actual for x in rep.groups if x.actual is not None)

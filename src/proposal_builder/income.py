@@ -87,12 +87,18 @@ def estimate_report(rev: Revision, results: Results, scenario: Scenario, setting
     groups.append(IncomeGroup("Change order management time", None,
                               note=f"Earned only as change order time is logged; up to ${mgmt:,.2f} "
                                    "from the allowance, more if billed beyond it"))
+    groups.append(IncomeGroup("Your work on change orders", None,
+                              note="Change order items performed by Kept Spec Advisors or Convenient Woodworking"))
     groups.append(IncomeGroup("Overhead and profit on change orders", None, note="From approved change orders"))
     groups.append(IncomeGroup("Overhead and profit on line variance", None,
                               note="From actual costs against the contract"))
     total = sum((g.estimate for g in groups if g.estimate is not None), ZERO)
     return IncomeReport(groups=groups, estimate_total=total, actual_total=None,
                         contract_price=scenario.total, final_price=None)
+
+
+def _own(co) -> Decimal:
+    return sum((it.delta for it in co.items if it.performer in INCOME_PERFORMERS), ZERO)
 
 
 def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
@@ -120,14 +126,17 @@ def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
             billed = sum((ledger.pricing[o.number].mgmt_billed for o in ledger.approved
                           if o.funding is not COFunding.ABSORBED), ZERO)
             g.actual = used + billed
+        elif g.name == "Your work on change orders":
+            g.actual = sum((_own(o) for o in ledger.approved if o.funding is not COFunding.ABSORBED), ZERO)
         elif g.name == "Overhead and profit on change orders":
             amt = ZERO
             for o in ledger.approved:
                 p = ledger.pricing[o.number]
-                amt += -p.cost_delta if o.funding is COFunding.ABSORBED else p.markup
+                # absorbed: you pay for others' work; your own work on it simply earns nothing
+                amt += -(p.cost_delta - _own(o)) if o.funding is COFunding.ABSORBED else p.markup
             g.actual = amt
             if any(o.funding is COFunding.ABSORBED for o in ledger.approved):
-                g.note = "Absorbed change orders count their direct cost as a loss"
+                g.note = "Absorbed change orders count the cost of others' work as a loss"
         elif g.name == "Overhead and profit on line variance":
             g.actual = ledger.variance_markup
         elif g.actual is None and g.estimate is not None:
