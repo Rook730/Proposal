@@ -138,3 +138,25 @@ def test_owner_supplied_not_reconciled(contract):
     lg = build_ledger(contract, ChangeOrderLog(), recon)
     assert ln.id not in {lr.line.id for lr in lg.lines}
     assert lg.net_variance == 0 and any("owner-supplied" in w for w in lg.warnings)
+
+
+def test_income_estimate_and_actual(contract):
+    from proposal_builder.income import contract_report, estimate_report
+    settings = Settings.model_validate_json(seed("settings.json"))
+    est = estimate_report(contract.rev, contract.results, contract.results.base, settings)
+    groups = {g.name: g for g in est.groups}
+    ks, cw = groups["Kept Spec Advisors lines"], groups["Convenient Woodworking lines"]
+    assert groups["Company Overhead"].estimate == D("1640.90") and groups["Profit"].estimate == D("3281.80")
+    assert est.estimate_total == ks.estimate + cw.estimate + D("1640.90") + D("3281.80")
+    assert groups["Change order management time"].estimate is None          # not counted until used
+
+    log = ChangeOrderLog(orders=[co(1, 350, COFunding.CLIENT, hours=2), co(2, 500, COFunding.ABSORBED)])
+    cw_line = cw.lines[0]
+    recon = Reconciliation(actuals=[ActualCost(line_id=cw_line.line_id, hours=D(1))])
+    rep = contract_report(build_ledger(contract, log, recon), settings)
+    g = {x.name: x for x in rep.groups}
+    assert g["Change order management time"].actual == D(150)                # 2 HR x $75 from the allowance
+    assert g["Overhead and profit on change orders"].actual == D("52.50") - D(500)
+    line = next(x for x in g["Convenient Woodworking lines"].lines if x.line_id == cw_line.line_id)
+    assert line.entered and line.actual == contract.rev.line(cw_line.line_id).unit_price
+    assert rep.actual_total == sum(x.actual for x in rep.groups if x.actual is not None)

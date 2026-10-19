@@ -102,6 +102,7 @@ class Editor:
         self.sections_panel.refresh()
         self.alternates_panel.refresh()
         self.issues_panel.refresh()
+        self.income_panel.refresh()
         if refresh_grid:
             self.refresh_grid()
 
@@ -133,6 +134,7 @@ class Editor:
             t_alts = ui.tab("Alternates", icon="call_split")
             t_terms = ui.tab("Terms & options", icon="article")
             t_issues = ui.tab("Issues", icon="report")
+            t_income = ui.tab("Income", icon="savings")
         with ui.tab_panels(tabs, value=t_lines).classes("w-full"):
             with ui.tab_panel(t_lines).classes("p-0 pt-2"):
                 self.lines_tab()
@@ -144,6 +146,83 @@ class Editor:
                 self.terms_panel()
             with ui.tab_panel(t_issues):
                 self.issues_panel()
+            with ui.tab_panel(t_income):
+                self.income_panel()
+
+    # ------------------------------------------------------------ income (internal)
+    @ui.refreshable_method
+    def income_panel(self) -> None:
+        from ..closeout import accepted_revision, build_ledger, contract_context
+        from ..income import contract_report, estimate_report, scenario_income
+        s, ps, num = self.st.settings, self.st.projects, self.project.number
+        ui.label("What Kept Spec keeps on this project, before your own business expenses. Counts lines performed "
+                 "by Kept Spec Advisors or Convenient Woodworking, overhead, profit, change order management time, "
+                 "and overhead and profit on change orders and line variance. Subcontractors, materials, "
+                 "allowances, builder's risk, contingency and owner-supplied items pass through. Never printed.") \
+            .classes("text-xs text-gray-500 mb-2")
+        revs = [self.rev if r == self.rev.rev else ps.load_revision(num, r) for r in self.revs]
+        acc = accepted_revision(revs)
+        if acc is not None:
+            contract = contract_context(acc, s, self.cat.stock_classes, self.project)
+            ledger = build_ledger(contract, ps.load_change_orders(num), ps.load_reconciliation(num))
+            rep = contract_report(ledger, s)
+            ui.label(f"Contract: Rev {acc.rev} (accepted). Actual uses closeout data from Change orders & ledger.") \
+                .classes("text-sm font-semibold")
+        else:
+            r = self.results
+            rep = estimate_report(self.rev, r, r.base, s)
+            ui.label(f"Rev {self.rev.rev}, base proposal. The Actual column appears once a revision is accepted.") \
+                .classes("text-sm font-semibold")
+        has_act = rep.actual_total is not None
+
+        def m(v) -> str:
+            return "" if v is None else (f"-${-v:,.2f}" if v < 0 else f"${v:,.2f}")
+
+        def pct(v) -> str:
+            return "" if v is None else f"{v * 100:.1f}%"
+
+        cols = [{"name": "item", "label": "Income", "field": "item", "align": "left"},
+                {"name": "est", "label": "Estimate", "field": "est", "align": "right"}]
+        if has_act:
+            cols.append({"name": "act", "label": "Actual", "field": "act", "align": "right"})
+        cols.append({"name": "note", "label": "", "field": "note", "align": "left",
+                     "style": "white-space:normal;max-width:420px", "classes": "text-xs text-gray-500"})
+        rows = [{"item": g.name, "est": m(g.estimate), "act": m(g.actual), "note": g.note} for g in rep.groups]
+        rows.append({"item": "Total income", "est": m(rep.estimate_total), "act": m(rep.actual_total), "note": ""})
+        rows.append({"item": "Share of price", "est": pct(rep.estimate_margin), "act": pct(rep.actual_margin),
+                     "note": f"of Total Price {m(rep.contract_price)}"
+                             + (f"; final cost {m(rep.final_price)}" if has_act else "")})
+        ui.table(columns=cols, rows=rows, row_key="item").props("dense flat bordered").classes("w-full max-w-[1000px]")
+        if has_act and rep.lines_without_actuals:
+            ui.label(f"{rep.lines_without_actuals} of your lines have no actual hours or cost entered yet; "
+                     "they are counted at their contract amount.").classes("text-xs text-orange-700 mt-1")
+
+        for g in rep.groups:
+            if not g.lines:
+                continue
+            with ui.expansion(f"{g.name} ({len(g.lines)})").classes("w-full max-w-[1000px] border rounded mt-2"):
+                lc = [{"name": "id", "label": "ID", "field": "id", "align": "left"},
+                      {"name": "title", "label": "Title", "field": "title", "align": "left"},
+                      {"name": "est", "label": "Estimate", "field": "est", "align": "right"}]
+                if has_act:
+                    lc.append({"name": "act", "label": "Actual", "field": "act", "align": "right"})
+                ui.table(columns=lc, rows=[{"id": x.line_id, "title": x.title, "est": m(x.estimate),
+                                            "act": m(x.actual) + ("" if x.entered or not has_act else " (contract)")}
+                                           for x in g.lines], row_key="id").props("dense flat").classes("w-full")
+
+        if acc is None and (self.results.alternates or self.results.combinations):
+            ui.label("By option").classes("font-semibold text-sm mt-4")
+            opts = [("Base", self.results.base)] + [(sc.name, sc) for _, sc in sorted(self.results.alternates.items())]
+            opts += [(c.name, c) for c in self.results.combinations]
+            orow = []
+            for name, sc in opts:
+                inc = scenario_income(self.rev, self.results, sc, s)
+                orow.append({"o": name, "p": m(sc.total), "i": m(inc), "s": pct(inc / sc.total if sc.total else None)})
+            ui.table(columns=[{"name": "o", "label": "Option", "field": "o", "align": "left"},
+                              {"name": "p", "label": "Total Price", "field": "p", "align": "right"},
+                              {"name": "i", "label": "Income", "field": "i", "align": "right"},
+                              {"name": "s", "label": "Share", "field": "s", "align": "right"}],
+                     rows=orow, row_key="o").props("dense flat bordered").classes("max-w-[600px]")
 
     @ui.refreshable_method
     def header(self) -> None:
