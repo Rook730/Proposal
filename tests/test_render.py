@@ -110,3 +110,19 @@ def test_allowance_flag_prints_on_line():
     assert _line_body(ln, {}).startswith("*Allowance.* _Performed by a licensed subcontractor._ Tile material.")
     ln.is_allowance = False
     assert "Allowance" not in _line_body(ln, {})
+
+
+def test_rates_table_uses_line_snapshots_for_cw_and_ks():
+    from proposal_builder.models import Performer, PriceSource
+    from proposal_builder.render.document import rates_table
+    cat = Catalog.model_validate_json(seed("catalog.json"))
+    rev = Revision(sections=[200, 600])
+    rev.add_line(Line(id="6.01", section=600, title="Elec", price_basis=PriceSource.RATE, rate_key="licensed",
+                      unit="HR", unit_price=Decimal(95), performer=Performer.SUB))
+    rev.add_line(Line(id="6.02", section=600, title="CW", price_basis=PriceSource.RATE, rate_key="cw",
+                      unit="HR", unit_price=Decimal(80), performer=Performer.CW))
+    rev.add_line(Line(id="2.01", section=200, title="PM", price_basis=PriceSource.RATE, rate_key="pm",
+                      unit="HR", unit_price=Decimal(75), performer=Performer.KEPT_SPEC))
+    rows = rates_table(rev, cat)
+    assert rows == [["Project management / client meetings", "Kept Spec Advisors", "$75.00 / HR"],
+                    ["Convenient Woodworking trade labor", "Convenient Woodworking", "$80.00 / HR"]]

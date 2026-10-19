@@ -558,6 +558,11 @@ class Editor:
                         ui.button("Pull update", icon="sync", on_click=pull).props("dense outline")
 
             with ui.grid(columns=6).classes("w-full gap-x-3"):
+                code_sel = ui.select({0: "- custom (no catalog item)",
+                                      **{i.code: f"{i.code} {i.title}" for i in sorted(cat.items, key=lambda i: i.code)
+                                         if i.active or i.code == work.code}},
+                                     label="Catalog code", value=work.code or 0, with_input=True) \
+                    .props("dense").classes("col-span-6")
                 title = ui.input("Title", value=work.title).props("dense").classes("col-span-3")
                 section = ui.select({s.number: f"{s.number} {s.name}" for s in cat.sections}, label="Section",
                                     value=work.section).props("dense").classes("col-span-2")
@@ -572,7 +577,7 @@ class Editor:
             with ui.row().classes("w-full items-start no-wrap gap-4"):
                 with ui.column().classes("w-1/2 gap-1"):
                     ui.label("General description (from catalog)").classes("text-xs text-gray-500")
-                    ui.label(work.general_description or "-").classes("text-sm whitespace-pre-line")
+                    gen_lbl = ui.label(work.general_description or "-").classes("text-sm whitespace-pre-line")
                     print_general = ui.switch("Print general description", value=work.print_general).props("dense")
                     notes = ui.textarea("Detail notes (prints; Markdown; {variables})", value=work.notes) \
                         .props("outlined autogrow").classes("w-full")
@@ -597,6 +602,24 @@ class Editor:
                     notes.on_value_change(lambda _: upd_preview())
                     print_general.on_value_change(lambda _: upd_preview())
                     upd_preview()
+
+            def change_code() -> None:
+                # relink to another catalog item: title, section and general description follow the item;
+                # quantity, price, notes and flags stay as entered
+                new_code = int(code_sel.value or 0) or None
+                if new_code == work.code:
+                    return
+                work.code = new_code
+                item = cat.item(new_code) if new_code else None
+                if item:
+                    title.set_value(item.title)
+                    section.set_value(item.section)
+                    work.general_description = item.description
+                else:
+                    work.general_description = ""
+                gen_lbl.set_text(work.general_description or "-")
+                upd_preview()
+            code_sel.on_value_change(lambda _: change_code())
 
             ui.separator()
             ui.label("Quantity").classes("font-semibold text-sm")
@@ -854,6 +877,15 @@ class Editor:
             out.append(("error", "The proposal has no priced lines"))
         for a, b in self.results.conflicts:
             out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined"))
+        limit = self.st.settings.license_threshold
+        if limit:
+            totals = [("Total Price", self.results.base.total)]
+            totals += [(f"Alt {n} total", s.total) for n, s in sorted(self.results.alternates.items())]
+            totals += [(c.name, c.total) for c in self.results.combinations]
+            over = [f"{name} ${t:,.2f}" for name, t in totals if t >= limit]
+            if over:
+                out.append(("warn", f"At or above the ${limit:,.0f} general contractor license threshold: "
+                                    + ", ".join(over)))
         for ln in self.rev.lines:
             lr = self.results.lines[ln.id]
             if not ln.is_percent and not ln.not_included and not ln.owner_furnished and ln.section in self.rev.sections:

@@ -413,6 +413,9 @@ def build_boilerplate(wb) -> Boilerplate:
             blk.title = "Room Availability"
             blk.default_on = False
 
+    from .added_terms import apply as add_terms
+    add_terms(blocks)
+
     headings = ["Intro", "How to read this proposal", "Totals", "Signature",
                 "Payment Schedule", "Payment Terms & Contract Cancellation",
                 "Scope Clarifications & Exclusions"]

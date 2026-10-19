@@ -169,6 +169,7 @@ class Contract:
     contingency_line: str | None
     co_management_line: str | None
     mgmt_rate: Decimal = ZERO           # contract's project management rate
+    license_threshold: Decimal = ZERO   # 0 = no check
 
     @property
     def total(self) -> Decimal:
@@ -194,6 +195,7 @@ def contract_context(rev: Revision, settings: Settings, stock: list[StockClass],
         contingency_line=cont[0].id if cont else None,
         co_management_line=mgmt[0].id if mgmt else None,
         mgmt_rate=pm_line.unit_price if pm_line else ZERO,
+        license_threshold=settings.license_threshold,
     )
 
 
@@ -339,6 +341,9 @@ def build_ledger(contract: Contract, log: ChangeOrderLog, recon: Reconciliation)
                             "mark it unused or enter its cost")
     if contract.co_management and not contract.mgmt_rate and any(o.mgmt_hours for o in approved):
         warnings.append("No project management rate found on the contract; change order hours are priced at $0")
+    if contract.license_threshold and contract.total + co_billed >= contract.license_threshold:
+        warnings.append(f"Contract plus approved change orders is ${contract.total + co_billed:,.2f}, at or above "
+                        f"the ${contract.license_threshold:,.0f} general contractor license threshold")
     return Ledger(contract, pricing, approved, lines, co_billed, used, unused_cont, mgmt_used, mgmt_credit, net_var,
                   var_markup, total_final, client_direct, received,
                   total_final - client_direct - received, warnings)

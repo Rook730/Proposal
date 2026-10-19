@@ -54,7 +54,7 @@
       "id": "allowances",
       "heading": "How to read this proposal",
       "title": "Allowances",
-      "body": "Lines described as an “Allowance” are budget amounts for items you select, such as countertops, tile, fixtures and hardware. They are billed at actual cost and reconciled on the final invoice. A selection above the allowance is billed as an overage. A selection below it is credited.",
+      "body": "Lines described as an “Allowance” are budget amounts for items you select, such as countertops, tile, fixtures and hardware. They are billed at actual cost and reconciled on the final invoice. A selection above the allowance is billed as an overage. A selection below it is credited. Any selection over its allowance is required to be approved by the client in writing before it will be ordered by the contractor.",
       "default_on": true,
       "order": 40
     },
@@ -190,7 +190,7 @@
       "id": "payment-term-contract-cancellation-or-termination",
       "heading": "Payment Terms & Contract Cancellation",
       "title": "Contract Cancellation or Termination",
-      "body": "In the event the Client cancels or terminates this Agreement for any reason:\n\nClient shall remain responsible for full payment of all hours worked and services rendered up to the effective date of cancellation.\nNo refunds shall be issued for time already spent, whether billed hourly, as part of General Conditions, Management/Supervision, or lump-sum line items that include labor or time-based services.",
+      "body": "Either party may terminate this Agreement by written notice if the other party materially breaches it and does not cure the breach within seven (7) days after receiving written notice of it. Nonpayment is a material breach. Client may also cancel this Agreement for any reason by written notice.\n\nIn the event of any cancellation or termination:\n- Client shall pay for all hours worked, services rendered, and materials purchased or ordered up to the effective date of termination (see Materials and Special Orders below).\n- No refunds shall be issued for time already spent, whether billed hourly, as part of General Conditions, Management/Supervision, or lump-sum line items that include labor or time-based services.\n- Payments received beyond the amounts owed are refunded to Client after final reconciliation.",
       "default_on": true,
       "order": 30
     },
@@ -297,6 +297,46 @@
       "body": "Pricing in this proposal is valid for {validity_days} days from the Proposal Date.",
       "default_on": true,
       "order": 110
+    },
+    {
+      "id": "hourly-rates",
+      "heading": "How to read this proposal",
+      "title": "Hourly Rates",
+      "body": "Hourly work performed by Kept Spec Advisors and Convenient Woodworking on this proposal, including any Change Order work, is billed at the following rates.\n\n{rates_table}",
+      "default_on": true,
+      "order": 35
+    },
+    {
+      "id": "lien-waivers",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Lien Waivers",
+      "body": "With the final invoice, Kept Spec Advisors provides final lien waivers from itself and from each subcontractor and supplier paid under this Agreement. Partial lien waivers for a progress payment are available on request.",
+      "default_on": true,
+      "order": 15
+    },
+    {
+      "id": "insurance",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Insurance",
+      "body": "Certificates of insurance are available upon request.",
+      "default_on": true,
+      "order": 60
+    },
+    {
+      "id": "dispute-resolution",
+      "heading": "Payment Terms & Contract Cancellation",
+      "title": "Dispute Resolution",
+      "body": "This Agreement is governed by the laws of the State of North Carolina. If a dispute arises, the parties will first try to resolve it directly. If it is not resolved within thirty (30) days, the parties will attempt mediation before either party starts litigation, with mediation costs shared equally. Venue for any mediation or litigation is the county in which the project is located.",
+      "default_on": true,
+      "order": 70
+    },
+    {
+      "id": "scope-clarif-permits-inspections",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Permits & Inspections",
+      "body": "Permits required for the work are obtained before the related work begins. Trade permits (electrical, plumbing, gas, mechanical) are obtained by the licensed subcontractor performing that work. Permit fees are billed at actual cost unless listed as a line item. Kept Spec Advisors coordinates and attends required inspections, and no work is covered or concealed until it has passed any required inspection.",
+      "default_on": true,
+      "order": 75
     }
   ]
 }

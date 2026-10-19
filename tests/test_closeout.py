@@ -121,3 +121,11 @@ def test_management_hours_draw_allowance(contract):
 def test_partial_management_use_is_credited(contract):
     lg = build_ledger(contract, ChangeOrderLog(orders=[co(1, 350, COFunding.CLIENT, hours=3)]), Reconciliation())
     assert lg.mgmt_used == D("225.00") and lg.co_management_credit == D("1415.90")
+
+
+def test_license_threshold_warning(contract):
+    assert contract.license_threshold == D(40000)
+    lg = build_ledger(contract, ChangeOrderLog(), Reconciliation())
+    assert any("license threshold" in w for w in lg.warnings)              # 41,186.59 >= 40,000
+    contract.license_threshold = D(0)
+    assert not any("license threshold" in w for w in build_ledger(contract, ChangeOrderLog(), Reconciliation()).warnings)

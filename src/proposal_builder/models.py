@@ -244,6 +244,7 @@ class Settings(_Model):
     deposit_pct: Decimal = Decimal("0.25")
     retainage_pct: Decimal = Decimal("0.05")
     validity_days: int = 30
+    license_threshold: Decimal = Decimal("40000")   # warn when a total reaches this; 0 turns the check off
     global_variables: list[Variable] = Field(default_factory=list)
     # change orders and reconciliation: which catalog codes play which role
     co_markup_codes: list[int] = Field(default_factory=lambda: [1410, 1420])   # overhead, profit

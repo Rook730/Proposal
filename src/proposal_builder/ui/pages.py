@@ -418,6 +418,8 @@ def settings_page() -> None:
                 .on_value_change(bind(s, "retainage_pct", pct))
             ui.number("Proposal validity (days)", value=s.validity_days, format="%d").props("dense") \
                 .on_value_change(bind(s, "validity_days", int))
+            ui.number("License threshold warning ($, 0 = off)", value=float(s.license_threshold), format="%.0f") \
+                .props("dense").on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
         with ui.card().classes("w-[420px]"):
             ui.label("Data folder").classes("font-semibold")
             ui.label(str(st.store.root)).classes("text-xs break-all")

@@ -15,7 +15,7 @@ from importlib import resources
 from pathlib import Path
 
 from ..calc import Results, calculate, payment_schedule, render, variable_map
-from ..models import Boilerplate, Catalog, Performer, Settings
+from ..models import Boilerplate, Catalog, Performer, PriceSource, Settings
 from ..proposal import Line, Project, Revision
 from .markup import escape, md_to_typst
 
@@ -59,6 +59,27 @@ def _line_body(ln: Line, variables: dict[str, str]) -> str:
         text.append(render(ln.notes, variables))
     body = md_to_typst("\n\n".join(text))
     return " ".join(parts + ([body] if body else []))
+
+
+RATE_PERFORMERS = (Performer.KEPT_SPEC, Performer.CW)
+
+
+def rates_table(rev: Revision, catalog: Catalog) -> list[list[str]]:
+    """Hourly rates billed by Kept Spec Advisors and Convenient Woodworking on this proposal.
+
+    Taken from the proposal's own rate lines (snapshot), not the live catalog, so catalog
+    edits never change a saved proposal."""
+    seen: dict[tuple, list[str]] = {}
+    for ln in sorted(rev.lines, key=lambda l: (l.performer is not Performer.KEPT_SPEC, l.section, l.order)):
+        if ln.price_basis is not PriceSource.RATE or ln.performer not in RATE_PERFORMERS or ln.unit_price is None:
+            continue
+        key = (ln.performer, ln.rate_key, ln.unit_price)
+        if key in seen:
+            continue
+        r = catalog.rate(ln.rate_key or "")
+        seen[key] = [r.name if r else (ln.rate_key or ln.title), ln.performer.value,
+                     f"${ln.unit_price:,.2f} / {ln.unit}"]
+    return list(seen.values())
 
 
 def document_variables(res: Results, settings: Settings) -> dict[str, str]:
@@ -185,12 +206,16 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         if "{units_table}" in b.body:
             item = {"title": b.title, "kind": "units",
                     "units": [[u.code, u.description] for u in catalog.units]}
+        elif "{rates_table}" in b.body:
+            before, _, after = b.body.partition("{rates_table}")
+            item = {"title": b.title, "kind": "rates", "rows": rates_table(rev, catalog),
+                    "before": md_to_typst(render(before, v)), "after": md_to_typst(render(after, v))}
         blocks_by_heading.setdefault(b.heading, []).append(item)
 
     ps = payment_schedule(res.base.total, settings)
     payments = [
         {"label": f"Deposit due at signing ({fmt_pct(settings.deposit_pct)})", "amount": fmt_money(ps["deposit"])},
-        {"label": "Construction progress payments (Schedule of Values)", "amount": fmt_money(ps["progress"])},
+        {"label": "Construction progress payments", "amount": fmt_money(ps["progress"])},
         {"label": f"Retainage due at final completion ({fmt_pct(settings.retainage_pct)})",
          "amount": fmt_money(ps["retainage"])},
         {"label": "Total Price", "amount": fmt_money(res.base.total), "style": "total"},

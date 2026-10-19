@@ -66,6 +66,7 @@ class Closeout:
         self.ledger = self._ledger()
         self.tiles.refresh()
         self.co_list.refresh()
+        self.threshold_banner.refresh()
         self.line_summary.refresh()
         self.ledger_panel.refresh()
 
@@ -188,7 +189,23 @@ class Closeout:
                      f"Management hours are drawn from the change order management allowance at "
                      f"{money(self.contract.mgmt_rate)}/HR; time beyond it is billed at that rate. "
                      "Only approved orders count in the ledger.").classes("text-xs text-gray-500")
+        self.threshold_banner()
         self.co_list()
+
+    @ui.refreshable_method
+    def threshold_banner(self) -> None:
+        lg, c = self.ledger, self.contract
+        if not (lg and c.license_threshold):
+            return
+        total = c.total + lg.co_billed
+        if total >= c.license_threshold:
+            ui.label(f"Contract plus approved change orders: {money(total)}. This is at or above the "
+                     f"{money(c.license_threshold)} general contractor license threshold.") \
+                .classes("text-sm font-semibold text-red-700")
+        elif total >= c.license_threshold * Decimal("0.9"):
+            ui.label(f"Contract plus approved change orders: {money(total)}, within "
+                     f"{money(c.license_threshold - total)} of the {money(c.license_threshold)} license threshold.") \
+                .classes("text-sm text-orange-700")
 
     @ui.refreshable_method
     def co_list(self) -> None:

@@ -56,6 +56,17 @@
       table.header(text(weight: "bold")[Unit], text(weight: "bold")[Description]),
       ..b.units.flatten().map(x => text(9pt, x)),
     ))
+  } else if b.kind == "rates" {
+    if b.before != "" { md(b.before) }
+    block(breakable: false, table(
+      columns: (2.6in, 1.6in, 1in),
+      stroke: (x, y) => (bottom: 0.4pt + rule-c),
+      inset: (x: 4pt, y: 3pt),
+      table.header(text(weight: "bold")[Work], text(weight: "bold")[Performed by],
+                   align(right, text(weight: "bold")[Rate])),
+      ..b.rows.map(r => (text(9pt, r.at(0)), text(9pt, r.at(1)), align(right, text(9pt, r.at(2))))).flatten(),
+    ))
+    if b.after != "" { md(b.after) }
   } else {
     md(b.body)
   }

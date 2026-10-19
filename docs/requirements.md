@@ -439,3 +439,10 @@ A toggle shows fields that never print:
 - **Contingency draws:** a contingency-funded CO draws contingency down at CO price (cost + OH&P), not at raw cost.
 - **Trim stock lengths:** 8, 10, 12, 16 and 20 ft (12 and 20 added to the original 8/10/16). All lengths are editable in the catalog manager.
 - **Rate assignments** in 4.3 are a starting point. Rates and their links to items are editable.
+
+**Changes after release (1.1.0)**
+- License threshold: Settings "License threshold warning" (default $40,000, 0 = off). The editor's Issues tab warns when the Total Price, any alternate total or any combination reaches it; the change order screen and the ledger warn when contract plus approved change orders reaches it. Internal only, never printed.
+- `{rates_table}` placeholder: a table of the hourly rates billed by Kept Spec Advisors and Convenient Woodworking on this proposal, taken from the proposal's own rate-basis lines (snapshot rule), with the catalog rate name. Used by the "Hourly Rates" block.
+- Line form: the catalog code can be changed on an existing line. Title, section and general description follow the new item; quantity, price, notes and flags stay.
+- Payment table: the progress line reads "Construction progress payments".
+- Terms added (src/proposal_builder/added_terms.py, applied by the importer on top of the workbook text): Hourly Rates, Lien Waivers, mutual Contract Cancellation or Termination, Insurance, Dispute Resolution, Permits & Inspections, and the allowance overage-approval sentence. No start dates.
