@@ -420,6 +420,11 @@ def settings_page() -> None:
                 .on_value_change(bind(s, "validity_days", int))
             ui.number("License threshold warning ($, 0 = off)", value=float(s.license_threshold), format="%.0f") \
                 .props("dense").on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
+            ui.textarea("Request for quote: text above the scope ({company_email} and proposal variables work)",
+                        value=s.rfq_note).props("dense autogrow").classes("w-full") \
+                .on_value_change(bind(s, "rfq_note"))
+            ui.textarea("Quote comparison: note under the table", value=s.comparison_note) \
+                .props("dense autogrow").classes("w-full").on_value_change(bind(s, "comparison_note"))
         with ui.card().classes("w-[420px]"):
             ui.label("Data folder").classes("font-semibold")
             ui.label(str(st.store.root)).classes("text-xs break-all")
