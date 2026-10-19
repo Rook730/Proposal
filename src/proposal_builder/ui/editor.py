@@ -695,8 +695,19 @@ class Editor:
                 unit = ui.select([u.code for u in cat.units], label="Unit", value=work.unit).props("dense")
                 performer = ui.select({p.value: p.value or "-" for p in Performer}, label="Performer (prints)",
                                       value=work.performer.value).props("dense").classes("col-span-2")
-                sub_name = ui.input("Sub / vendor name (internal)", value=work.sub_name).props("dense") \
-                    .classes("col-span-2")
+                from .crm_pages import contractor_dialog, vendor_names
+                from ..crm import line_contractor
+                cur = line_contractor(self.st.contractors, work)
+                con_opts = {c.id: c.company for c in self.st.contractors.sorted() if c.active or (cur and c.id == cur.id)}
+                with ui.row().classes("col-span-2 items-end gap-1 no-wrap"):
+                    sub_sel = ui.select(con_opts, value=cur.id if cur else None, label="Contractor (internal)",
+                                        with_input=True).props("dense clearable").classes("grow")
+
+                    def new_con() -> None:
+                        def done(c) -> None:
+                            sub_sel.set_options({**sub_sel.options, c.id: c.company}, value=c.id)
+                        contractor_dialog(None, done)
+                    ui.button(icon="add", on_click=new_con).props("dense flat").tooltip("New contractor")
                 alt = ui.select({0: "Base", **{a.number: f"Alt {a.number} only" for a in rev.alternates}},
                                 label="Belongs to", value=work.alternate or 0).props("dense").classes("col-span-2")
 
@@ -832,7 +843,10 @@ class Editor:
                 cu = ui.checkbox("Credit if unused", value=work.credit_if_unused)
             with ui.expansion("Internal (never prints)", icon="lock").classes("w-full"):
                 with ui.grid(columns=4).classes("w-full gap-x-3"):
-                    vendor = ui.input("Vendor", value=work.vendor).props("dense")
+                    vnames = vendor_names()
+                    vendor = ui.select(vnames + ([work.vendor] if work.vendor and work.vendor not in vnames else []),
+                                       value=work.vendor or None, label="Vendor", with_input=True,
+                                       new_value_mode="add-unique").props("dense clearable")
                     quote_ref = ui.input("Quote ref", value=work.quote_ref).props("dense")
                     quote_amt = ui.number("Quote amount", value=_num(work.quote_amount)).props("dense")
                 internal = ui.textarea("Internal notes", value=work.internal_notes).props("dense autogrow") \
@@ -852,7 +866,9 @@ class Editor:
                             a.removes = [ln_id if x == ln.id else x for x in a.removes]
                     updated = work.model_copy(update=dict(
                         id=ln_id, section=new_section, title=(title.value or "").strip() or ln.title,
-                        unit=unit.value, performer=Performer(performer.value), sub_name=sub_name.value or "",
+                        unit=unit.value, performer=Performer(performer.value),
+                        contractor_id=sub_sel.value or None,
+                        sub_name=(self.st.contractors.get(sub_sel.value).company if sub_sel.value else ""),
                         alternate=int(alt.value) or None, print_general=print_general.value,
                         notes=notes.value or "",
                         qty=to_decimal(qty.value) if qty.value not in (None, "") else Decimal(0),
@@ -1004,6 +1020,11 @@ class Editor:
             out.append(("error", "The proposal has no priced lines"))
         for a, b in self.results.conflicts:
             out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined"))
+        from ..crm import insurance_warnings
+        from ..proposal import WON_STATUSES
+        from .crm_pages import project_contractor_ids
+        ins = insurance_warnings(self.st.contractors, project_contractor_ids(self.project, self.rev))
+        out += [("warn" if self.project.status in WON_STATUSES else "info", w) for w in ins]
         limit = self.st.settings.license_threshold
         if limit:
             # owner-supplied items count toward the project cost here
@@ -1387,8 +1408,8 @@ class Editor:
         p, rev = self.project, self.rev
         with ui.dialog() as dlg, ui.card().classes("w-[520px]"):
             ui.label("Project info").classes("text-lg font-semibold")
-            client = ui.input("Client", value=p.client_name).props("dense").classes("w-full")
-            address = ui.input("Site address", value=p.site_address).props("dense").classes("w-full")
+            from .crm_pages import CustomerPicker
+            picker = CustomerPicker(p.customer_id, p.site_address_id)
             name = ui.input("Project", value=p.project_name).props("dense").classes("w-full")
             with ui.input("Proposal date", value=rev.proposal_date.isoformat()).props("dense") as d:
                 with ui.menu().props("no-parent-event") as menu:
@@ -1398,7 +1419,8 @@ class Editor:
 
             def save() -> None:
                 try:
-                    p.client_name, p.site_address = client.value or "", address.value or ""
+                    if not picker.apply(p):
+                        return
                     p.project_name = name.value or p.project_name
                     if not self.locked:
                         rev.proposal_date = date.fromisoformat(d.value)

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ..crm import ContractorBook, CustomerBook, SupplierBook, add_from_sub_names, link_projects
 from ..models import Boilerplate, Catalog, Settings
 from ..store import DataStore, ProjectStore, resolve_data_dir
 
@@ -15,6 +16,9 @@ class AppState:
     settings: Settings = field(init=False)
     catalog: Catalog = field(init=False)
     boilerplate: Boilerplate = field(init=False)
+    customers: CustomerBook = field(init=False)
+    contractors: ContractorBook = field(init=False)
+    suppliers: SupplierBook = field(init=False)
 
     def __post_init__(self) -> None:
         self.reload()
@@ -31,9 +35,48 @@ class AppState:
             self.store.save_catalog(self.catalog)
         if bp_changed:
             self.store.save_boilerplate(self.boilerplate)
+        self.customers = self.store.load_book("customers.json", CustomerBook)
+        self.contractors = self.store.load_book("contractors.json", ContractorBook)
+        self.suppliers = self.store.load_book("suppliers.json", SupplierBook)
+        self._link_lists()
         if not self.settings.company.logo_path and self.store.path("logo.png").exists():
             self.settings.company.logo_path = "logo.png"
             self.save_settings()
+
+    def link_lists(self) -> None:
+        self._link_lists()
+
+    def _link_lists(self) -> None:
+        """Projects typed before the customer list existed get linked by client name; sub names become
+        contractors. Revisions are not modified (issued ones are write-once)."""
+        ps = self.projects
+        try:
+            projects = ps.list_projects()
+        except OSError:
+            return
+        changed = link_projects(self.customers, projects)
+        for p in changed:
+            ps.save_project(p)
+        if changed:
+            self.save_customers()
+        names = set()
+        for p in projects:
+            for r in ps.list_revisions(p.number):
+                try:
+                    names |= {ln.sub_name for ln in ps.load_revision(p.number, r).lines if ln.sub_name}
+                except (OSError, ValueError):
+                    continue
+        if add_from_sub_names(self.contractors, names):
+            self.save_contractors()
+
+    def save_customers(self) -> None:
+        self.store.save("customers.json", self.customers)
+
+    def save_contractors(self) -> None:
+        self.store.save("contractors.json", self.contractors)
+
+    def save_suppliers(self) -> None:
+        self.store.save("suppliers.json", self.suppliers)
 
     @property
     def projects(self) -> ProjectStore:

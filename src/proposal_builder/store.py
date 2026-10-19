@@ -186,6 +186,10 @@ class DataStore:
     def save_catalog(self, c: Catalog) -> None:
         self.save("catalog.json", c)
 
+    def load_book(self, name: str, cls: type[T]) -> T:
+        """Optional list files (customers, contractors, suppliers): empty when missing."""
+        return self.load(name, cls) if self.path(name).exists() else cls()
+
     def load_boilerplate(self) -> Boilerplate:
         return self.load("boilerplate.json", Boilerplate)
 

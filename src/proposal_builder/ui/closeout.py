@@ -28,6 +28,8 @@ from ..closeout import (
     price_change_orders,
 )
 from ..models import Performer
+from .crm_pages import project_contractor_ids, vendor_names
+from ..crm import insurance_warnings
 from ..proposal import ProjectStatus
 from ..render.closeout_docs import change_order_document, ledger_document, safe_name
 from ..render.document import compile_document
@@ -234,6 +236,8 @@ class Closeout:
                      f"{money(self.contract.mgmt_rate)}/HR; time beyond it is billed at that rate. "
                      "Only approved orders count in the ledger.").classes("text-xs text-gray-500")
         self.threshold_banner()
+        for w in insurance_warnings(self.st.contractors, project_contractor_ids(self.project, self.rev)):
+            ui.label(w).classes("text-sm text-orange-700")
         self.co_list()
 
     @ui.refreshable_method
@@ -337,6 +341,8 @@ class Closeout:
                           Col("change", "Change", flex=2),
                           Col("line_ids", "Lines", "strlist", width=110),
                           Col("performer", "Performed by", "select", [p.value for p in Performer], width=170),
+                          Col("contractor_id", "Contractor", "lookup", width=170,
+                              lookup={c.id: c.company for c in self.st.contractors.sorted()}),
                           Col("original_cost", "Original cost", "number", width=120),
                           Col("final_cost", "Final cost", "number", width=110)],
                          lambda: recompute(), lambda: COItem(), height="22vh", readonly=locked)
@@ -436,7 +442,8 @@ class Closeout:
         EditableGrid(lambda: self.recon.actuals,
                      [Col("line_id", "Line", "select", ids, width=90),
                       Col("date", "Date", "date", width=120),
-                      Col("vendor", "Vendor / sub", width=180),
+                      Col("vendor", "Vendor / sub", "select", vendor_names() + sorted(
+                          {a.vendor for a in self.recon.actuals if a.vendor} - set(vendor_names())), width=180),
                       Col("description", "Description", flex=1),
                       Col("hours", "Hours", "number", width=90),
                       Col("amount", "Amount", "number", width=120),

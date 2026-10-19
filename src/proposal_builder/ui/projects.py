@@ -41,8 +41,8 @@ def new_project_dialog() -> None:
     with ui.dialog() as dlg, ui.card().classes("w-[520px]"):
         ui.label("New project").classes("text-lg font-semibold")
         number = ui.input("Proposal #", value=s.next_proposal_number()).props("dense")
-        client = ui.input("Client").props("dense").classes("w-full")
-        address = ui.input("Site address").props("dense").classes("w-full")
+        from .crm_pages import CustomerPicker
+        picker = CustomerPicker()
         name = ui.input("Project (e.g. Kitchen Renovation)").props("dense").classes("w-full")
         existing = {p.number: f"{p.number} {p.client_name} {p.project_name}" for p in st.projects.list_projects()}
         start = ui.select({"": "Blank (percent items only)", **existing}, value="",
@@ -56,8 +56,9 @@ def new_project_dialog() -> None:
             if not num or not (name.value or "").strip():
                 ui.notify("Proposal # and project name are required.", type="warning")
                 return
-            p = Project(number=num, client_name=client.value or "", site_address=address.value or "",
-                        project_name=name.value.strip())
+            p = Project(number=num, project_name=name.value.strip())
+            if not picker.apply(p):
+                return
             if start.value:
                 src = st.projects.load_revision(start.value)
                 rev = Revision(sections=list(src.sections), lines=[ln.model_copy(deep=True) for ln in src.lines
@@ -125,6 +126,7 @@ def import_dialog(on_done) -> None:
             except Exception as e:  # noqa: BLE001
                 ui.notify(f"Import failed: {e}", type="negative", multi_line=True)
                 return
+            st.link_lists()   # the imported client becomes (or joins) a customer
             res = calculate(rev, st.settings, st.catalog.stock_classes, p)
             ui.notify(f"Imported {p.number}: {len(rev.lines)} lines, total ${res.base.total:,.2f}",
                       type="positive")

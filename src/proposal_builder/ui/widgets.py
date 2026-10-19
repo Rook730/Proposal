@@ -23,6 +23,9 @@ NAV = [
     ("Units", "/units", "square_foot"),
     ("Stock lengths", "/stock", "carpenter"),
     ("Boilerplate", "/boilerplate", "article"),
+    ("Customers", "/customers", "people"),
+    ("Contractors", "/contractors", "engineering"),
+    ("Suppliers", "/suppliers", "local_shipping"),
     ("Settings", "/settings", "settings"),
 ]
 
@@ -102,6 +105,7 @@ class Col:
     width: int | None = None
     flex: int | None = None
     editable: bool = True
+    lookup: dict[str, str] | None = None   # kind "lookup": stored id -> shown label
 
 
 class EditableGrid:
@@ -145,6 +149,9 @@ class EditableGrid:
         elif c.kind == "select":
             d["cellEditor"] = "agSelectCellEditor"
             d["cellEditorParams"] = {"values": c.options}
+        elif c.kind == "lookup":
+            d["cellEditor"] = "agSelectCellEditor"
+            d["cellEditorParams"] = {"values": ["", *c.lookup.values()]}
         elif c.kind in ("list", "strlist", "date"):
             d["cellDataType"] = "text"
         return d
@@ -155,7 +162,10 @@ class EditableGrid:
             r = {"_i": i}
             for c in self.cols:
                 v = getattr(m, c.field)
-                r[c.field] = ", ".join(str(x) for x in v) if c.kind in ("list", "strlist") else to_json(v)
+                if c.kind == "lookup":
+                    r[c.field] = c.lookup.get(v, "") if v else ""
+                else:
+                    r[c.field] = ", ".join(str(x) for x in v) if c.kind in ("list", "strlist") else to_json(v)
             rows.append(r)
         return rows
 
@@ -172,6 +182,8 @@ class EditableGrid:
             return [x.strip() for x in str(v or "").split(",") if x.strip()]
         if c.kind == "date":
             return date.fromisoformat(str(v).strip()[:10]) if v not in (None, "") else None
+        if c.kind == "lookup":
+            return next((k for k, label in c.lookup.items() if label == v), None) if v else None
         return v
 
     def _changed(self, e) -> None:

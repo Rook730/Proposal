@@ -87,7 +87,8 @@ class Line(_Model):
     tier: LineTier = LineTier.HIGH
 
     performer: Performer = Performer.NONE
-    sub_name: str = ""                        # internal only
+    sub_name: str = ""                        # internal only; mirrors the contractor's company
+    contractor_id: str | None = None          # crm.Contractor
     is_allowance: bool = False
     not_included: bool = False
     owner_furnished: bool = False
@@ -281,6 +282,8 @@ class Project(_Model):
     status: ProjectStatus = ProjectStatus.DRAFT
     created: date = Field(default_factory=date.today)
     accepted_on: date | None = None   # set by Mark accepted; places the project in income summaries
+    customer_id: str | None = None    # crm.Customer; client_name / site_address keep the printed text
+    site_address_id: str | None = None
     closed_on: date | None = None
     notes: str = ""
 

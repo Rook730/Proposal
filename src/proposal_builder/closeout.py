@@ -69,6 +69,7 @@ class COItem(_Model):
     change: str = ""                   # what is added, deleted or modified
     line_ids: list[str] = Field(default_factory=list)
     performer: Performer = Performer.NONE  # who does the work; Kept Spec / CW work counts as income
+    contractor_id: str | None = None       # crm.Contractor when a sub does the work
     original_cost: Decimal = ZERO
     final_cost: Decimal = ZERO
 
