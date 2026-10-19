@@ -453,3 +453,5 @@ A toggle shows fields that never print:
 - The license threshold check uses totals including owner-supplied items (editor Issues, change order screen, ledger).
 - The ledger does not reconcile owner-supplied lines; actual costs entered against one raise a warning.
 - The "$0 lines" block becomes "$0 and owner-supplied lines" (library text updated automatically when unedited).
+
+**1.2.1:** saving a line (dialog or in-place edit) keeps the line list's scroll position. The last edited, moved, duplicated or added line is selected and marked with an amber bar and bold text until another line is edited.

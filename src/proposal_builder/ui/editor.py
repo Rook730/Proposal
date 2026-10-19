@@ -69,6 +69,8 @@ class Editor:
                     self.history += old.lines
         self.reserved = {ln.id for ln in self.history}
         self.section_filter: int | None = None
+        self.last_edited: str | None = None      # line ID highlighted in the grid after an edit
+        self._grid_filter_shown: int | None = None
         self.results: Results = self._calc()
 
     # ------------------------------------------------------------ model plumbing
@@ -120,6 +122,8 @@ class Editor:
             .pb-alt2 {{ background: {ALT_COLORS[2]} !important; }}
             .pb-alt3 {{ background: {ALT_COLORS[3]} !important; }}
             .pb-out {{ color: #9aa0a6; font-style: italic; }}
+            .pb-last {{ box-shadow: inset 4px 0 0 #E8A33D; }}
+            .pb-last .ag-cell {{ font-weight: 600; }}
         """)
         self.header()
         self.totals_bar()
@@ -253,6 +257,7 @@ class Editor:
 
     def _grid_options(self) -> dict:
         ed = not self.locked
+        self._grid_filter_shown = self.section_filter
         perf = [p.value for p in Performer]
         units = [u.code for u in self.cat.units]
         return {
@@ -282,7 +287,9 @@ class Editor:
             "stopEditingWhenCellsLoseFocus": True,
             "defaultColDef": {"resizable": True},
             "rowClassRules": {"pb-pct": "data.pct", "pb-alt1": "data.alt === 1", "pb-alt2": "data.alt === 2",
-                              "pb-alt3": "data.alt === 3", "pb-out": "data.excluded"},
+                              "pb-alt3": "data.alt === 3", "pb-out": "data.excluded", "pb-last": "data.last"},
+            # stable row identity: refreshing rowData updates rows in place, so scroll and selection stay put
+            ":getRowId": "p => p.data.id",
             "tooltipShowDelay": 400,
         }
 
@@ -345,11 +352,27 @@ class Editor:
         self.line_dialog(self.rev.line(e.args["data"]["id"]))
 
     def refresh_grid(self) -> None:
-        self.grid.options["rowData"] = self._rows()
-        for c in self.grid.options["columnDefs"]:
-            if c["field"] == "section_name":
-                c["hide"] = self.section_filter is not None
-        self.grid.update()
+        rows = self._rows()
+        for r in rows:
+            r["last"] = r["id"] == self.last_edited
+        if self._grid_filter_shown != self.section_filter:
+            # section filter changed: column visibility changes too, so rebuild (scroll to top is expected)
+            self._grid_filter_shown = self.section_filter
+            for c in self.grid.options["columnDefs"]:
+                if c["field"] == "section_name":
+                    c["hide"] = self.section_filter is not None
+            self.grid.options["rowData"] = rows
+            self.grid.update()
+            return
+        # rows go straight to the grid API: assigning options would rebuild the grid and reset its scroll
+        self.grid.run_grid_method("setGridOption", "rowData", rows)
+        idx = next((i for i, r in enumerate(rows) if r["last"]), None)
+        if idx is not None:
+            self.grid.run_grid_method("ensureIndexVisible", idx)
+            self.grid.run_row_method(self.last_edited, "setSelected", True)
+
+    def mark_edited(self, line_id: str | None) -> None:
+        self.last_edited = line_id
 
     def _cell_changed(self, e) -> None:
         ln = self.rev.line(e.args["data"]["id"])
@@ -379,6 +402,7 @@ class Editor:
                 ln.price_var = None
         except (ValidationError, ValueError) as err:
             ui.notify(f"Not saved: {err}", type="negative")
+        self.mark_edited(ln.id)
         self.save()
 
     async def _selected(self) -> Line | None:
@@ -400,6 +424,7 @@ class Editor:
             copy.id = self.new_id(ln.section)
             self.rev.add_line(copy)
             copy.order = ln.order + 5
+            self.mark_edited(copy.id)
             self.save()
             ui.notify(f"Duplicated {ln.id} as {copy.id}")
 
@@ -407,6 +432,7 @@ class Editor:
         ln = await self._selected()
         if ln:
             self.rev.move_line(ln.id, d)
+            self.mark_edited(ln.id)
             self.save()
 
     async def _delete_selected(self) -> None:
@@ -519,6 +545,7 @@ class Editor:
                     self.rev.add_line(ln, by_code=True)
                     added.append(ln.id)
                 dlg.close()
+                self.mark_edited(added[-1] if added else None)
                 self.save()
                 ui.notify(f"Added {', '.join(added)}", type="positive")
 
@@ -531,6 +558,7 @@ class Editor:
         sec = self.section_filter or (self.rev.sections[0] if self.rev.sections else self.cat.sections[0].number)
         ln = Line(id=self.new_id(sec), section=sec, title="New line", unit_price=Decimal(0))
         self.rev.add_line(ln)
+        self.mark_edited(ln.id)
         self.save()
         self.line_dialog(ln)
 
@@ -553,6 +581,7 @@ class Editor:
                     def pull() -> None:
                         changed = pull_update(ln, cat)
                         dlg.close()
+                        self.mark_edited(ln.id)
                         self.save()
                         ui.notify(f"Pulled from catalog: {', '.join(changed)}", type="positive")
                     if not self.locked:
@@ -753,6 +782,7 @@ class Editor:
                     updated.order = (existing[-1].order + 10) if existing else 10
                 rev.lines[idx] = updated
                 dlg.close()
+                self.mark_edited(updated.id)
                 self.save()
 
             with ui.row().classes("w-full justify-end gap-2"):
