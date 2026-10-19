@@ -28,6 +28,7 @@ from ..closeout import (
     price_change_orders,
 )
 from ..models import Performer
+from ..proposal import ProjectStatus
 from ..render.closeout_docs import change_order_document, ledger_document, safe_name
 from ..render.document import compile_document
 from .state import get_state
@@ -144,6 +145,7 @@ class Closeout:
                          "issue the final revision (Finalize, then issue 2.0) and use Mark accepted once the client "
                          "signs.").classes("text-sm")
             return
+        self.close_bar()
         self.tiles()
         with ui.tabs().props("dense inline-label align=left").classes("w-full border-b") as tabs:
             t_co = ui.tab("Change orders", icon="change_circle")
@@ -159,6 +161,46 @@ class Closeout:
                 self.payments_tab()
             with ui.tab_panel(t_led):
                 self.ledger_panel()
+
+    @property
+    def closed(self) -> bool:
+        return self.project.status is ProjectStatus.CLOSED
+
+    def close_bar(self) -> None:
+        p = self.project
+        with ui.row().classes("w-full items-center gap-3 mt-2"):
+            if self.closed:
+                ui.icon("lock").classes("text-gray-600")
+                ui.label(f"Closed on {p.closed_on:%Y.%m.%d}. Change orders, costs and payments are read-only.") \
+                    .classes("text-sm text-gray-700")
+                ui.button("Reopen", icon="lock_open", on_click=self._reopen).props("dense flat")
+            else:
+                ui.label(f"Status: {p.status.value}").classes("text-sm text-gray-600")
+                ui.button("Close project", icon="task_alt", on_click=self._close).props("dense outline")
+
+    async def _close(self) -> None:
+        lg = self.ledger
+        drafts = [o.number for o in self.log.orders if o.status not in (COStatus.APPROVED, COStatus.REJECTED)]
+        with ui.dialog() as dlg, ui.card().classes("w-[460px]"):
+            ui.label("Close this project?").classes("text-lg font-semibold")
+            ui.label("Change orders, actual costs and payments become read-only. You can reopen it later.") \
+                .classes("text-sm")
+            if lg and lg.balance_due:
+                ui.label(f"Balance due is {money(lg.balance_due)}.").classes("text-sm text-orange-700")
+            if drafts:
+                ui.label(f"Change orders not approved or rejected: {', '.join(drafts)}.").classes("text-sm text-orange-700")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Close project", on_click=lambda: dlg.submit(True))
+        if await dlg:
+            self.project.set_status(ProjectStatus.CLOSED)
+            self.st.projects.save_project(self.project)
+            ui.navigate.reload()
+
+    def _reopen(self) -> None:
+        self.project.set_status(ProjectStatus.COMPLETED)
+        self.st.projects.save_project(self.project)
+        ui.navigate.reload()
 
     @ui.refreshable_method
     def tiles(self) -> None:
@@ -184,7 +226,8 @@ class Closeout:
     # ------------------------------------------------------------ change orders
     def co_tab(self) -> None:
         with ui.row().classes("gap-2 items-center mb-2"):
-            ui.button("New change order", icon="add", on_click=self.new_co).props("dense")
+            if not self.closed:
+                ui.button("New change order", icon="add", on_click=self.new_co).props("dense")
             ui.label(f"Price = direct cost change x (1 + {self.contract.markup_pct * 100:.0f}% overhead and profit). "
                      "Contingency-funded orders draw contingency at price; any overflow is billed. "
                      f"Management hours are drawn from the change order management allowance at "
@@ -247,7 +290,7 @@ class Closeout:
     def co_dialog(self, co: ChangeOrder | None) -> None:
         if co is None:
             return
-        locked = co.locked
+        locked = co.locked or self.closed
         line_ids = [ln.id for ln in self.rev.lines]
         work = co.model_copy(deep=True)
         ro = "dense readonly" if locked else "dense"
@@ -399,7 +442,7 @@ class Closeout:
                       Col("amount", "Amount", "number", width=120),
                       Col("tax", "Tax", "number", width=90),
                       Col("paid_by", "Paid by", "select", [p.value for p in PaidBy], width=140)],
-                     lambda: self.save(), new_entry, height="34vh")
+                     lambda: self.save(), new_entry, height="34vh", readonly=self.closed)
 
     @ui.refreshable_method
     def line_summary(self) -> None:
@@ -420,7 +463,7 @@ class Closeout:
                            {"field": "variance", "headerName": "Variance", "width": 120, "type": "rightAligned"},
                            {"field": "client", "headerName": "Client paid", "width": 120, "type": "rightAligned"},
                            {"field": "credit", "headerName": "Credit if unused", "width": 130},
-                           {"field": "unused", "headerName": "Unused", "width": 90, "editable": True,
+                           {"field": "unused", "headerName": "Unused", "width": 90, "editable": not self.closed,
                             "cellDataType": "boolean"}],
             "rowData": rows, "rowHeight": 30, "headerHeight": 34,
         }, auto_size_columns=False).classes("w-full").style("height:34vh")
@@ -441,7 +484,8 @@ class Closeout:
                      [Col("draw", "Draw", width=120), Col("milestone", "Milestone", flex=1),
                       Col("date", "Date received", "date", width=140), Col("amount", "Amount", "number", width=140)],
                      lambda: self.save(),
-                     lambda: Payment(draw=f"Draw {len(self.recon.payments) + 1}", date=date.today()), height="40vh")
+                     lambda: Payment(draw=f"Draw {len(self.recon.payments) + 1}", date=date.today()), height="40vh",
+                     readonly=self.closed)
 
     # ------------------------------------------------------------ ledger
     @ui.refreshable_method

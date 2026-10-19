@@ -50,7 +50,7 @@ def run_self_test() -> tuple[bool, str]:
                                    ds.path("logo.png"), template="ledger.typ")
             assert led[:4] == b"%PDF", "ledger PDF"
             lines.append(f"ledger pdf {len(led)} bytes")
-            from .ui import closeout, editor, pages, projects  # noqa: F401  UI modules import cleanly
+            from .ui import closeout, editor, pages, projects, summary_page  # noqa: F401  UI modules import cleanly
             lines.append("ui modules ok")
             json.dumps({"ok": True})
         lines.append("SELF-TEST PASSED")

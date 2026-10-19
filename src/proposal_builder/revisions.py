@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
 from .calc import calculate
@@ -66,6 +66,7 @@ def mark_accepted(ps: ProjectStore, project: Project, rev: Revision) -> Revision
     rev.state = RevisionState.ACCEPTED
     ps.save_revision(project.number, rev, allow_locked=True)
     project.status = ProjectStatus.ACCEPTED
+    project.accepted_on = project.accepted_on or date.today()
     ps.save_project(project)
     return rev
 

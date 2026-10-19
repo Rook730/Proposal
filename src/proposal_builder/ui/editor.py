@@ -70,6 +70,7 @@ class Editor:
         self.reserved = {ln.id for ln in self.history}
         self.section_filter: int | None = None
         self.last_edited: str | None = None      # line ID highlighted in the grid after an edit
+        self.income_kind: str | None = None      # Income tab: "estimate" or "actual"
         self._grid_filter_shown: int | None = None
         self.results: Results = self._calc()
 
@@ -153,7 +154,7 @@ class Editor:
     @ui.refreshable_method
     def income_panel(self) -> None:
         from ..closeout import accepted_revision, build_ledger, contract_context
-        from ..income import contract_report, estimate_report, scenario_income
+        from ..income import contract_report, estimate_report
         s, ps, num = self.st.settings, self.st.projects, self.project.number
         ui.label("What Kept Spec keeps on this project, before your own business expenses. Counts lines performed "
                  "by Kept Spec Advisors or Convenient Woodworking, overhead, profit, change order management time, "
@@ -174,6 +175,7 @@ class Editor:
             ui.label(f"Rev {self.rev.rev}, base proposal. The Actual column appears once a revision is accepted.") \
                 .classes("text-sm font-semibold")
         has_act = rep.actual_total is not None
+        kind = self.income_kind if (has_act and self.income_kind) else ("actual" if has_act else "estimate")
 
         def m(v) -> str:
             return "" if v is None else (f"-${-v:,.2f}" if v < 0 else f"${v:,.2f}")
@@ -181,18 +183,30 @@ class Editor:
         def pct(v) -> str:
             return "" if v is None else f"{v * 100:.1f}%"
 
-        cols = [{"name": "item", "label": "Income", "field": "item", "align": "left"},
-                {"name": "est", "label": "Estimate", "field": "est", "align": "right"}]
         if has_act:
-            cols.append({"name": "act", "label": "Actual", "field": "act", "align": "right"})
-        cols.append({"name": "note", "label": "", "field": "note", "align": "left",
-                     "style": "white-space:normal;max-width:420px", "classes": "text-xs text-gray-500"})
-        rows = [{"item": g.name, "est": m(g.estimate), "act": m(g.actual), "note": g.note} for g in rep.groups]
-        rows.append({"item": "Total income", "est": m(rep.estimate_total), "act": m(rep.actual_total), "note": ""})
-        rows.append({"item": "Share of price", "est": pct(rep.estimate_margin), "act": pct(rep.actual_margin),
-                     "note": f"of Total Price {m(rep.contract_price)}"
-                             + (f"; final cost {m(rep.final_price)}" if has_act else "")})
-        ui.table(columns=cols, rows=rows, row_key="item").props("dense flat bordered").classes("w-full max-w-[1000px]")
+            def set_kind(e) -> None:
+                self.income_kind = e.value
+                self.income_panel.refresh()
+            ui.toggle({"estimate": "Estimate", "actual": "Actual"}, value=kind, on_change=set_kind) \
+                .props("dense no-caps").classes("my-1")
+        cols = [{"name": "item", "label": "Income", "field": "item", "align": "left"},
+                {"name": "ks", "label": "Kept Spec", "field": "ks", "align": "right"},
+                {"name": "cw", "label": "Convenient Woodworking", "field": "cw", "align": "right"},
+                {"name": "all", "label": "Combined", "field": "all", "align": "right"},
+                {"name": "note", "label": "", "field": "note", "align": "left",
+                 "style": "white-space:normal;max-width:380px", "classes": "text-xs text-gray-500"}]
+        rows = []
+        for g in rep.groups:
+            v = getattr(g, kind)
+            rows.append({"item": g.name, "ks": m(v) if g.entity == "KS" else "", "cw": m(v) if g.entity == "CW" else "",
+                         "all": m(v), "note": g.note})
+        rows.append({"item": "Total income", "ks": m(rep.total(kind, "KS")), "cw": m(rep.total(kind, "CW")),
+                     "all": m(rep.total(kind)), "note": ""})
+        price = rep.contract_price if kind == "estimate" else rep.final_price
+        rows.append({"item": "Share of price", "ks": pct(rep.share(kind, "KS")), "cw": pct(rep.share(kind, "CW")),
+                     "all": pct(rep.share(kind)),
+                     "note": ("of Total Price " if kind == "estimate" else "of final cost ") + m(price)})
+        ui.table(columns=cols, rows=rows, row_key="item").props("dense flat bordered").classes("w-full max-w-[1100px]")
         if has_act and rep.lines_without_actuals:
             ui.label(f"{rep.lines_without_actuals} of your lines have no actual hours or cost entered yet; "
                      "they are counted at their contract amount.").classes("text-xs text-orange-700 mt-1")
@@ -216,13 +230,16 @@ class Editor:
             opts += [(c.name, c) for c in self.results.combinations]
             orow = []
             for name, sc in opts:
-                inc = scenario_income(self.rev, self.results, sc, s)
-                orow.append({"o": name, "p": m(sc.total), "i": m(inc), "s": pct(inc / sc.total if sc.total else None)})
+                er = estimate_report(self.rev, self.results, sc, s)
+                orow.append({"o": name, "p": m(sc.total), "ks": m(er.total("estimate", "KS")),
+                             "cw": m(er.total("estimate", "CW")), "i": m(er.total()), "s": pct(er.share())})
             ui.table(columns=[{"name": "o", "label": "Option", "field": "o", "align": "left"},
                               {"name": "p", "label": "Total Price", "field": "p", "align": "right"},
-                              {"name": "i", "label": "Income", "field": "i", "align": "right"},
+                              {"name": "ks", "label": "Kept Spec", "field": "ks", "align": "right"},
+                              {"name": "cw", "label": "Conv. Woodworking", "field": "cw", "align": "right"},
+                              {"name": "i", "label": "Combined", "field": "i", "align": "right"},
                               {"name": "s", "label": "Share", "field": "s", "align": "right"}],
-                     rows=orow, row_key="o").props("dense flat bordered").classes("max-w-[600px]")
+                     rows=orow, row_key="o").props("dense flat bordered").classes("max-w-[800px]")
 
     @ui.refreshable_method
     def header(self) -> None:
@@ -243,7 +260,7 @@ class Editor:
                     ui.badge(self.rev.state.value, color=color).classes("text-sm px-2 py-1")
                     ui.label(f"{self.rev.proposal_date:%Y.%m.%d}").classes("text-sm")
                     ui.select([s.value for s in ProjectStatus], value=p.status.value, label="Project status",
-                              on_change=lambda e: (setattr(p, "status", ProjectStatus(e.value)), self.save_project())) \
+                              on_change=lambda e: (p.set_status(ProjectStatus(e.value)), self.save_project())) \
                         .props("dense outlined").classes("w-36")
                 with ui.row().classes("items-center gap-2 no-wrap"):
                     ui.button("Project info", icon="edit", on_click=self.project_dialog).props("outline dense")

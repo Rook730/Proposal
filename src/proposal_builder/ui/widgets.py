@@ -12,6 +12,7 @@ from pydantic import BaseModel, ValidationError
 
 NAV_PROPOSALS = [
     ("Projects", "/projects", "folder_open"),
+    ("Income summary", "/summary", "insights"),
 ]
 
 NAV = [

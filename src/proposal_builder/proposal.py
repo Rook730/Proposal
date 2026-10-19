@@ -38,6 +38,10 @@ class ProjectStatus(str, Enum):
     REJECTED = "Rejected"
     IN_PROCESS = "In-Process"
     COMPLETED = "Completed"
+    CLOSED = "Closed"          # finished and reconciled; change orders and ledger are read-only
+
+
+WON_STATUSES = (ProjectStatus.ACCEPTED, ProjectStatus.IN_PROCESS, ProjectStatus.COMPLETED, ProjectStatus.CLOSED)
 
 
 class RevisionState(str, Enum):
@@ -276,7 +280,21 @@ class Project(_Model):
     project_name: str = ""
     status: ProjectStatus = ProjectStatus.DRAFT
     created: date = Field(default_factory=date.today)
+    accepted_on: date | None = None   # set by Mark accepted; places the project in income summaries
+    closed_on: date | None = None
     notes: str = ""
+
+    def set_status(self, status: ProjectStatus, on: date | None = None) -> None:
+        """Change status and keep the acceptance / close dates in step."""
+        status = ProjectStatus(status)
+        today = on or date.today()
+        if status in WON_STATUSES and self.accepted_on is None:
+            self.accepted_on = today
+        if status is ProjectStatus.CLOSED:
+            self.closed_on = self.closed_on or today
+        else:
+            self.closed_on = None
+        self.status = status
 
     @property
     def folder_name(self) -> str:

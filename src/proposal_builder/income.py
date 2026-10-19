@@ -26,6 +26,8 @@ from .proposal import Revision
 
 ZERO = Decimal(0)
 INCOME_PERFORMERS = (Performer.KEPT_SPEC, Performer.CW)
+KS, CW = "KS", "CW"                     # which side of the business a group belongs to
+ENTITY = {Performer.KEPT_SPEC: KS, Performer.CW: CW}
 
 
 @dataclass
@@ -44,6 +46,7 @@ class IncomeGroup:
     actual: Decimal | None = None
     note: str = ""
     lines: list[IncomeLine] = field(default_factory=list)
+    entity: str = KS                    # rows not tied to a performer belong to Kept Spec (general contractor)
 
 
 @dataclass
@@ -54,6 +57,18 @@ class IncomeReport:
     contract_price: Decimal             # Total Price of the scenario
     final_price: Decimal | None         # ledger final cost
     lines_without_actuals: int = 0
+
+    def total(self, kind: str = "estimate", entity: str | None = None) -> Decimal | None:
+        """kind: "estimate" or "actual"; entity: KS, CW or None for both."""
+        if kind == "actual" and self.actual_total is None:
+            return None
+        vals = [getattr(g, kind) for g in self.groups if entity is None or g.entity == entity]
+        return sum((v for v in vals if v is not None), ZERO)
+
+    def share(self, kind: str = "estimate", entity: str | None = None) -> Decimal | None:
+        price = self.contract_price if kind == "estimate" else self.final_price
+        t = self.total(kind, entity)
+        return t / price if (t is not None and price) else None
 
     @property
     def estimate_margin(self) -> Decimal | None:
@@ -77,7 +92,8 @@ def estimate_report(rev: Revision, results: Results, scenario: Scenario, setting
         lines = [IncomeLine(ln.id, ln.title, results.lines[ln.id].cost)
                  for ln in rev.lines
                  if ln.id in included and ln.performer is perf and not ln.is_percent and not ln.owner_furnished]
-        groups.append(IncomeGroup(f"{perf.value} lines", sum((x.estimate for x in lines), ZERO), lines=lines))
+        groups.append(IncomeGroup(f"{perf.value} lines", sum((x.estimate for x in lines), ZERO), lines=lines,
+                                  entity=ENTITY[perf]))
     for code in settings.co_markup_codes:
         for ln in rev.lines:
             if ln.code == code and ln.id in scenario.percent_items:
@@ -87,8 +103,9 @@ def estimate_report(rev: Revision, results: Results, scenario: Scenario, setting
     groups.append(IncomeGroup("Change order management time", None,
                               note=f"Earned only as change order time is logged; up to ${mgmt:,.2f} "
                                    "from the allowance, more if billed beyond it"))
-    groups.append(IncomeGroup("Your work on change orders", None,
-                              note="Change order items performed by Kept Spec Advisors or Convenient Woodworking"))
+    for perf in INCOME_PERFORMERS:
+        groups.append(IncomeGroup(f"{perf.value} work on change orders", None, entity=ENTITY[perf],
+                                  note=f"Change order items performed by {perf.value}"))
     groups.append(IncomeGroup("Overhead and profit on change orders", None, note="From approved change orders"))
     groups.append(IncomeGroup("Overhead and profit on line variance", None,
                               note="From actual costs against the contract"))
@@ -97,8 +114,8 @@ def estimate_report(rev: Revision, results: Results, scenario: Scenario, setting
                         contract_price=scenario.total, final_price=None)
 
 
-def _own(co) -> Decimal:
-    return sum((it.delta for it in co.items if it.performer in INCOME_PERFORMERS), ZERO)
+def _own(co, performers=INCOME_PERFORMERS) -> Decimal:
+    return sum((it.delta for it in co.items if it.performer in performers), ZERO)
 
 
 def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
@@ -126,8 +143,9 @@ def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
             billed = sum((ledger.pricing[o.number].mgmt_billed for o in ledger.approved
                           if o.funding is not COFunding.ABSORBED), ZERO)
             g.actual = used + billed
-        elif g.name == "Your work on change orders":
-            g.actual = sum((_own(o) for o in ledger.approved if o.funding is not COFunding.ABSORBED), ZERO)
+        elif g.name.endswith("work on change orders"):
+            perf = next(p for p in INCOME_PERFORMERS if ENTITY[p] == g.entity)
+            g.actual = sum((_own(o, (perf,)) for o in ledger.approved if o.funding is not COFunding.ABSORBED), ZERO)
         elif g.name == "Overhead and profit on change orders":
             amt = ZERO
             for o in ledger.approved:

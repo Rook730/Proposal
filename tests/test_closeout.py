@@ -148,6 +148,8 @@ def test_income_estimate_and_actual(contract):
     ks, cw = groups["Kept Spec Advisors lines"], groups["Convenient Woodworking lines"]
     assert groups["Company Overhead"].estimate == D("1640.90") and groups["Profit"].estimate == D("3281.80")
     assert est.estimate_total == ks.estimate + cw.estimate + D("1640.90") + D("3281.80")
+    assert est.total("estimate", "CW") == cw.estimate
+    assert est.total("estimate", "KS") == ks.estimate + D("1640.90") + D("3281.80")
     assert groups["Change order management time"].estimate is None          # not counted until used
 
     log = ChangeOrderLog(orders=[co(1, 350, COFunding.CLIENT, hours=2), co(2, 500, COFunding.ABSORBED)])
@@ -157,7 +159,7 @@ def test_income_estimate_and_actual(contract):
     g = {x.name: x for x in rep.groups}
     assert g["Change order management time"].actual == D(150)                # 2 HR x $75 from the allowance
     assert g["Overhead and profit on change orders"].actual == D("52.50") - D(500)
-    assert g["Your work on change orders"].actual == 0
+    assert g["Convenient Woodworking work on change orders"].actual == 0
 
     from proposal_builder.models import Performer
     own = ChangeOrder(number="26005-03", funding=COFunding.CLIENT, status=COStatus.APPROVED,
@@ -168,7 +170,11 @@ def test_income_estimate_and_actual(contract):
                                   COItem(description="w", final_cost=D(50))])
     g2 = {x.name: x for x in contract_report(build_ledger(contract, ChangeOrderLog(orders=[own, absorbed]),
                                                           Reconciliation()), settings).groups}
-    assert g2["Your work on change orders"].actual == D(300)
+    assert g2["Convenient Woodworking work on change orders"].actual == D(300)
+    assert g2["Kept Spec Advisors work on change orders"].actual == 0
+    rep2 = contract_report(build_ledger(contract, ChangeOrderLog(orders=[own, absorbed]), Reconciliation()), settings)
+    assert rep2.total("actual", "CW") == g2["Convenient Woodworking lines"].actual + D(300)
+    assert rep2.total("actual") == rep2.total("actual", "KS") + rep2.total("actual", "CW")
     assert g2["Overhead and profit on change orders"].actual == D(60) - D(50)   # 15% of 400; absorbed sub cost
     line = next(x for x in g["Convenient Woodworking lines"].lines if x.line_id == cw_line.line_id)
     assert line.entered and line.actual == contract.rev.line(cw_line.line_id).unit_price
