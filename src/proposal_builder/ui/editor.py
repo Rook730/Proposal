@@ -370,6 +370,9 @@ class Editor:
                              RevisionState.ACCEPTED: "green-8", RevisionState.SUPERSEDED: "grey-5"}[self.rev.state]
                     ui.badge(self.rev.state.value, color=color).classes("text-sm px-2 py-1")
                     ui.label(f"{self.rev.proposal_date:%Y.%m.%d}").classes("text-sm")
+                    if p.archived_on:
+                        ui.badge("Archived", color="grey-7").classes("text-sm px-2 py-1") \
+                            .tooltip("Restore it from the Projects list (Archive / restore)")
                     ui.select([s.value for s in ProjectStatus], value=p.status.value, label="Project status",
                               on_change=lambda e: (p.set_status(ProjectStatus(e.value)), self.save_project())) \
                         .props("dense outlined").classes("w-36")

@@ -282,3 +282,14 @@ def test_owner_supplied_outside_totals(settings):
     assert res.base.subtotal == D(1700) and res.base.total == D(1870)        # unchanged
     assert res.base.owner_supplied == D(3200) and res.base.total_incl_owner == D(5070)
     assert res.base.section_total(100, with_pct=False) == D(1700)
+
+
+def test_delete_moves_project_to_backups(tmp_path, p26005):
+    project, rev = p26005
+    ds = DataStore(tmp_path)
+    ds.initialize_from_seed()
+    ps = ProjectStore(ds)
+    ps.create(project, rev)
+    dest = ps.delete("26005")
+    assert ps.list_projects() == [] and (dest / "project.json").exists()
+    assert dest.parent == ds.backup_dir / "deleted-projects"

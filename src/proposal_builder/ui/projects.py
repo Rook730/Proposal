@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import tempfile
+from datetime import date
 from pathlib import Path
 
 import openpyxl
@@ -11,15 +12,17 @@ from nicegui import ui
 from ..calc import calculate
 from ..calc import DOCUMENT_VARIABLES, SPECIAL_PLACEHOLDERS, referenced, variable_map
 from ..models import PriceSource, Variable
-from ..proposal import Project, ProjectStatus, Revision, default_blocks, line_from_item
+from ..proposal import WON_STATUSES, Project, ProjectStatus, Revision, default_blocks, line_from_item
 from .state import get_state
 from .widgets import layout
 
 
-def _project_rows() -> list[dict]:
+def _project_rows(show_archived: bool = False) -> list[dict]:
     st = get_state()
     rows = []
     for p in st.projects.list_projects():
+        if p.archived_on and not show_archived:
+            continue
         revs = st.projects.list_revisions(p.number)
         total, state = "", ""
         try:
@@ -30,7 +33,8 @@ def _project_rows() -> list[dict]:
         except Exception:  # noqa: BLE001 - list must render even if one file is bad
             pass
         rows.append({"number": p.number, "client": p.client_name, "project": p.project_name,
-                     "address": p.site_address, "status": p.status.value,
+                     "address": p.site_address,
+                     "status": p.status.value + (" (archived)" if p.archived_on else ""),
                      "rev": f"{revs[-1]} {state}" if revs else "", "total": total})
     return rows
 
@@ -143,26 +147,91 @@ def import_dialog(on_done) -> None:
 def projects_page() -> None:
     layout("Projects")
 
+    st = get_state()
+
     def refresh() -> None:
-        grid.options["rowData"] = _project_rows()
+        grid.options["rowData"] = _project_rows(show.value)
         grid.update()
+
+    async def selected():
+        rows = await grid.get_selected_rows()
+        if not rows:
+            ui.notify("Select a project first (click its row).")
+            return None
+        return st.projects.load_project(rows[0]["number"])
+
+    async def archive() -> None:
+        p = await selected()
+        if p is None:
+            return
+        if p.archived_on:
+            p.archived_on = None
+            ui.notify(f"{p.number} restored to the list.")
+        else:
+            if p.status not in (ProjectStatus.CLOSED, ProjectStatus.REJECTED, ProjectStatus.COMPLETED):
+                with ui.dialog() as dlg, ui.card():
+                    ui.label(f"{p.number} is {p.status.value}. Archive it anyway?")
+                    with ui.row():
+                        ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                        ui.button("Archive", on_click=lambda: dlg.submit(True))
+                if not await dlg:
+                    return
+            p.archived_on = date.today()
+            ui.notify(f"{p.number} archived. Turn on Show archived to see it.")
+        st.projects.save_project(p)
+        refresh()
+
+    async def delete() -> None:
+        p = await selected()
+        if p is None:
+            return
+        with ui.dialog() as dlg, ui.card().classes("w-[460px]"):
+            ui.label(f"Delete {p.number} {p.project_name}?").classes("text-lg font-semibold")
+            ui.label("For mistakes and test projects. The folder (revisions, change orders, costs, PDFs) moves to "
+                     "backups/deleted-projects in your data folder, so it can be recovered.").classes("text-sm")
+            if p.status in WON_STATUSES:
+                ui.label("This project was accepted. To keep its history out of the way, use Archive instead.") \
+                    .classes("text-sm text-orange-700")
+            confirm = ui.input(f"Type {p.number} to confirm").props("dense").classes("w-full")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Delete", icon="delete", on_click=lambda: dlg.submit(confirm.value == p.number)) \
+                    .props("color=negative")
+        if not await dlg:
+            return
+        try:
+            dest = st.projects.delete(p.number)
+        except (OSError, ValueError) as e:
+            ui.notify(f"Delete failed: {e}", type="negative", multi_line=True)
+            return
+        s = st.settings
+        if p.number == f"{s.proposal_year:02d}{s.next_proposal_seq - 1:03d}":
+            s.next_proposal_seq -= 1          # the newest number was a test: hand it out again
+            st.save_settings()
+        ui.notify(f"Deleted {p.number}. Moved to {dest}", type="positive", multi_line=True)
+        refresh()
 
     with ui.row().classes("gap-2 mb-2 items-center"):
         ui.button("New project", icon="add", on_click=new_project_dialog).props("dense")
         ui.button("Import from Excel", icon="upload_file", on_click=lambda: import_dialog(refresh)) \
             .props("dense outline")
-        ui.label("Double-click a project to open it.").classes("text-xs text-gray-500")
+        ui.button("Archive / restore", icon="inventory_2", on_click=archive).props("dense flat")
+        ui.button("Delete", icon="delete", on_click=delete).props("dense flat color=negative")
+        show = ui.switch("Show archived", on_change=lambda _: refresh()).props("dense")
+        ui.label("Double-click a project to open it; click once to select it for Archive or Delete.") \
+            .classes("text-xs text-gray-500")
     grid = ui.aggrid({
         "columnDefs": [
             {"field": "number", "headerName": "#", "width": 90, "sort": "desc"},
             {"field": "client", "headerName": "Client", "width": 200},
             {"field": "project", "headerName": "Project", "width": 220},
             {"field": "address", "headerName": "Address", "flex": 1},
-            {"field": "status", "headerName": "Status", "width": 120},
+            {"field": "status", "headerName": "Status", "width": 160},
             {"field": "rev", "headerName": "Rev", "width": 130},
             {"field": "total", "headerName": "Total", "width": 130, "type": "rightAligned"},
         ],
         "rowData": _project_rows(),
+        "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
         "defaultColDef": {"sortable": True, "resizable": True, "filter": True},
         "rowHeight": 34,
     }, auto_size_columns=False).classes("w-full").style("height:75vh")

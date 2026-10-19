@@ -285,6 +285,7 @@ class Project(_Model):
     customer_id: str | None = None    # crm.Customer; client_name / site_address keep the printed text
     site_address_id: str | None = None
     closed_on: date | None = None
+    archived_on: date | None = None   # hidden from the project list; still counted in income summaries
     notes: str = ""
 
     def set_status(self, status: ProjectStatus, on: date | None = None) -> None:

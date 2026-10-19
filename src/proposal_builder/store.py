@@ -233,6 +233,17 @@ class ProjectStore:
                     continue
         return sorted(out, key=lambda p: p.number, reverse=True)
 
+    def delete(self, number: str) -> Path:
+        """Move a project folder to backups/deleted-projects/ (recoverable by moving it back)."""
+        d = self.project_dir(number)
+        if d is None:
+            raise ValueError(f"project {number} not found")
+        trash = self.store.backup_dir / "deleted-projects"
+        trash.mkdir(parents=True, exist_ok=True)
+        dest = trash / f"{d.name}_{datetime.now():%Y%m%d-%H%M%S}"
+        shutil.move(str(d), str(dest))
+        return dest
+
     def create(self, project, revision) -> Path:
         if self.project_dir(project.number):
             raise ValueError(f"project {project.number} already exists")

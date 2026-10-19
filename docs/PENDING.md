@@ -11,3 +11,6 @@ Collected until Nick says to release. Status: [ ] open, [~] built, not released,
 5. [~] Catalog: Suppliers, own page (name, contact, phone, email, account number, website, notes). Line vendor and actual-cost vendor pick from suppliers and contractors.
 6. [~] Sub quote package (Sub quotes tab): PDF of the lines assigned to one contractor (title, description, notes, unit, quantity; no prices; no client name), project number, name and site address in the header; blank price / valid until / lead time / exclusions for the sub to fill in. Text before the scope is in Settings (rfq_note). Export only.
 7. [~] Quote comparison (Sub quotes tab): log quotes from several contractors for the same scope; PDF comparison for the client (separate from the proposal). Lowest first; note under the table is in Settings (comparison_note). Winner entered manually on the lines.
+8. [~] Projects list: Delete and Archive.
+   - Delete (for mistakes and test projects): type the project number to confirm; the folder moves to backups/deleted-projects in the data folder, so it can be recovered. Accepted projects get a note suggesting Archive. Deleting the newest project number hands that number out again.
+   - Archive / restore: hides a project from the list (Show archived brings it back); archived projects still count in the income summary and show an Archived badge in the editor.
