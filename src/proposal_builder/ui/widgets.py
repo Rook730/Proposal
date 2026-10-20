@@ -65,6 +65,14 @@ def layout(title: str, drawer: bool = True) -> None:
                         ui.item_label(label).classes("font-semibold" if label == title else "")
 
 
+def keep_current(options: dict, value) -> dict:
+    """Select options that still include the saved value(s), so a form opens after a catalog entry was
+    renamed or deleted (the stale value shows as "missing" and can be changed)."""
+    vals = value if isinstance(value, list) else [value]
+    missing = {v: f"{v} (missing)" for v in vals if v not in (None, "") and v not in options}
+    return {**missing, **options}
+
+
 # ---------------------------------------------------------------- conversions
 
 

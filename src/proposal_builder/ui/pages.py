@@ -23,7 +23,7 @@ from ..models import (
     Variable,
 )
 from .state import get_state, set_data_dir
-from .widgets import Col, EditableGrid, layout, to_decimal, warn
+from .widgets import keep_current, Col, EditableGrid, layout, to_decimal, warn
 
 
 def md_breaks(text: str) -> str:
@@ -77,11 +77,11 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
         ui.label("New catalog item" if is_new else f"Item {src.code}").classes("text-lg font-semibold")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
             code = ui.number("Code", value=f["code"] or None, format="%d").props("dense")
-            section = ui.select({s.number: f"{s.number} {s.name}" for s in cat.sections},
+            section = ui.select(keep_current({s.number: f"{s.number} {s.name}" for s in cat.sections}, f["section"]),
                                 label="Section", value=f["section"]).props("dense").classes("col-span-2")
             group = ui.input("Group (MEP sub-heading)", value=f["group"]).props("dense")
             title = ui.input("Title", value=f["title"]).props("dense").classes("col-span-3")
-            unit = ui.select([u.code for u in cat.units], label="Unit", value=f["unit"]).props("dense")
+            unit = ui.select(cat.unit_options(f["unit"]), label="Unit", value=f["unit"]).props("dense")
         desc = ui.textarea("General description (printed on every use)", value=f["description"]) \
             .props("dense autogrow").classes("w-full")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
@@ -92,19 +92,19 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                 price_val = price_val * 100
             price = ui.number("Price ($, or % for percent items)",
                               value=float(price_val) if price_val is not None else None).props("dense")
-            rate = ui.select({"": "-", **{r.key: f"{r.key} (${r.rate})" for r in cat.rates}},
+            rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key} (${r.rate})" for r in cat.rates}}, f["rate_key"]),
                              label="Rate", value=f["rate_key"] or "").props("dense")
             tier = ui.select({t.value: t.value for t in Tier}, label="Default allowance tier",
                              value=f["default_tier"]).props("dense")
-        allow = ui.select({a.id: f"{a.category}: {a.description} ({a.unit} {a.low} to {a.high})"
-                           for a in cat.allowances},
+        allow = ui.select(keep_current({a.id: f"{a.category}: {a.description} ({a.unit} {a.low} to {a.high})"
+                                        for a in cat.allowances}, f["allowance_ids"]),
                           label="Linked allowance ranges", value=f["allowance_ids"], multiple=True) \
             .props("dense use-chips").classes("w-full")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
             performer = ui.select({p.value: p.value or "-" for p in Performer}, label="Default performer",
                                   value=f["performer"]).props("dense")
-            stock = ui.select({"": "-", **{s.key: s.name for s in cat.stock_classes}}, label="Stock class",
-                              value=f["stock_class"] or "").props("dense")
+            stock = ui.select(keep_current({"": "-", **{s.key: s.name for s in cat.stock_classes}}, f["stock_class"]),
+                              label="Stock class", value=f["stock_class"] or "").props("dense")
             isa = ui.checkbox("Allowance (prints on proposal)", value=f["is_allowance"])
             ni = ui.checkbox("Not included ($0 line)", value=f["not_included"])
             of = ui.checkbox("Owner-furnished", value=f["owner_furnished"])
@@ -259,8 +259,28 @@ def units_page() -> None:
     layout("Units")
     st = get_state()
 
+    ui.label("Renaming a unit updates catalog items, rates and allowance ranges that use it. Saved proposals keep "
+             "the unit they were written with; change it on the line if needed.").classes("text-xs text-gray-500")
+    st.catalog.units.sort(key=lambda u: u.code)   # sorted on open only: grid rows map to list positions
+    prev = [u.code for u in st.catalog.units]
+
     def save():
-        st.catalog.units.sort(key=lambda u: u.code)
+        now = [u.code for u in st.catalog.units]
+        msgs = []
+        if len(now) == len(prev):
+            for old, new in zip(prev, now):
+                if old != new and old not in now:
+                    n = st.catalog.rename_unit(old, new)
+                    msgs.append(f"Renamed {old} to {new}" + (f"; updated {n} catalog entries" if n else ""))
+        elif len(now) < len(prev):
+            for gone in set(prev) - set(now):
+                users = st.catalog.unit_users(gone)
+                if users:
+                    msgs.append(f"Deleted {gone}, still used by {len(users)}: {', '.join(users[:6])}"
+                                + ("..." if len(users) > 6 else "") + ". Pick a new unit on those.")
+        prev[:] = [u.code for u in st.catalog.units]
+        for msg in msgs:
+            ui.notify(msg, type="info", multi_line=True, timeout=8000)
         return st.save_catalog()
 
     EditableGrid(lambda: st.catalog.units,

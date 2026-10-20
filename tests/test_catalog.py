@@ -169,3 +169,16 @@ def test_migration_updates_only_untouched_text():
     cat.item(1320).description = "my own wording"
     assert migrate_library(cat, bp) == (False, False)
     assert cat.item(1320).description == "my own wording"
+
+
+def test_unit_rename_and_missing_unit_options():
+    from importlib import resources
+    from proposal_builder.models import Catalog
+    cat = Catalog.model_validate_json((resources.files("proposal_builder") / "seed" / "catalog.json").read_text())
+    users = cat.unit_users("EA")
+    assert users
+    n = cat.rename_unit("EA", "EACH")
+    assert n == len(users) and not cat.unit_users("EA") and len(cat.unit_users("EACH")) == n
+    opts = cat.unit_options("EACH")                     # "EACH" is not in Units yet
+    assert list(opts)[0] == "EACH" and "not in Units" in opts["EACH"]
+    assert "LF" in opts and cat.unit_options("LF") == {u.code: u.code for u in cat.units}

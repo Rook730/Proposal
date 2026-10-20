@@ -39,7 +39,7 @@ from ..revisions import (
 )
 from .pages import md_breaks
 from .state import get_state
-from .widgets import BRAND, Col, EditableGrid, layout, to_decimal
+from .widgets import keep_current, BRAND, Col, EditableGrid, layout, to_decimal
 
 ALT_COLORS = {1: "#DCE8F7", 2: "#E3F1E8", 3: "#F6ECDD"}
 PCT_COLOR = "#E6E8EB"
@@ -804,9 +804,9 @@ class Editor:
                                      label="Catalog code", value=work.code or 0, with_input=True) \
                     .props("dense").classes("col-span-6")
                 title = ui.input("Title", value=work.title).props("dense").classes("col-span-3")
-                section = ui.select({s.number: f"{s.number} {s.name}" for s in cat.sections}, label="Section",
-                                    value=work.section).props("dense").classes("col-span-2")
-                unit = ui.select([u.code for u in cat.units], label="Unit", value=work.unit).props("dense")
+                section = ui.select(keep_current({s.number: f"{s.number} {s.name}" for s in cat.sections}, work.section),
+                                    label="Section", value=work.section).props("dense").classes("col-span-2")
+                unit = ui.select(cat.unit_options(work.unit), label="Unit", value=work.unit).props("dense")
                 performer = ui.select({p.value: p.value or "-" for p in Performer}, label="Performer (prints)",
                                       value=work.performer.value).props("dense").classes("col-span-2")
                 from .crm_pages import contractor_dialog, vendor_names
@@ -879,8 +879,8 @@ class Editor:
                 qty_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind to variable",
                                     value=work.qty_var or "").props("dense")
                 takeoff = ui.number("or takeoff LF (stick goods)", value=_num(work.takeoff)).props("dense")
-                stock = ui.select({"": "-", **{s.key: s.name for s in cat.stock_classes}}, label="Stock class",
-                                  value=work.stock_class or "").props("dense")
+                stock = ui.select(keep_current({"": "-", **{s.key: s.name for s in cat.stock_classes}}, work.stock_class),
+                                  label="Stock class", value=work.stock_class or "").props("dense")
                 waste = ui.number("Waste % (blank = default)",
                                   value=_num(work.waste_pct * 100) if work.waste_pct is not None else None) \
                     .props("dense")
@@ -890,10 +890,10 @@ class Editor:
             with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
                 basis = ui.select({p.value: p.value for p in PriceSource}, label="Basis",
                                   value=work.price_basis.value).props("dense")
-                rate = ui.select({"": "-", **{r.key: f"{r.key} ${r.rate}" for r in cat.rates}}, label="Rate",
-                                 value=work.rate_key or "").props("dense")
-                allow = ui.select({"": "-", **{a.id: f"{a.category}: {a.description} ({a.unit} {a.low}-{a.high})"
-                                              for a in cat.allowances}},
+                rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key} ${r.rate}" for r in cat.rates}}, work.rate_key),
+                                 label="Rate", value=work.rate_key or "").props("dense")
+                allow = ui.select(keep_current({"": "-", **{a.id: f"{a.category}: {a.description} ({a.unit} {a.low}-{a.high})"
+                                                           for a in cat.allowances}}, work.allowance_id),
                                   label="Allowance range", value=work.allowance_id or "").props("dense") \
                     .classes("col-span-2")
                 tier = ui.select({t.value: t.value for t in LineTier}, label="Tier", value=work.tier.value) \

@@ -164,6 +164,28 @@ class Catalog(_Model):
             return item.price
         return item.price
 
+    def unit_options(self, current: str | None = None) -> dict[str, str]:
+        """Unit codes for a picker; a code no longer in the list stays selectable so the form still opens."""
+        opts = {u.code: u.code for u in self.units}
+        if current and current not in opts:
+            opts = {current: f"{current} (not in Units)", **opts}
+        return opts
+
+    def rename_unit(self, old: str, new: str) -> int:
+        """Point catalog items, rates and allowance ranges at a renamed unit. Returns how many changed."""
+        n = 0
+        for coll in (self.items, self.rates, self.allowances):
+            for x in coll:
+                if x.unit == old:
+                    x.unit = new
+                    n += 1
+        return n
+
+    def unit_users(self, code: str) -> list[str]:
+        return ([f"item {i.code}" for i in self.items if i.unit == code]
+                + [f"rate {r.key}" for r in self.rates if r.unit == code]
+                + [f"allowance {a.category}: {a.description}" for a in self.allowances if a.unit == code])
+
     def validate_refs(self) -> list[str]:
         """Return human-readable integrity problems (empty list = clean)."""
         problems: list[str] = []
