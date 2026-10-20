@@ -422,7 +422,9 @@ class Editor:
                  f"{money(r.base.total_incl_owner)} incl. owner-supplied" if r.base.owner_supplied else "")
             for n, sc in r.alternates.items():
                 d = r.delta(n)
-                tile(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base",
+                od = sc.owner_supplied - r.base.owner_supplied
+                tile(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base"
+                     + (f"; owner-supplied {'+' if od >= 0 else '-'}{money(abs(od))}" if od else ""),
                      bg=f"pb-altbg{n}")
             ps = payment_schedule(r.base.total, self.st.settings)
             tile("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
@@ -1064,6 +1066,11 @@ class Editor:
                         d = r.delta(alt.number)
                         ui.label(f"Subtotal {money(sc.subtotal)}  |  Total {money(sc.total)}  |  "
                                  f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base").classes("text-sm")
+                        od = sc.owner_supplied - r.base.owner_supplied
+                        if od:
+                            ui.label(f"Owner-supplied {money(sc.owner_supplied)} "
+                                     f"({'+' if od >= 0 else '-'}{money(abs(od))} vs base, not in Total)") \
+                                .classes("text-sm pb-amber")
                     if not self.locked:
                         ui.button(icon="delete", on_click=lambda a=alt: self._remove_alt(a)) \
                             .props("flat dense round color=negative")

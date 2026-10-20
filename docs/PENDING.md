@@ -24,6 +24,6 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 12. [x] Fix: dialogs opened from a panel that refreshes on save (e.g. the line form after adding from the Alternates tab) no longer fail to appear.
 13. [x] Settings: Dark mode switch (saved in settings; the page reloads in the chosen theme). Grids, tiles, alternate and percent row colors, banners and buttons all have dark versions.
 
-## Next release
+## Next release (1.5.3)
 
-Nothing pending.
+14. [~] Alternates: when an alternate changes owner-supplied items, the alternate card and its tile show the owner-supplied difference (owner-supplied costs are outside the Total Price, so the Total difference alone can read $0).
