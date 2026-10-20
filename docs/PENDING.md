@@ -22,3 +22,4 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 
 11. [~] Alternates tab: each alternate has Add from catalog, Custom line and Copy removed lines (copies each base line it removes into the alternate as an editable starting point). New lines open their form right away when one line is added. Lines the alternate adds show as chips: click to edit, x to delete. A custom line starts in the section of the first removed line.
 12. [~] Fix: dialogs opened from a panel that refreshes on save (e.g. the line form after adding from the Alternates tab) no longer fail to appear.
+13. [~] Settings: Dark mode switch (saved in settings; the page reloads in the chosen theme). Grids, tiles, alternate and percent row colors, banners and buttons all have dark versions.

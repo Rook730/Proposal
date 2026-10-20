@@ -266,6 +266,7 @@ class Settings(_Model):
     deposit_pct: Decimal = Decimal("0.25")
     retainage_pct: Decimal = Decimal("0.05")
     validity_days: int = 30
+    dark_mode: bool = False
     license_threshold: Decimal = Decimal("40000")   # warn when a total reaches this; 0 turns the check off
     rfq_note: str = ("Please quote the scope below for the project listed. Include materials, labor and any permits "
                      "for your trade, and list exclusions, assumptions and lead time. Quantities are our takeoff; "

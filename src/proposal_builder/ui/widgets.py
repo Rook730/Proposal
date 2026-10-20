@@ -32,12 +32,42 @@ NAV = [
 BRAND = "#1F3A5F"
 
 
+# Light and dark colors live in CSS classes (not inline styles) so the dark mode setting can switch them.
+THEME_CSS = """
+    .nicegui-content { padding: 16px 24px; }
+    .ag-theme-quartz, .nicegui-aggrid { --ag-font-size: 13px; }
+    .pb-brand { color: #1F3A5F; }      .pb-red { color: #B00020; }
+    .pb-green { color: #1B5E20; }      .pb-amber { color: #B26A00; }
+    .pb-pct { background: #E6E8EB !important; }
+    .pb-alt1, .pb-altbg1 { background: #DCE8F7 !important; }
+    .pb-alt2, .pb-altbg2 { background: #E3F1E8 !important; }
+    .pb-alt3, .pb-altbg3 { background: #F6ECDD !important; }
+    .pb-out { color: #9aa0a6; font-style: italic; }
+    .pb-last { box-shadow: inset 4px 0 0 #E8A33D; }
+    .pb-last .ag-cell { font-weight: 600; }
+    .pb-warnbox { background: #FFF4E5; border: 1px solid #F0C36D; }
+    .pb-selected { background: #eef3f9; border-radius: 4px; }
+    .body--dark { --q-primary: #8FB3E0 !important; }
+    .body--dark .q-header { --q-primary: #1F3A5F !important; }
+    .body--dark .bg-primary.text-white { color: #0E1B2C !important; }
+    .body--dark .pb-brand { color: #A9C4E8; }  .body--dark .pb-red { color: #FF8A80; }
+    .body--dark .pb-green { color: #81C784; }  .body--dark .pb-amber { color: #FFB74D; }
+    .body--dark .pb-pct { background: #33373d !important; }
+    .body--dark .pb-alt1, .body--dark .pb-altbg1 { background: #22344d !important; }
+    .body--dark .pb-alt2, .body--dark .pb-altbg2 { background: #23392b !important; }
+    .body--dark .pb-alt3, .body--dark .pb-altbg3 { background: #43361f !important; }
+    .body--dark .pb-out { color: #8a9099; }
+    .body--dark .pb-warnbox { background: #3b2f1a; border-color: #8a6a2a; }
+    .body--dark .pb-selected { background: #2a3442; }
+    .body--dark .text-gray-500, .body--dark .text-gray-600, .body--dark .text-gray-700 { color: #a0a6ad !important; }
+"""
+
+
 def layout(title: str, drawer: bool = True) -> None:
     ui.colors(primary=BRAND)
-    ui.add_css("""
-        .nicegui-content { padding: 16px 24px; }
-        .ag-theme-quartz, .nicegui-aggrid { --ag-font-size: 13px; }
-    """)
+    from .state import get_state
+    ui.dark_mode(value=bool(get_state().settings.dark_mode))
+    ui.add_css(THEME_CSS)
     with ui.header().classes("items-center py-2 px-4").style(f"background:{BRAND}"):
         ui.label("Kept Spec Proposal Builder").classes("text-lg font-semibold")
         ui.space()

@@ -122,15 +122,6 @@ class Editor:
         # dialogs live here, outside any refreshable panel, so a refresh (e.g. after a save) never deletes
         # a dialog that is being opened from a button inside that panel
         self.host = ui.element("div")
-        ui.add_css(f"""
-            .pb-pct {{ background: {PCT_COLOR} !important; }}
-            .pb-alt1 {{ background: {ALT_COLORS[1]} !important; }}
-            .pb-alt2 {{ background: {ALT_COLORS[2]} !important; }}
-            .pb-alt3 {{ background: {ALT_COLORS[3]} !important; }}
-            .pb-out {{ color: #9aa0a6; font-style: italic; }}
-            .pb-last {{ box-shadow: inset 4px 0 0 #E8A33D; }}
-            .pb-last .ag-cell {{ font-weight: 600; }}
-        """)
         self.header()
         self.totals_bar()
         with ui.tabs().props("dense inline-label align=left").classes("w-full border-b") as tabs:
@@ -396,8 +387,7 @@ class Editor:
                             ui.button("Mark accepted", icon="handshake", on_click=self.mark_accepted_dialog) \
                                 .props("dense color=positive")
         if self.locked:
-            with ui.row().classes("w-full items-center gap-2 px-3 py-2 rounded") \
-                    .style("background:#FFF4E5;border:1px solid #F0C36D"):
+            with ui.row().classes("w-full items-center gap-2 px-3 py-2 rounded pb-warnbox"):
                 ui.icon("lock", color="orange-9")
                 issued = f" Issued {self.rev.issued_at:%Y-%m-%d %H:%M}." if self.rev.issued_at else ""
                 msg = f"Rev {self.rev.rev} is {self.rev.state.value.lower()} and read-only.{issued}"
@@ -419,10 +409,10 @@ class Editor:
     def totals_bar(self) -> None:
         r = self.results
         with ui.row().classes("w-full items-stretch gap-3 my-2"):
-            def tile(label, value, sub="", color=BRAND, bg="white"):
-                with ui.card().classes("px-4 py-2 gap-0").style(f"background:{bg}"):
+            def tile(label, value, sub="", color="brand", bg=""):
+                with ui.card().classes(f"px-4 py-2 gap-0 {bg}"):
                     ui.label(label).classes("text-xs uppercase text-gray-500")
-                    ui.label(value).classes("text-lg font-semibold").style(f"color:{color}")
+                    ui.label(value).classes(f"text-lg font-semibold pb-{color}")
                     if sub:
                         ui.label(sub).classes("text-xs text-gray-500")
             tile("Subtotal", money(r.base.subtotal))
@@ -433,11 +423,11 @@ class Editor:
             for n, sc in r.alternates.items():
                 d = r.delta(n)
                 tile(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base",
-                     bg=ALT_COLORS.get(n, "white"))
+                     bg=f"pb-altbg{n}")
             ps = payment_schedule(r.base.total, self.st.settings)
             tile("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
             if r.errors:
-                tile("Issues", str(len(r.errors)), "see Issues tab", color="#B00020")
+                tile("Issues", str(len(r.errors)), "see Issues tab", color="red")
 
     # ------------------------------------------------------------ lines tab
     def lines_tab(self) -> None:
@@ -676,7 +666,7 @@ class Editor:
             on = num in included
             n_lines = len(self.rev.section_lines(num))
             with ui.row().classes("w-full items-center no-wrap gap-1 py-0") \
-                    .style("background:#eef3f9;border-radius:4px" if self.section_filter == num else ""):
+                    .classes("pb-selected" if self.section_filter == num else ""):
                 cb = ui.checkbox(value=on, on_change=lambda e, n=num: self._toggle_section(n, e.value)).props("dense")
                 if self.locked:
                     cb.disable()

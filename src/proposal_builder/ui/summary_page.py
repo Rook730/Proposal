@@ -10,7 +10,7 @@ from ..income import CW, KS
 from ..proposal import WON_STATUSES, ProjectStatus
 from ..summary import all_project_income, in_window, pipeline, to_csv
 from .state import get_state
-from .widgets import BRAND, layout
+from .widgets import layout
 
 
 def _m(v) -> str:
@@ -91,13 +91,12 @@ async def summary_page() -> None:
                     ("Combined", _m(tot["all"]), _p(tot["all"] / base if base else None) + f" of {_m(base)}")):
                 with ui.card().classes("px-4 py-2 gap-0"):
                     ui.label(label).classes("text-xs uppercase text-gray-500")
-                    ui.label(value).classes("text-lg font-semibold").style(f"color:{BRAND}")
+                    ui.label(value).classes("text-lg font-semibold pb-brand")
                     ui.label(sub).classes("text-xs text-gray-500")
             pl = pipeline(window)
             with ui.card().classes("px-4 py-2 gap-0"):
                 ui.label("Proposals in this timeframe").classes("text-xs uppercase text-gray-500")
-                ui.label(f"{pl.won} won, {pl.lost} lost, {pl.open} open").classes("text-lg font-semibold") \
-                    .style(f"color:{BRAND}")
+                ui.label(f"{pl.won} won, {pl.lost} lost, {pl.open} open").classes("text-lg font-semibold pb-brand")
                 ui.label(f"Win rate {_p(pl.win_rate)} by count, {_p(pl.win_rate_value)} by value; "
                          f"{_m(pl.won_value)} won of {_m(pl.proposed_value)} proposed").classes("text-xs text-gray-500")
 

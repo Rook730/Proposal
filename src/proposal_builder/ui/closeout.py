@@ -35,7 +35,7 @@ from ..proposal import ProjectStatus
 from ..render.closeout_docs import change_order_document, ledger_document, safe_name
 from ..render.document import compile_document
 from .state import get_state
-from .widgets import BRAND, Col, EditableGrid, layout
+from .widgets import Col, EditableGrid, layout
 
 ZERO = Decimal(0)
 
@@ -168,10 +168,10 @@ class Closeout:
     def tiles(self) -> None:
         lg, c = self.ledger, self.contract
         with ui.row().classes("w-full gap-3 my-2"):
-            def tile(label, value, sub="", color=BRAND):
+            def tile(label, value, sub="", color="brand"):
                 with ui.card().classes("px-4 py-2 gap-0"):
                     ui.label(label).classes("text-xs uppercase text-gray-500")
-                    ui.label(value).classes("text-lg font-semibold").style(f"color:{color}")
+                    ui.label(value).classes(f"text-lg font-semibold pb-{color}")
                     if sub:
                         ui.label(sub).classes("text-xs text-gray-500")
             tile("Contract", money(c.total), f"Rev {c.rev.rev}")
@@ -181,9 +181,9 @@ class Closeout:
             tile("Line variance", money(lg.net_variance + lg.variance_markup), "incl. overhead and profit")
             tile("Final cost", money(lg.total_final))
             tile("Balance due", money(lg.balance_due), f"after {money(lg.payments_received)} received",
-                 color="#B00020" if lg.balance_due > 0 else "#1B5E20")
+                 color="red" if lg.balance_due > 0 else "green")
             if lg.warnings:
-                tile("Warnings", str(len(lg.warnings)), "see Ledger tab", color="#B26A00")
+                tile("Warnings", str(len(lg.warnings)), "see Ledger tab", color="amber")
 
     # ------------------------------------------------------------ change orders
     def co_tab(self) -> None:

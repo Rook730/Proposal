@@ -438,6 +438,11 @@ def settings_page() -> None:
                 .on_value_change(bind(s, "retainage_pct", pct))
             ui.number("Proposal validity (days)", value=s.validity_days, format="%d").props("dense") \
                 .on_value_change(bind(s, "validity_days", int))
+            def set_dark(e) -> None:
+                s.dark_mode = bool(e.value)
+                st.save_settings()
+                ui.navigate.reload()
+            ui.switch("Dark mode", value=s.dark_mode, on_change=set_dark).props("dense")
             ui.number("License threshold warning ($, 0 = off)", value=float(s.license_threshold), format="%.0f") \
                 .props("dense").on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
             ui.textarea("Request for quote: text above the scope ({company_email} and proposal variables work)",
