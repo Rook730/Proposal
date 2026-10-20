@@ -1,3 +1,3 @@
 """Kept Spec proposal builder."""
 
-__version__ = "1.5.0"
+__version__ = "1.5.1"

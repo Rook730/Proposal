@@ -238,7 +238,7 @@
       "id": "scope-clarif-allowances",
       "heading": "Scope Clarifications & Exclusions",
       "title": "Allowances",
-      "body": "Allowance items are budget amounts for Client selections. Actual cost is billed as incurred and reconciled on the final invoice. Overhead and profit percentages apply to the net allowance variance, whether an overage (billed) or underage (credited).",
+      "body": "Allowance items are budget amounts for Client selections. Actual cost is billed as incurred and reconciled on the final invoice (see Billing at Actual Cost).",
       "default_on": true,
       "order": 40
     },
@@ -337,6 +337,14 @@
       "body": "Permits required for the work are obtained before the related work begins. Trade permits (electrical, plumbing, gas, mechanical) are obtained by the licensed subcontractor performing that work. Permit fees are billed at actual cost unless listed as a line item. Kept Spec Advisors coordinates and attends required inspections, and no work is covered or concealed until it has passed any required inspection.",
       "default_on": true,
       "order": 75
+    },
+    {
+      "id": "scope-clarif-actual-cost",
+      "heading": "Scope Clarifications & Exclusions",
+      "title": "Billing at Actual Cost",
+      "body": "All line items are billed at actual cost and reconciled on the final invoice. Overhead and profit percentages apply to the net difference between actual cost and the amounts in this proposal across all line items, whether an overage (billed) or underage (credited). Unused contingency and unused change order management are credited on the final invoice.",
+      "default_on": true,
+      "order": 45
     }
   ]
 }

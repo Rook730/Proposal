@@ -36,6 +36,14 @@ NEW = {
         "will first try to resolve it directly. If it is not resolved within thirty (30) days, the parties will "
         "attempt mediation before either party starts litigation, with mediation costs shared equally. Venue for "
         "any mediation or litigation is the county in which the project is located.", 70),
+    "scope-clarif-allowances": (SC, "Allowances",
+        "Allowance items are budget amounts for Client selections. Actual cost is billed as incurred and "
+        "reconciled on the final invoice (see Billing at Actual Cost).", 40),
+    "scope-clarif-actual-cost": (SC, "Billing at Actual Cost",
+        "All line items are billed at actual cost and reconciled on the final invoice. Overhead and profit "
+        "percentages apply to the net difference between actual cost and the amounts in this proposal across "
+        "all line items, whether an overage (billed) or underage (credited). Unused contingency and unused "
+        "change order management are credited on the final invoice.", 45),
     "scope-clarif-permits-inspections": (SC, "Permits & Inspections",
         "Permits required for the work are obtained before the related work begins. Trade permits (electrical, "
         "plumbing, gas, mechanical) are obtained by the licensed subcontractor performing that work. Permit fees "

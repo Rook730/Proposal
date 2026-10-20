@@ -98,7 +98,7 @@ def test_boilerplate_groups():
     titles = {b.title for b in bp.by_heading("Payment Schedule")}
     assert titles == {"Contract Execution / Mobilization", "Construction Progress Payments",
                       "Allowances & Change Orders", "Substantial Completion", "Final Payment"}
-    assert len(bp.by_heading("Scope Clarifications & Exclusions")) == 12
+    assert len(bp.by_heading("Scope Clarifications & Exclusions")) == 13
     assert all(b.body for b in bp.blocks)
     validity = next(b for b in bp.blocks if b.title == "Proposal Validity")
     assert "{validity_days}" in validity.body

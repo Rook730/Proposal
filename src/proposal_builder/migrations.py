@@ -15,6 +15,9 @@ OLD_1320 = ("5% allowance for the project management relating to change orders t
 OLD_GRAY = ("These have a percentage unit price: builder’s risk, contingency, change order management, overhead "
             "and profit. They are not part of the subtotal. Each is calculated as a percentage of the subtotal and "
             "added to reach the Total Price. Unused contingency is credited on the final invoice.")
+OLD_ALLOWANCES = ("Allowance items are budget amounts for Client selections. Actual cost is billed as incurred and "
+                  "reconciled on the final invoice. Overhead and profit percentages apply to the net allowance "
+                  "variance, whether an overage (billed) or underage (credited).")
 OLD_ZERO = ("A line showing $0 is one of two things:\n\nWork that is not included in this proposal, listed so the "
             "scope is clear.\nAn owner-furnished item, which you purchase directly. We show it so the coordination "
             "and installation scope is clear.")
@@ -45,6 +48,17 @@ def migrate_library(catalog: Catalog, boilerplate: Boilerplate) -> tuple[bool, b
         if new is not None:
             blk.body = new.body
             bp_changed = True
+    # 1.5.1: overhead and profit apply to the variance on every line (cost-plus), not only allowances
+    blk = next((b for b in boilerplate.blocks if b.id == "scope-clarif-allowances"), None)
+    if blk is not None and blk.body == OLD_ALLOWANCES:
+        from .added_terms import NEW
+        from .models import BoilerplateBlock
+        blk.body = NEW["scope-clarif-allowances"][2]
+        if not any(b.id == "scope-clarif-actual-cost" for b in boilerplate.blocks):
+            heading, title, body, order = NEW["scope-clarif-actual-cost"]
+            boilerplate.blocks.append(BoilerplateBlock(id="scope-clarif-actual-cost", heading=heading,
+                                                       title=title, body=body, order=order))
+        bp_changed = True
     blk = next((b for b in boilerplate.blocks if b.id == "zero-lines"), None)
     if blk is not None and blk.body == OLD_ZERO:
         from .added_terms import NEW

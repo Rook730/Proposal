@@ -464,3 +464,5 @@ A toggle shows fields that never print:
 
 
 **1.5.0** (details in docs/PENDING.md): Income tab split into Kept Spec / Convenient Woodworking / Combined with Estimate/Actual toggle; Income summary page across projects (acceptance date, status filter, win rate, CSV); Closed status with Close project / Reopen and acceptance/close dates; Customers (contacts, multiple addresses, project picker), Contractors (insurance warnings, picked on lines and change order items), Suppliers (vendor pickers); Sub quotes tab (request-for-quote PDF per contractor, quote log, client comparison PDF); project Delete (to backups/deleted-projects) and Archive/restore.
+
+**1.5.1:** forms open when a unit, section, rate, allowance range or stock class they reference was renamed or deleted; renaming a unit updates catalog items, rates and ranges. Variance billing confirmed as option A (all lines at actual cost, overhead and profit on the net variance of all lines); terms updated to say so ("Billing at Actual Cost" block).

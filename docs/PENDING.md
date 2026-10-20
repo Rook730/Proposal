@@ -16,3 +16,8 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 8. [x] Projects list: Delete and Archive.
    - Delete (for mistakes and test projects): type the project number to confirm; the folder moves to backups/deleted-projects in the data folder, so it can be recovered. Accepted projects get a note suggesting Archive. Deleting the newest project number hands that number out again.
    - Archive / restore: hides a project from the list (Show archived brings it back); archived projects still count in the income summary and show an Archived badge in the editor.
+10. [x] Variance billing (option A, cost-plus): every line is billed at actual cost; overhead and profit apply to the net variance on all lines (the ledger already did this). Terms brought in line: the Scope Clarifications "Allowances" block no longer limits overhead and profit to allowances, and a new "Billing at Actual Cost" block says so. The library updates itself if its Allowances text is unedited; existing proposals use Terms & options (Reset to library text on Allowances, Add from library for Billing at Actual Cost).
+
+## Next release
+
+Nothing pending.
