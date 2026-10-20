@@ -18,6 +18,7 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
    - Archive / restore: hides a project from the list (Show archived brings it back); archived projects still count in the income summary and show an Archived badge in the editor.
 10. [x] Variance billing (option A, cost-plus): every line is billed at actual cost; overhead and profit apply to the net variance on all lines (the ledger already did this). Terms brought in line: the Scope Clarifications "Allowances" block no longer limits overhead and profit to allowances, and a new "Billing at Actual Cost" block says so. The library updates itself if its Allowances text is unedited; existing proposals use Terms & options (Reset to library text on Allowances, Add from library for Billing at Actual Cost).
 
-## Next release
+## Next release (1.5.2)
 
-Nothing pending.
+11. [~] Alternates tab: each alternate has Add from catalog, Custom line and Copy removed lines (copies each base line it removes into the alternate as an editable starting point). New lines open their form right away when one line is added. Lines the alternate adds show as chips: click to edit, x to delete. A custom line starts in the section of the first removed line.
+12. [~] Fix: dialogs opened from a panel that refreshes on save (e.g. the line form after adding from the Alternates tab) no longer fail to appear.

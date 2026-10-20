@@ -119,6 +119,9 @@ class Editor:
     # ------------------------------------------------------------ page
     def build(self) -> None:
         layout(f"{self.project.number} {self.project.project_name}", drawer=False)
+        # dialogs live here, outside any refreshable panel, so a refresh (e.g. after a save) never deletes
+        # a dialog that is being opened from a button inside that panel
+        self.host = ui.element("div")
         ui.add_css(f"""
             .pb-pct {{ background: {PCT_COLOR} !important; }}
             .pb-alt1 {{ background: {ALT_COLORS[1]} !important; }}
@@ -649,7 +652,7 @@ class Editor:
         ln = await self._selected()
         if not ln:
             return
-        with ui.dialog() as dlg, ui.card():
+        with self.host, ui.dialog() as dlg, ui.card():
             ui.label(f"Delete line {ln.id} {ln.title}? Its ID is retired.")
             with ui.row():
                 ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
@@ -711,7 +714,7 @@ class Editor:
             self.save()
 
     # ------------------------------------------------------------ add lines
-    def catalog_picker(self) -> None:
+    def catalog_picker(self, alternate: int | None = None) -> None:
         rows = []
         for it in self.cat.items:
             if not it.active:
@@ -722,8 +725,8 @@ class Editor:
                          "price": (f"{price * 100:.1f}%" if it.price_source is PriceSource.PERCENT
                                    else money(price)) if price is not None else "",
                          "description": it.description})
-        with ui.dialog().props("maximized=false") as dlg, ui.card().classes("w-[1100px] max-w-full"):
-            ui.label("Add from catalog").classes("text-lg font-semibold")
+        with self.host, ui.dialog().props("maximized=false") as dlg, ui.card().classes("w-[1100px] max-w-full"):
+            ui.label("Add from catalog" + (f" to Alt {alternate}" if alternate else "")).classes("text-lg font-semibold")
             ui.label("Tick one or more items. Each becomes a line in its own section; "
                      "the line keeps a copy of the catalog values.").classes("text-xs text-gray-500")
             flt = ui.input(placeholder="Search").props("dense clearable autofocus").classes("w-80")
@@ -752,21 +755,24 @@ class Editor:
                 for r in sel:
                     it = self.cat.item(r["code"])
                     ln = line_from_item(it, self.cat, self.new_id(it.section, it.code))
+                    ln.alternate = alternate
                     self.rev.add_line(ln, by_code=True)
                     added.append(ln.id)
                 dlg.close()
                 self.mark_edited(added[-1] if added else None)
                 self.save()
-                ui.notify(f"Added {', '.join(added)}", type="positive")
+                ui.notify(f"Added {', '.join(added)}" + (f" to Alt {alternate}" if alternate else ""), type="positive")
+                if alternate and len(added) == 1:
+                    self.line_dialog(self.rev.line(added[0]))     # fill in the alternate's details right away
 
             with ui.row().classes("w-full justify-end"):
                 ui.button("Cancel", on_click=dlg.close).props("flat")
                 ui.button("Add selected", icon="playlist_add", on_click=add)
         dlg.open()
 
-    def custom_line(self) -> None:
-        sec = self.section_filter or (self.rev.sections[0] if self.rev.sections else self.cat.sections[0].number)
-        ln = Line(id=self.new_id(sec), section=sec, title="New line", unit_price=Decimal(0))
+    def custom_line(self, alternate: int | None = None, section: int | None = None) -> None:
+        sec = section or self.section_filter or (self.rev.sections[0] if self.rev.sections else self.cat.sections[0].number)
+        ln = Line(id=self.new_id(sec), section=sec, title="New line", unit_price=Decimal(0), alternate=alternate)
         self.rev.add_line(ln)
         self.mark_edited(ln.id)
         self.save()
@@ -779,7 +785,7 @@ class Editor:
         cat, rev = self.cat, self.rev
         work = ln.model_copy(deep=True)
         var_names = sorted(self.variables())
-        with ui.dialog() as dlg, ui.card().classes("w-[1000px] max-w-full"):
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[1000px] max-w-full"):
             with ui.row().classes("w-full items-center"):
                 ui.label(f"Line {ln.id}" + (f"  (catalog {ln.code})" if ln.code else "  (custom)")) \
                     .classes("text-lg font-semibold")
@@ -1051,9 +1057,9 @@ class Editor:
     def alternates_panel(self) -> None:
         r = self.results
         ui.label("Alternates").classes("font-semibold")
-        ui.label("Each alternate removes base lines, adds its own lines, or both. Assign a line to an "
-                 "alternate in its line dialog (Belongs to). Totals recompute percent items on each "
-                 "alternate's own subtotal.").classes("text-xs text-gray-500")
+        ui.label("Each alternate removes base lines, adds its own lines, or both. Add lines here (or set Belongs to "
+                 "in any line's form). Totals recompute percent items on each alternate's own subtotal.") \
+            .classes("text-xs text-gray-500")
         base_lines = {ln.id: f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})"
                       for ln in self._ordered_lines_all() if ln.alternate is None and not ln.is_percent}
         for alt in sorted(self.rev.alternates, key=lambda a: a.number):
@@ -1080,8 +1086,26 @@ class Editor:
                           label="Removes these base lines",
                           on_change=lambda e, a=alt: (setattr(a, "removes", list(e.value or [])), self.save())) \
                     .props("dense use-chips" + (" readonly" if self.locked else "")).classes("w-full")
-                ui.label("Adds: " + (", ".join(f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})" for ln in adds)
-                                     or "none")).classes("text-sm")
+                with ui.row().classes("w-full items-center gap-2 flex-wrap"):
+                    ui.label("Adds:").classes("text-sm")
+                    if not adds:
+                        ui.label("none").classes("text-sm text-gray-500")
+                    for ln in sorted(adds, key=lambda x: (x.section, x.order)):
+                        ui.chip(f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})", icon="edit",
+                                removable=not self.locked, on_click=lambda ln=ln: self.line_dialog(ln)) \
+                            .props("outline clickable").on("remove", lambda _, ln=ln: self._delete_alt_line(ln))
+                if not self.locked:
+                    with ui.row().classes("gap-2"):
+                        ui.button("Add from catalog", icon="playlist_add",
+                                  on_click=lambda a=alt: self.catalog_picker(alternate=a.number)).props("dense outline")
+                        ui.button("Custom line", icon="add",
+                                  on_click=lambda a=alt: self.custom_line(alternate=a.number, section=next(
+                                      (self.rev.line(x).section for x in a.removes if self.rev.line(x)), None))) \
+                            .props("dense outline")
+                        ui.button("Copy removed lines", icon="content_copy",
+                                  on_click=lambda a=alt: self._copy_removed(a)).props("dense flat") \
+                            .tooltip("Start this alternate's version of each removed base line as an editable copy")
+                    ui.label("Click a line to edit it; the x deletes it.").classes("text-xs text-gray-500")
         if len(self.rev.alternates) < MAX_ALTERNATES and not self.locked:
             ui.button("Add alternate", icon="add", on_click=self._add_alt).props("outline dense")
         if r.conflicts:
@@ -1094,6 +1118,36 @@ class Editor:
                               {"name": "t", "label": "Total", "field": "t", "align": "right"}],
                      rows=[{"n": c.name, "s": money(c.subtotal), "t": money(c.total)} for c in r.combinations],
                      row_key="n").props("dense flat bordered")
+
+    def _copy_removed(self, alt: Alternate) -> None:
+        src = [self.rev.line(lid) for lid in alt.removes if self.rev.line(lid)]
+        if not src:
+            ui.notify("Pick the base lines this alternate removes first.")
+            return
+        copies = []
+        for ln in src:
+            c = ln.model_copy(deep=True)
+            c.id, c.alternate = self.new_id(ln.section, ln.code), alt.number
+            self.rev.add_line(c)
+            c.order = ln.order + 5
+            copies.append(c)
+        self.mark_edited(copies[-1].id)
+        self.save()
+        ui.notify(f"Copied into Alt {alt.number}: {', '.join(c.id for c in copies)}", type="positive")
+        if len(copies) == 1:
+            self.line_dialog(copies[0])
+
+    async def _delete_alt_line(self, ln: Line) -> None:
+        with self.host, ui.dialog() as dlg, ui.card():
+            ui.label(f"Delete line {ln.id} {ln.title} from Alt {ln.alternate}?")
+            with ui.row():
+                ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
+                ui.button("Delete", on_click=lambda: dlg.submit(True)).props("color=negative")
+        if await dlg:
+            self.rev.remove_line(ln.id)
+            self.save()
+        else:
+            self.alternates_panel.refresh()      # put the chip back
 
     def _ordered_lines_all(self) -> list[Line]:
         keep = self.section_filter
@@ -1114,7 +1168,7 @@ class Editor:
         self.save()
 
     async def _remove_alt(self, alt: Alternate) -> None:
-        with ui.dialog() as dlg, ui.card():
+        with self.host, ui.dialog() as dlg, ui.card():
             ui.label(f"Delete Alt {alt.number}? Its own lines move back to the base proposal.")
             with ui.row():
                 ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
@@ -1232,7 +1286,7 @@ class Editor:
             ui.notify(f"Preview failed: {e}", type="negative", multi_line=True)
             return
         n.dismiss()
-        with ui.dialog().props("maximized") as dlg, ui.card().classes("w-full h-full p-0"):
+        with self.host, ui.dialog().props("maximized") as dlg, ui.card().classes("w-full h-full p-0"):
             with ui.row().classes("w-full items-center px-4 py-2").style(f"background:{BRAND};color:white"):
                 ui.label(f"Preview: {pdf_filename(self.project, self.rev)}  ({len(pages)} pages)")
                 if errors:
@@ -1271,7 +1325,7 @@ class Editor:
                 ui.navigate.to(f"/project/{self.project.number}?rev={self.rev.rev}")
             return
         reload = (lambda: ui.navigate.to(f"/project/{self.project.number}?rev={self.rev.rev}")) if after_issue else None
-        with ui.dialog().props("persistent" if after_issue else "") as dlg, ui.card():
+        with self.host, ui.dialog().props("persistent" if after_issue else "") as dlg, ui.card():
             ui.label(f"Rev {self.rev.rev} issued. PDF saved" if after_issue else "PDF saved") \
                 .classes("text-lg font-semibold")
             ui.label(str(path)).classes("text-xs break-all")
@@ -1372,7 +1426,7 @@ class Editor:
 
     def _block_dialog(self, b: ProposalBlock | None, heading: str) -> None:
         lib = next((x for x in self.st.boilerplate.blocks if b is not None and x.id == b.id), None)
-        with ui.dialog() as dlg, ui.card().classes("w-[920px] max-w-full"):
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[920px] max-w-full"):
             ui.label(f"{heading}: {b.title if b else 'new block'}").classes("text-lg font-semibold")
             title = ui.input("Sub-heading", value=b.title if b else "").props(
                 "dense readonly" if self.locked else "dense").classes("w-full")
@@ -1414,7 +1468,7 @@ class Editor:
         warns = [m for k, m in items if k == "warn"]
         diff = self._diff()
         contract = self.rev.is_contract
-        with ui.dialog() as dlg, ui.card().classes("w-[720px] max-w-full"):
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[720px] max-w-full"):
             ui.label(f"Issue Rev {self.rev.rev}" + (" (final, for signature)" if contract else "")) \
                 .classes("text-lg font-semibold")
             ui.label("Issuing locks this revision, supersedes earlier ones and saves the PDF to the project's "
@@ -1460,7 +1514,7 @@ class Editor:
         from ..proposal import contract_revision
         alts = sorted(self.rev.alternates, key=lambda a: a.number)
         chosen: dict[int, bool] = {a.number: False for a in alts}
-        with ui.dialog() as dlg, ui.card().classes("w-[620px] max-w-full"):
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[620px] max-w-full"):
             ui.label(f"Finalize Rev {self.rev.rev}").classes("text-lg font-semibold")
             ui.label("Creates Rev 2.0, the final revision for signature. It is base only: the alternates the "
                      "client chose are merged into the base and the rest are dropped. Review it, issue it, "
@@ -1500,7 +1554,7 @@ class Editor:
         ui.navigate.to(f"/project/{self.project.number}?rev={rev.rev}")
 
     async def mark_accepted_dialog(self) -> None:
-        with ui.dialog() as dlg, ui.card():
+        with self.host, ui.dialog() as dlg, ui.card():
             ui.label(f"Mark Rev {self.rev.rev} accepted?").classes("text-lg font-semibold")
             ui.label("Use this once the client has signed. The project status becomes Accepted and later "
                      "scope changes go through change orders.").classes("text-sm")
@@ -1520,7 +1574,7 @@ class Editor:
     # ------------------------------------------------------------ project info
     def project_dialog(self) -> None:
         p, rev = self.project, self.rev
-        with ui.dialog() as dlg, ui.card().classes("w-[520px]"):
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[520px]"):
             ui.label("Project info").classes("text-lg font-semibold")
             from .crm_pages import CustomerPicker
             picker = CustomerPicker(p.customer_id, p.site_address_id)
