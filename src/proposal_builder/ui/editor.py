@@ -1387,6 +1387,8 @@ class Editor:
                 out.append(("warn", f"Variable '{pv.name}' is empty; fill it in on the Variables tab"))
             if pv.name not in used:
                 out.append(("info", f"Variable '{pv.name}' is not used anywhere"))
+        from ..preflight import content_checks
+        out += content_checks(self.project, self.rev, self.results, self.st.customers)
         return out
 
     def spelling(self) -> list:

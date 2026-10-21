@@ -52,3 +52,9 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
    - Add to dictionary accepts a word in every proposal; the list is in Settings > Lists (Spelling dictionary).
    - The Issue dialog lists the count and words; spelling never blocks issuing.
    - Also fixed: long warnings in the Issue dialog no longer push their icon onto a separate line.
+21. [x] More Issues checks (also listed in the Issue dialog):
+   - $0 line not marked Not included (warning; the terms say a $0 line is not included).
+   - Placeholders left in printed text or variable values: TBD, TBA, TODO, XX / XXX, ??, [ ] (warning).
+   - Allowance wording: description starts with "Allowance" while the Allowance flag is on (prints twice), or the line is worded as an allowance with the flag off (info).
+   - Lines added twice: same title and notes in one section and alternate (warning). Same catalog item with different notes is not flagged.
+   - Project info: blank client name or site address (warning); not linked to a customer, or the customer has no contact with a phone or email (info).
