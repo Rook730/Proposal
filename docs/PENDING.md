@@ -43,7 +43,7 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
    - Catalog item form: same Price buttons; Price, Rate, or Linked ranges + Default tier shown only for their basis (hidden links are kept).
    - Issues tab: Range basis with no range picked (warning); rate line whose unit differs from the rate's unit; stock class with no takeoff (info).
 
-## Next release
+## Released in 1.6.2 (2026-10-21)
 
 19. [x] Right-click menu in the app window: in text fields and on selected text it shows Edge's spelling suggestions, Add to dictionary, and cut / copy / paste (pywebview had it turned off). Elsewhere right-click does nothing, so Back / Refresh can't drop an open form. Developer tools stay off.
 20. [x] Spelling check (Issues tab, offline English dictionary plus trade terms):
@@ -60,3 +60,7 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 22. [x] $0 lines are included at no charge.
    - Terms block "$0 and owner-supplied lines" is now "Not included, $0 and owner-supplied lines": a line marked Not included is work outside this proposal; a line with a $0 cost (shown as $ -) is included at no charge. The library updates itself if that block is unedited; existing proposals use Terms & options > Reset to library text on that block.
    - Lines marked Not included print "Not included" in the Cost column instead of $ -.
+
+## Next release
+
+(nothing yet)
