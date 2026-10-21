@@ -468,3 +468,5 @@ A toggle shows fields that never print:
 **1.5.1:** forms open when a unit, section, rate, allowance range or stock class they reference was renamed or deleted; renaming a unit updates catalog items, rates and ranges. Variance billing confirmed as option A (all lines at actual cost, overhead and profit on the net variance of all lines); terms updated to say so ("Billing at Actual Cost" block).
 
 **1.5.2:** Alternates tab can add lines (from catalog, custom, or copies of the removed base lines) and edit or delete them; dialogs are hosted outside refreshable panels. Dark mode setting (Settings), with theme colors in CSS classes.
+
+**1.6.0:** alternates show owner-supplied differences; Settings > Lists (editable performers with printed note and income side, plus change order actions, contact roles, lead sources, trades, quote scopes, address labels); the allowance price basis shows as "range" and allowance ranges as price ranges; line form previous/next navigation with Save (stay) and Save & close.
