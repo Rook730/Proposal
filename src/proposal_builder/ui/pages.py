@@ -60,7 +60,7 @@ def _item_rows() -> list[dict]:
         rows.append({
             "code": i.code, "section": f"{i.section} {sections.get(i.section, '?')}",
             "group": i.group, "title": i.title, "unit": i.unit, "source": i.price_source.value,
-            "price": shown, "performer": i.performer.value, "flags": flags,
+            "price": shown, "performer": i.performer, "flags": flags,
             "description": i.description,
         })
     return rows
@@ -101,8 +101,8 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                           label="Linked allowance ranges", value=f["allowance_ids"], multiple=True) \
             .props("dense use-chips").classes("w-full")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
-            performer = ui.select({p.value: p.value or "-" for p in Performer}, label="Default performer",
-                                  value=f["performer"]).props("dense")
+            performer = ui.select(keep_current({n: n or "-" for n in st.settings.performer_names()}, f["performer"]),
+                                  label="Default performer", value=f["performer"]).props("dense")
             stock = ui.select(keep_current({"": "-", **{s.key: s.name for s in cat.stock_classes}}, f["stock_class"]),
                               label="Stock class", value=f["stock_class"] or "").props("dense")
             isa = ui.checkbox("Allowance (prints on proposal)", value=f["is_allowance"])
@@ -129,7 +129,7 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                     title=(title.value or "").strip(), description=desc.value or "", unit=unit.value,
                     price_source=ps, price=p, rate_key=rate.value or None,
                     allowance_ids=list(allow.value or []), default_tier=Tier(tier.value),
-                    performer=Performer(performer.value), stock_class=stock.value or None,
+                    performer=performer.value or "", stock_class=stock.value or None,
                     is_allowance=isa.value, not_included=ni.value, owner_furnished=of.value,
                     credit_if_unused=cu.value, internal_notes=notes.value or "", active=active.value,
                 )
@@ -486,6 +486,55 @@ def settings_page() -> None:
             ui.label(f"Program version v{__version__}. The app checks for a newer version when it starts and "
                      "shows an Update button in the top bar.").classes("text-xs text-gray-500")
             ui.button("Check for updates", icon="system_update", on_click=check_now).props("dense outline")
+
+    ui.label("Lists").classes("font-semibold mt-6")
+    ui.label("Dropdown choices used across the app. Type and press Enter to add; click the x to remove. "
+             "Removing a choice does not change records that already use it.").classes("text-xs text-gray-500")
+    with ui.card().classes("w-full max-w-[1100px]"):
+        ui.label("Performers").classes("font-semibold text-sm")
+        ui.label("Printed note goes at the start of a line's description. Income puts the line in the Kept Spec (KS) "
+                 "or Convenient Woodworking (CW) column of the Income tab; blank means pass-through. Renaming a "
+                 "performer updates catalog items; saved proposals keep the name they were written with.") \
+            .classes("text-xs text-gray-500")
+        prev = [x.name for x in s.performers]
+
+        def save_performers():
+            now = [x.name for x in s.performers]
+            if len(now) == len(prev):
+                for old, new in zip(prev, now):
+                    if old != new and old not in now:
+                        n = 0
+                        for it in st.catalog.items:
+                            if it.performer == old:
+                                it.performer, n = new, n + 1
+                        if n:
+                            st.save_catalog()
+                            ui.notify(f"Renamed {old} to {new}; updated {n} catalog items", type="info")
+            elif len(now) < len(prev):
+                for gone in set(prev) - set(now):
+                    used = [str(it.code) for it in st.catalog.items if it.performer == gone]
+                    if used:
+                        ui.notify(f"{gone} is still the default performer on items {', '.join(used[:8])}"
+                                  + ("..." if len(used) > 8 else ""), type="warning", multi_line=True)
+            prev[:] = now
+            st.save_settings()
+
+        from ..models import PerformerDef
+        EditableGrid(lambda: s.performers,
+                     [Col("name", "Performer", width=230), Col("note", "Printed note", flex=1),
+                      Col("income", "Income", "select", ["", "KS", "CW"], width=100)],
+                     save_performers, lambda: PerformerDef(name="New performer"), height="26vh")
+
+        lists = s.lists
+        with ui.grid(columns=2).classes("w-full gap-x-6 gap-y-2 mt-2"):
+            for attr, label in (("co_actions", "Change order actions"), ("contact_roles", "Contact roles"),
+                                ("lead_sources", "How they found you"), ("trades", "Contractor trades"),
+                                ("quote_scopes", "Quote scopes"), ("address_labels", "Address labels")):
+                ui.input_chips(label, value=list(getattr(lists, attr)),
+                               on_change=lambda e, a=attr: (setattr(lists, a, [x.strip() for x in (e.value or [])
+                                                                                if str(x).strip()]),
+                                                            st.save_settings())) \
+                    .props("dense").classes("w-full")
 
     ui.label("Global variables").classes("font-semibold mt-6")
     ui.label("Referenced in boilerplate and line notes as {name}. Proposal variables override these.") \

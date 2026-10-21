@@ -193,13 +193,13 @@ def _build_line(r: int, code: int, section: int, wf, wv, catalog: Catalog, rev: 
     if desc_typed and desc_v:
         notes = desc_v
         if notes.startswith(CW_PREFIX):
-            ln.performer = Performer.CW
+            ln.performer = Performer.CW.value
             notes = notes[len(CW_PREFIX):].strip()
         ln.notes = notes
         ln.print_general = False
         if (price_v or 0) == 0 and "purchased directly by client" in desc_v.lower():
             ln.owner_furnished = True
-            ln.performer = Performer.CLIENT
+            ln.performer = Performer.CLIENT.value
 
     if "Subtotal" in k_formula:
         ln.price_basis = PriceSource.PERCENT
@@ -221,7 +221,7 @@ def _apply_typed_price(ln: Line, price: Decimal | None, catalog: Catalog) -> Non
         if ln.unit_price == price:
             return
         same_rate = [r for r in catalog.rates if r.rate == price and r.unit == ln.unit]
-        preferred = "cw" if ln.performer is Performer.CW else None
+        preferred = "cw" if ln.performer == Performer.CW.value else None
         same = next((r for r in same_rate if r.key == preferred), same_rate[0] if same_rate else None)
         if same:
             ln.rate_key, ln.unit_price = same.key, same.rate

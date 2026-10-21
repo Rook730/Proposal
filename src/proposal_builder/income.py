@@ -25,9 +25,8 @@ from .models import Performer, Settings
 from .proposal import Revision
 
 ZERO = Decimal(0)
-INCOME_PERFORMERS = (Performer.KEPT_SPEC, Performer.CW)
 KS, CW = "KS", "CW"                     # which side of the business a group belongs to
-ENTITY = {Performer.KEPT_SPEC: KS, Performer.CW: CW}
+ENTITY_NAME = {KS: Performer.KEPT_SPEC.value, CW: Performer.CW.value}
 
 
 @dataclass
@@ -88,12 +87,13 @@ def scenario_income(rev: Revision, results: Results, scenario: Scenario, setting
 def estimate_report(rev: Revision, results: Results, scenario: Scenario, settings: Settings) -> IncomeReport:
     included = set(scenario.line_ids)
     groups: list[IncomeGroup] = []
-    for perf in INCOME_PERFORMERS:
+    for ent in (KS, CW):
+        perfs = set(settings.income_performers(ent))
         lines = [IncomeLine(ln.id, ln.title, results.lines[ln.id].cost)
                  for ln in rev.lines
-                 if ln.id in included and ln.performer is perf and not ln.is_percent and not ln.owner_furnished]
-        groups.append(IncomeGroup(f"{perf.value} lines", sum((x.estimate for x in lines), ZERO), lines=lines,
-                                  entity=ENTITY[perf]))
+                 if ln.id in included and ln.performer in perfs and not ln.is_percent and not ln.owner_furnished]
+        groups.append(IncomeGroup(f"{ENTITY_NAME[ent]} lines", sum((x.estimate for x in lines), ZERO), lines=lines,
+                                  entity=ent))
     for code in settings.co_markup_codes:
         for ln in rev.lines:
             if ln.code == code and ln.id in scenario.percent_items:
@@ -103,9 +103,9 @@ def estimate_report(rev: Revision, results: Results, scenario: Scenario, setting
     groups.append(IncomeGroup("Change order management time", None,
                               note=f"Earned only as change order time is logged; up to ${mgmt:,.2f} "
                                    "from the allowance, more if billed beyond it"))
-    for perf in INCOME_PERFORMERS:
-        groups.append(IncomeGroup(f"{perf.value} work on change orders", None, entity=ENTITY[perf],
-                                  note=f"Change order items performed by {perf.value}"))
+    for ent in (KS, CW):
+        groups.append(IncomeGroup(f"{ENTITY_NAME[ent]} work on change orders", None, entity=ent,
+                                  note=f"Change order items performed by {', '.join(settings.income_performers(ent)) or ENTITY_NAME[ent]}"))
     groups.append(IncomeGroup("Overhead and profit on change orders", None, note="From approved change orders"))
     groups.append(IncomeGroup("Overhead and profit on line variance", None,
                               note="From actual costs against the contract"))
@@ -114,7 +114,7 @@ def estimate_report(rev: Revision, results: Results, scenario: Scenario, setting
                         contract_price=scenario.total, final_price=None)
 
 
-def _own(co, performers=INCOME_PERFORMERS) -> Decimal:
+def _own(co, performers) -> Decimal:
     return sum((it.delta for it in co.items if it.performer in performers), ZERO)
 
 
@@ -124,7 +124,8 @@ def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
     rep = estimate_report(c.rev, c.results, c.results.base, settings)
     recon = {lr.line.id: lr for lr in ledger.lines}
     missing = 0
-    for g in rep.groups[:len(INCOME_PERFORMERS)]:
+    own_all = set(settings.income_performers())
+    for g in rep.groups[:2]:
         for x in g.lines:
             lr = recon.get(x.line_id)
             if lr is None:
@@ -144,14 +145,14 @@ def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
                           if o.funding is not COFunding.ABSORBED), ZERO)
             g.actual = used + billed
         elif g.name.endswith("work on change orders"):
-            perf = next(p for p in INCOME_PERFORMERS if ENTITY[p] == g.entity)
-            g.actual = sum((_own(o, (perf,)) for o in ledger.approved if o.funding is not COFunding.ABSORBED), ZERO)
+            perfs = set(settings.income_performers(g.entity))
+            g.actual = sum((_own(o, perfs) for o in ledger.approved if o.funding is not COFunding.ABSORBED), ZERO)
         elif g.name == "Overhead and profit on change orders":
             amt = ZERO
             for o in ledger.approved:
                 p = ledger.pricing[o.number]
                 # absorbed: you pay for others' work; your own work on it simply earns nothing
-                amt += -(p.cost_delta - _own(o)) if o.funding is COFunding.ABSORBED else p.markup
+                amt += -(p.cost_delta - _own(o, own_all)) if o.funding is COFunding.ABSORBED else p.markup
             g.actual = amt
             if any(o.funding is COFunding.ABSORBED for o in ledger.approved):
                 g.note = "Absorbed change orders count the cost of others' work as a loss"

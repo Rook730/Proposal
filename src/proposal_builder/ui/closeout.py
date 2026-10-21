@@ -297,10 +297,10 @@ class Closeout:
 
             EditableGrid(lambda: work.items,
                          [Col("description", "Description (condition)", flex=2),
-                          Col("action", "Action", "select", [a.value for a in COAction], width=100),
+                          Col("action", "Action", "select", self.st.settings.lists.co_actions, width=100),
                           Col("change", "Change", flex=2),
                           Col("line_ids", "Lines", "strlist", width=110),
-                          Col("performer", "Performed by", "select", [p.value for p in Performer], width=170),
+                          Col("performer", "Performed by", "select", self.st.settings.performer_names(), width=170),
                           Col("contractor_id", "Contractor", "lookup", width=170,
                               lookup={c.id: c.company for c in self.st.contractors.sorted()}),
                           Col("original_cost", "Original cost", "number", width=120),

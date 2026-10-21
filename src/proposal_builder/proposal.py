@@ -86,7 +86,7 @@ class Line(_Model):
     allowance_high: Decimal | None = None
     tier: LineTier = LineTier.HIGH
 
-    performer: Performer = Performer.NONE
+    performer: str = ""                       # Settings performer name
     sub_name: str = ""                        # internal only; mirrors the contractor's company
     contractor_id: str | None = None          # crm.Contractor
     is_allowance: bool = False

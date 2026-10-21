@@ -9,7 +9,7 @@ from nicegui import ui
 from ..crm import Contact, Contractor, Customer, Supplier, line_contractor
 from ..proposal import WON_STATUSES
 from .state import get_state
-from .widgets import Col, EditableGrid, layout
+from .widgets import Col, EditableGrid, keep_current, layout
 
 INS_COLOR = {"expired": "#B00020", "expiring": "#B26A00", "unknown": "#80868b", "ok": ""}
 
@@ -77,16 +77,20 @@ def customer_dialog(cust: Customer | None, on_saved, preset_name: str = "") -> N
         ui.label("New customer" if is_new else work.name).classes("text-lg font-semibold")
         with ui.grid(columns=4).classes("w-full gap-x-3"):
             name = ui.input("Name (as printed on proposals)", value=work.name).props("dense").classes("col-span-2")
-            source = ui.input("How they found you", value=work.source).props("dense")
+            source = ui.select(keep_current({x: x for x in st.settings.lists.lead_sources}, work.source),
+                               value=work.source or None, label="How they found you", with_input=True,
+                               new_value_mode="add-unique").props("dense clearable")
             active = ui.checkbox("Active", value=work.active)
         ui.label("Contacts (the first one is the primary contact)").classes("font-semibold text-sm mt-2")
         EditableGrid(lambda: work.contacts,
-                     [Col("name", "Name", flex=1), Col("role", "Role", width=150),
+                     [Col("name", "Name", flex=1),
+                      Col("role", "Role", "select", ["", *st.settings.lists.contact_roles], width=150),
                       Col("phone", "Phone", width=150), Col("email", "Email", flex=1)],
                      lambda: None, lambda: Contact(), height="20vh")
         ui.label("Addresses (each project picks its site from these)").classes("font-semibold text-sm mt-2")
         EditableGrid(lambda: work.addresses,
-                     [Col("label", "Label", width=180), Col("address", "Address", flex=1)],
+                     [Col("label", "Label", "select", ["", *st.settings.lists.address_labels], width=180),
+                      Col("address", "Address", flex=1)],
                      lambda: mailing.set_options(_addr_opts(work), value=mailing.value), lambda: _new_addr(),
                      height="18vh")
         mailing = ui.select(_addr_opts(work), value=work.mailing_address_id or "", label="Mailing address") \
@@ -242,7 +246,9 @@ def contractor_dialog(con: Contractor | None, on_saved, preset_name: str = "") -
         ui.label("New contractor" if is_new else work.company).classes("text-lg font-semibold")
         with ui.grid(columns=4).classes("w-full gap-x-3"):
             company = ui.input("Company", value=work.company).props("dense").classes("col-span-2")
-            trades = ui.input_chips("Trades", value=list(work.trades)).props("dense").classes("col-span-2")
+            trade_opts = list(dict.fromkeys([*st.settings.lists.trades, *work.trades]))
+            trades = ui.select(trade_opts, value=list(work.trades), label="Trades", multiple=True, with_input=True,
+                               new_value_mode="add-unique").props("dense use-chips").classes("col-span-2")
             contact = ui.input("Contact", value=work.contact).props("dense")
             phone = ui.input("Phone", value=work.phone).props("dense")
             email = ui.input("Email", value=work.email).props("dense").classes("col-span-2")
@@ -386,7 +392,8 @@ class CustomerPicker:
             return
         with ui.dialog() as dlg, ui.card().classes("w-[420px]"):
             ui.label(f"New address for {c.name}").classes("font-semibold")
-            label = ui.input("Label (e.g. Home, Rental)").props("dense").classes("w-full")
+            label = ui.select(self.st.settings.lists.address_labels, label="Label", with_input=True,
+                              new_value_mode="add-unique").props("dense clearable").classes("w-full")
             text = ui.textarea("Address").props("dense autogrow").classes("w-full")
 
             def add() -> None:

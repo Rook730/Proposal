@@ -179,3 +179,22 @@ def test_income_estimate_and_actual(contract):
     line = next(x for x in g["Convenient Woodworking lines"].lines if x.line_id == cw_line.line_id)
     assert line.entered and line.actual == contract.rev.line(cw_line.line_id).unit_price
     assert rep.actual_total == sum(x.actual for x in rep.groups if x.actual is not None)
+
+
+def test_custom_performer_counts_as_income_and_prints_note(contract):
+    from proposal_builder.income import estimate_report
+    from proposal_builder.models import PerformerDef
+    from proposal_builder.render.document import _line_body
+    settings = Settings.model_validate_json(seed("settings.json"))
+    settings.performers.append(PerformerDef(name="CW Shop Crew", note="Built in our shop.", income="CW"))
+    rev = contract.rev
+    ln = next(x for x in rev.lines if not x.is_percent and not x.performer and not x.owner_furnished
+              and contract.results.lines[x.id].cost)
+    before = estimate_report(rev, contract.results, contract.results.base, settings).total("estimate", "CW")
+    ln.performer = "CW Shop Crew"
+    after = estimate_report(rev, contract.results, contract.results.base, settings).total("estimate", "CW")
+    assert after == before + contract.results.lines[ln.id].cost
+    assert _line_body(ln, {}, settings).startswith("_Built in our shop._")
+    settings.performers = [p for p in settings.performers if p.name != "Convenient Woodworking"]
+    old = ln.model_copy(update={"performer": "Convenient Woodworking", "notes": "", "general_description": ""})
+    assert _line_body(old, {}, settings) == "_Performed by Convenient Woodworking._"   # old name still prints

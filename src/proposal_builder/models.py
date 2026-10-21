@@ -102,7 +102,7 @@ class CatalogItem(_Model):
     rate_key: str | None = None           # RATE
     allowance_ids: list[str] = Field(default_factory=list)
     default_tier: Tier = Tier.HIGH
-    performer: Performer = Performer.NONE
+    performer: str = ""                  # a Settings performer name (see Performer for the built-ins)
     stock_class: str | None = None        # stick goods rounding
     is_allowance: bool = False            # lines print "Allowance"; defaults on for allowance-priced items
     not_included: bool = False            # $0 scope-clarity line
@@ -257,6 +257,35 @@ class Company(_Model):
     logo_path: str = ""     # relative to the data folder
 
 
+class PerformerDef(_Model):
+    """An entry in the Performer dropdown (Settings > Lists)."""
+    name: str
+    note: str = ""                       # printed at the start of the line's description; blank prints nothing
+    income: str = ""                     # "KS", "CW" or "" (pass-through): which Income column it counts in
+
+
+def default_performers() -> list[PerformerDef]:
+    return [PerformerDef(name=Performer.KEPT_SPEC.value, income="KS"),
+            PerformerDef(name=Performer.CW.value, note="Performed by Convenient Woodworking.", income="CW"),
+            PerformerDef(name=Performer.SUB.value, note="Performed by a licensed subcontractor."),
+            PerformerDef(name=Performer.CLIENT.value, note="Owner-furnished.")]
+
+
+class Lists(_Model):
+    """Editable dropdown lists (Settings > Lists)."""
+    co_actions: list[str] = Field(default_factory=lambda: ["Add", "Delete", "Modify"])
+    contact_roles: list[str] = Field(default_factory=lambda: ["Owner", "Spouse", "Property manager", "Tenant",
+                                                              "Designer", "Realtor"])
+    lead_sources: list[str] = Field(default_factory=lambda: ["Referral", "Website", "Repeat client", "Google",
+                                                             "Social media", "Sign / yard sign"])
+    trades: list[str] = Field(default_factory=lambda: ["Electrical", "Plumbing", "HVAC", "Gas", "Drywall",
+                                                       "Painting", "Flooring", "Tile", "Framing", "Insulation",
+                                                       "Countertops", "Glass", "Finish carpentry", "Roofing"])
+    quote_scopes: list[str] = Field(default_factory=lambda: ["Electrical", "Plumbing", "HVAC", "Painting",
+                                                             "Flooring", "Tile", "Drywall", "Countertops"])
+    address_labels: list[str] = Field(default_factory=lambda: ["Home", "Site", "Mailing", "Rental", "Office"])
+
+
 class Settings(_Model):
     schema_version: int = SCHEMA_VERSION
     company: Company = Field(default_factory=Company)
@@ -267,6 +296,8 @@ class Settings(_Model):
     retainage_pct: Decimal = Decimal("0.05")
     validity_days: int = 30
     dark_mode: bool = False
+    performers: list[PerformerDef] = Field(default_factory=default_performers)
+    lists: Lists = Field(default_factory=Lists)
     license_threshold: Decimal = Decimal("40000")   # warn when a total reaches this; 0 turns the check off
     rfq_note: str = ("Please quote the scope below for the project listed. Include materials, labor and any permits "
                      "for your trade, and list exclusions, assumptions and lead time. Quantities are our takeoff; "
@@ -280,6 +311,21 @@ class Settings(_Model):
     co_management_code: int = 1320
     co_management_rate_key: str = "pm"     # rate for change order management hours
     recommended_by: str = "Kept Spec - Nick Matney"
+
+    def performer(self, name: str) -> PerformerDef | None:
+        return next((p for p in self.performers if p.name == name), None) if name else None
+
+    def performer_note(self, name: str) -> str:
+        p = self.performer(name)
+        if p is not None:
+            return p.note
+        return {d.name: d.note for d in default_performers()}.get(name, "")   # saved proposals with an old name
+
+    def income_performers(self, entity: str | None = None) -> list[str]:
+        return [p.name for p in self.performers if p.income and (entity is None or p.income == entity)]
+
+    def performer_names(self) -> list[str]:
+        return ["", *(p.name for p in self.performers)]
 
     def next_proposal_number(self) -> str:
         return f"{self.proposal_year:02d}{self.next_proposal_seq:03d}"

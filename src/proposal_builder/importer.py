@@ -197,7 +197,7 @@ def import_items(wb) -> tuple[list[Section], list[CatalogItem]]:
             title=title,
             description=desc,
             unit=unit or "LS",
-            performer=PERFORMER.get(code, Performer.NONE),
+            performer=PERFORMER.get(code, Performer.NONE).value,
             not_included="not included" in desc.lower() and (price_d or 0) == 0,
             credit_if_unused=code in CREDIT_IF_UNUSED,
             stock_class=STOCK_ITEMS.get(code),

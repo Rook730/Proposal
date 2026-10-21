@@ -15,15 +15,17 @@ from importlib import resources
 from pathlib import Path
 
 from ..calc import Results, calculate, payment_schedule, render, variable_map
-from ..models import Boilerplate, Catalog, Performer, PriceSource, Settings
+from ..models import Boilerplate, Catalog, Performer, PriceSource, Settings, default_performers
 from ..proposal import Line, Project, Revision
 from .markup import escape, md_to_typst
 
-PERFORMER_NOTE = {
-    Performer.CW: "Performed by Convenient Woodworking.",
-    Performer.SUB: "Performed by a licensed subcontractor.",
-    Performer.CLIENT: "Owner-furnished.",
-}
+def performer_note(settings: Settings | None, name: str) -> str:
+    """Printed note for a performer (Settings > Lists > Performers)."""
+    if settings is None:
+        return {p.name: p.note for p in default_performers()}.get(name, "")
+    return settings.performer_note(name)
+
+
 
 
 def fmt_money(v: Decimal | None) -> str:
@@ -45,13 +47,13 @@ def fmt_pct(v: Decimal) -> str:
     return f"{(v * 100).normalize():f}%"
 
 
-def _line_body(ln: Line, variables: dict[str, str]) -> str:
+def _line_body(ln: Line, variables: dict[str, str], settings: Settings | None = None) -> str:
     parts = []
     if ln.is_allowance:
         parts.append("*Allowance.*")
-    note = PERFORMER_NOTE.get(ln.performer)
-    if ln.owner_furnished and note is None:
-        note = PERFORMER_NOTE[Performer.CLIENT]          # owner-supplied always says so
+    note = performer_note(settings, ln.performer)
+    if ln.owner_furnished and not note:
+        note = performer_note(settings, Performer.CLIENT.value) or "Owner-furnished."   # owner-supplied always says so
     if note and not (ln.notes or "").startswith(note):
         parts.append(f"_{escape(note)}_")
     text = []
@@ -63,23 +65,22 @@ def _line_body(ln: Line, variables: dict[str, str]) -> str:
     return " ".join(parts + ([body] if body else []))
 
 
-RATE_PERFORMERS = (Performer.KEPT_SPEC, Performer.CW)
-
-
-def rates_table(rev: Revision, catalog: Catalog) -> list[list[str]]:
+def rates_table(rev: Revision, catalog: Catalog, settings: Settings | None = None) -> list[list[str]]:
     """Hourly rates billed by Kept Spec Advisors and Convenient Woodworking on this proposal.
 
     Taken from the proposal's own rate lines (snapshot), not the live catalog, so catalog
     edits never change a saved proposal."""
     seen: dict[tuple, list[str]] = {}
-    for ln in sorted(rev.lines, key=lambda l: (l.performer is not Performer.KEPT_SPEC, l.section, l.order)):
-        if ln.price_basis is not PriceSource.RATE or ln.performer not in RATE_PERFORMERS or ln.unit_price is None:
+    own = set(settings.income_performers()) if settings else {Performer.KEPT_SPEC.value, Performer.CW.value}
+    ks = set(settings.income_performers("KS")) if settings else {Performer.KEPT_SPEC.value}
+    for ln in sorted(rev.lines, key=lambda l: (l.performer not in ks, l.section, l.order)):
+        if ln.price_basis is not PriceSource.RATE or ln.performer not in own or ln.unit_price is None:
             continue
         key = (ln.performer, ln.rate_key, ln.unit_price)
         if key in seen:
             continue
         r = catalog.rate(ln.rate_key or "")
-        seen[key] = [r.name if r else (ln.rate_key or ln.title), ln.performer.value,
+        seen[key] = [r.name if r else (ln.rate_key or ln.title), str(ln.performer),
                      f"${ln.unit_price:,.2f} / {ln.unit}"]
     return list(seen.values())
 
@@ -152,7 +153,7 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
             owner = ln.owner_furnished and not ln.is_percent and bool(amount)
             rows.append({
                 "id": ln.id, "code": str(ln.code) if ln.code is not None else "", "title": ln.title,
-                "body": _line_body(ln, v), "unit": ln.unit, "qty": fmt_qty(lr.qty), "price": price,
+                "body": _line_body(ln, v, settings), "unit": ln.unit, "qty": fmt_qty(lr.qty), "price": price,
                 "price_money": not ln.is_percent and bool(lr.unit_price),
                 "cost": fmt_money(amount) if amount is not None else "",
                 "kind": kind, "alt": ln.alternate or 0, "owner": owner,
@@ -220,7 +221,7 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
                     "units": [[u.code, u.description] for u in catalog.units]}
         elif "{rates_table}" in b.body:
             before, _, after = b.body.partition("{rates_table}")
-            item = {"title": b.title, "kind": "rates", "rows": rates_table(rev, catalog),
+            item = {"title": b.title, "kind": "rates", "rows": rates_table(rev, catalog, settings),
                     "before": md_to_typst(render(before, v)), "after": md_to_typst(render(after, v))}
         blocks_by_heading.setdefault(b.heading, []).append(item)
 

@@ -192,7 +192,7 @@ def revision_diff(old: Revision, new: Revision, settings: Settings, stock: list[
         if a.is_allowance != b.is_allowance:
             det.append("now an allowance" if b.is_allowance else "no longer an allowance")
         if a.performer != b.performer:
-            det.append(f"performer {a.performer.value or 'none'} to {b.performer.value or 'none'}")
+            det.append(f"performer {a.performer or 'none'} to {b.performer or 'none'}")
         if a.alternate != b.alternate:
             det.append("now part of the base" if b.alternate is None else f"moved to Alternate {b.alternate}")
         if det:

@@ -214,7 +214,8 @@ class Editor:
                  "on the line (unit price, quote ref and quote amount) as before; pick the winner the same way.") \
             .classes("text-xs text-gray-500")
         EditableGrid(lambda: log.quotes,
-                     [Col("scope", "Scope", width=150),
+                     [Col("scope", "Scope", "select", list(dict.fromkeys(
+                         [*st.settings.lists.quote_scopes, *(q.scope for q in log.quotes if q.scope)])), width=150),
                       Col("contractor_id", "Contractor", "lookup", width=190,
                           lookup={c.id: c.company for c in book.sorted()}),
                       Col("line_ids", "Lines", "strlist", width=120),
@@ -463,7 +464,7 @@ class Editor:
     def _grid_options(self) -> dict:
         ed = not self.locked
         self._grid_filter_shown = self.section_filter
-        perf = [p.value for p in Performer]
+        perf = self.st.settings.performer_names()
         units = [u.code for u in self.cat.units]
         return {
             "columnDefs": [
@@ -588,7 +589,7 @@ class Editor:
             if field == "title":
                 ln.title = val or ln.title
             elif field == "performer":
-                ln.performer = Performer(val or "")
+                ln.performer = val or ""
             elif field == "unit":
                 ln.unit = val
             elif field == "qty":
@@ -805,8 +806,9 @@ class Editor:
                 section = ui.select(keep_current({s.number: f"{s.number} {s.name}" for s in cat.sections}, work.section),
                                     label="Section", value=work.section).props("dense").classes("col-span-2")
                 unit = ui.select(cat.unit_options(work.unit), label="Unit", value=work.unit).props("dense")
-                performer = ui.select({p.value: p.value or "-" for p in Performer}, label="Performer (prints)",
-                                      value=work.performer.value).props("dense").classes("col-span-2")
+                performer = ui.select(keep_current({n: n or "-" for n in self.st.settings.performer_names()},
+                                                   work.performer), label="Performer (prints)",
+                                      value=work.performer).props("dense").classes("col-span-2")
                 from .crm_pages import contractor_dialog, vendor_names
                 from ..crm import line_contractor
                 cur = line_contractor(self.st.contractors, work)
@@ -978,7 +980,7 @@ class Editor:
                             a.removes = [ln_id if x == ln.id else x for x in a.removes]
                     updated = work.model_copy(update=dict(
                         id=ln_id, section=new_section, title=(title.value or "").strip() or ln.title,
-                        unit=unit.value, performer=Performer(performer.value),
+                        unit=unit.value, performer=performer.value or "",
                         contractor_id=sub_sel.value or None,
                         sub_name=(self.st.contractors.get(sub_sel.value).company if sub_sel.value else ""),
                         alternate=int(alt.value) or None, print_general=print_general.value,

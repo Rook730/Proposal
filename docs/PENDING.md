@@ -27,3 +27,6 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 ## Next release (1.5.3)
 
 14. [~] Alternates: when an alternate changes owner-supplied items, the alternate card and its tile show the owner-supplied difference (owner-supplied costs are outside the Total Price, so the Total difference alone can read $0).
+15. [~] Settings > Lists: edit dropdown choices without code.
+   - Performers: name, printed note, and Income (KS, CW or blank). New performers work everywhere (lines, catalog, change order items) and count in the matching Income column; renaming one updates catalog items; old names on saved proposals still print their note.
+   - Change order actions, contact roles, how they found you, contractor trades, quote scopes, address labels. "How they found you", trades and the new-address label also accept a typed one-off value.

@@ -65,10 +65,10 @@ class COStatus(str, Enum):
 
 class COItem(_Model):
     description: str = ""              # condition / reason
-    action: COAction = COAction.MODIFY
+    action: str = COAction.MODIFY.value    # Settings > Lists > change order actions
     change: str = ""                   # what is added, deleted or modified
     line_ids: list[str] = Field(default_factory=list)
-    performer: Performer = Performer.NONE  # who does the work; Kept Spec / CW work counts as income
+    performer: str = ""                    # Settings performer name; income performers count as income
     contractor_id: str | None = None       # crm.Contractor when a sub does the work
     original_cost: Decimal = ZERO
     final_cost: Decimal = ZERO
