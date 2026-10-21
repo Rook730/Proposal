@@ -35,4 +35,10 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 
 ## Next release
 
-Nothing pending.
+18. [~] Line form shows only the fields that apply.
+   - Price basis is a set of buttons (Fixed | Rate | Range | Percent) and the row below shows only that basis's fields: Fixed = unit price (or bind to variable); Rate = rate, price shown read-only "from rate" with an Override button that switches to Fixed; Range = price range + tier, price read-only unless the tier is Custom, with low/mid/high shown; Percent = percent (or variable).
+   - Quantity is Typed | Variable | Takeoff (stick goods), showing only that source's fields.
+   - Percent lines hide quantity, unit, performer, contractor and the Allowance / Not included / Owner-furnished flags. Not included lines hide quantity and price (saved as 1 x $0).
+   - On save, fields that don't apply are cleared (stale tier, rate key, range, variable, takeoff / stock class).
+   - Catalog item form: same Price buttons; Price, Rate, or Linked ranges + Default tier shown only for their basis (hidden links are kept).
+   - Issues tab: Range basis with no range picked (warning); rate line whose unit differs from the rate's unit; stock class with no takeoff (info).

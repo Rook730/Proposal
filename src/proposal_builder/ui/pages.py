@@ -85,22 +85,34 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
             unit = ui.select(cat.unit_options(f["unit"]), label="Unit", value=f["unit"]).props("dense")
         desc = ui.textarea("General description (printed on every use)", value=f["description"]) \
             .props("dense autogrow").classes("w-full")
+        with ui.row().classes("items-center gap-3 mt-1"):
+            ui.label("Price").classes("font-semibold text-sm")
+            source = ui.toggle({p.value: basis_label(p).capitalize() for p in PriceSource},
+                               value=f["price_source"]).props("dense no-caps")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
-            source = ui.select({p.value: basis_label(p) for p in PriceSource}, label="Price basis",
-                               value=f["price_source"]).props("dense")
             price_val = f["price"]
             if price_val is not None and f["price_source"] == PriceSource.PERCENT.value:
                 price_val = price_val * 100
-            price = ui.number("Price ($, or % for percent items)",
-                              value=float(price_val) if price_val is not None else None).props("dense")
-            rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key} (${r.rate})" for r in cat.rates}}, f["rate_key"]),
-                             label="Rate", value=f["rate_key"] or "").props("dense")
+            price = ui.number("Price ($)", value=float(price_val) if price_val is not None else None).props("dense")
+            rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key}: {r.name} (${r.rate}/{r.unit})"
+                                                       for r in cat.rates}}, f["rate_key"]),
+                             label="Rate", value=f["rate_key"] or "").props("dense").classes("col-span-2")
             tier = ui.select({t.value: t.value for t in Tier}, label="Default range tier",
                              value=f["default_tier"]).props("dense")
         allow = ui.select(keep_current({a.id: f"{a.category}: {a.description} ({a.unit} {a.low} to {a.high})"
                                         for a in cat.allowances}, f["allowance_ids"]),
-                          label="Linked price ranges", value=f["allowance_ids"], multiple=True) \
-            .props("dense use-chips").classes("w-full")
+                          label="Linked price ranges (the first is the default)", value=f["allowance_ids"],
+                          multiple=True).props("dense use-chips").classes("w-full")
+
+        def refresh_source(_=None) -> None:
+            b = source.value
+            price.set_visibility(b in ("fixed", "percent"))
+            price.props(f'label="{"Percent of subtotal (%)" if b == "percent" else "Price ($)"}"')
+            rate.set_visibility(b == "rate")
+            tier.set_visibility(b == "allowance")
+            allow.set_visibility(b == "allowance")
+        source.on_value_change(refresh_source)
+        refresh_source()
         with ui.grid(columns=4).classes("w-full gap-x-4"):
             performer = ui.select(keep_current({n: n or "-" for n in st.settings.performer_names()}, f["performer"]),
                                   label="Default performer", value=f["performer"]).props("dense")
@@ -128,7 +140,10 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                 new = CatalogItem(
                     code=new_code, section=section.value, group=group.value or "",
                     title=(title.value or "").strip(), description=desc.value or "", unit=unit.value,
-                    price_source=ps, price=p, rate_key=rate.value or None,
+                    price_source=ps,
+                    price=p if ps in (PriceSource.FIXED, PriceSource.PERCENT) else None,
+                    rate_key=(rate.value or None) if ps is PriceSource.RATE else None,
+                    # links stay stored when hidden, so switching back to Range finds them again
                     allowance_ids=list(allow.value or []), default_tier=Tier(tier.value),
                     performer=performer.value or "", stock_class=stock.value or None,
                     is_allowance=isa.value, not_included=ni.value, owner_furnished=of.value,

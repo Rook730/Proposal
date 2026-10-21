@@ -837,7 +837,7 @@ class Editor:
                 from ..crm import line_contractor
                 cur = line_contractor(self.st.contractors, work)
                 con_opts = {c.id: c.company for c in self.st.contractors.sorted() if c.active or (cur and c.id == cur.id)}
-                with ui.row().classes("col-span-2 items-end gap-1 no-wrap"):
+                with ui.row().classes("col-span-2 items-end gap-1 no-wrap") as sub_row:
                     sub_sel = ui.select(con_opts, value=cur.id if cur else None, label="Contractor (internal)",
                                         with_input=True).props("dense clearable").classes("grow")
 
@@ -897,39 +897,53 @@ class Editor:
             code_sel.on_value_change(lambda _: change_code())
 
             ui.separator()
-            ui.label("Quantity").classes("font-semibold text-sm")
-            with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
-                qty = ui.number("Qty", value=_num(work.qty)).props("dense")
-                qty_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind to variable",
-                                    value=work.qty_var or "").props("dense")
-                takeoff = ui.number("or takeoff LF (stick goods)", value=_num(work.takeoff)).props("dense")
-                stock = ui.select(keep_current({"": "-", **{s.key: s.name for s in cat.stock_classes}}, work.stock_class),
-                                  label="Stock class", value=work.stock_class or "").props("dense")
-                waste = ui.number("Waste % (blank = default)",
-                                  value=_num(work.waste_pct * 100) if work.waste_pct is not None else None) \
-                    .props("dense")
-                stock_lbl = ui.label().classes("text-xs text-gray-600")
+            # ---- quantity: one source at a time
+            qmode0 = "variable" if work.qty_var else ("takeoff" if work.takeoff is not None else "typed")
+            qty_box = ui.column().classes("w-full gap-1")
+            with qty_box:
+                with ui.row().classes("items-center gap-3"):
+                    ui.label("Quantity").classes("font-semibold text-sm")
+                    qmode = ui.toggle({"typed": "Typed", "variable": "Variable", "takeoff": "Takeoff (stick goods)"},
+                                      value=qmode0).props("dense no-caps")
+                with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
+                    qty = ui.number("Qty", value=_num(work.qty)).props("dense")
+                    qty_var = ui.select({"": "-", **{n: n for n in var_names}}, label="Variable",
+                                        value=work.qty_var or "").props("dense").classes("col-span-2")
+                    takeoff = ui.number("Takeoff LF", value=_num(work.takeoff)).props("dense")
+                    stock = ui.select(keep_current({"": "-", **{s.key: s.name for s in cat.stock_classes}},
+                                                   work.stock_class),
+                                      label="Stock class", value=work.stock_class or "").props("dense")
+                    waste = ui.number("Waste % (blank = default)",
+                                      value=_num(work.waste_pct * 100) if work.waste_pct is not None else None) \
+                        .props("dense")
+                    stock_lbl = ui.label().classes("text-xs text-gray-600 col-span-3")
 
-            ui.label("Price").classes("font-semibold text-sm mt-2")
-            with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
-                basis = ui.select({p.value: basis_label(p) for p in PriceSource}, label="Basis",
-                                  value=work.price_basis.value).props("dense")
-                rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key} ${r.rate}" for r in cat.rates}}, work.rate_key),
-                                 label="Rate", value=work.rate_key or "").props("dense")
-                allow = ui.select(keep_current({"": "-", **{a.id: f"{a.category}: {a.description} ({a.unit} {a.low}-{a.high})"
-                                                           for a in cat.allowances}}, work.allowance_id),
-                                  label="Price range", value=work.allowance_id or "").props("dense") \
-                    .classes("col-span-2")
-                tier = ui.select({t.value: t.value for t in LineTier}, label="Tier", value=work.tier.value) \
-                    .props("dense")
-                price_shown = work.unit_price * 100 if (work.unit_price is not None and work.is_percent) else work.unit_price
-                price = ui.number("Unit price ($, or % for percent)", value=_num(price_shown)).props("dense")
-                price_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind price to variable",
-                                      value=work.price_var or "").props("dense").classes("col-span-2")
-                tier_lbl = ui.label().classes("text-xs text-gray-600 col-span-4")
+            # ---- price: fields for the chosen basis only
+            price_box = ui.column().classes("w-full gap-1 mt-2")
+            with price_box:
+                with ui.row().classes("items-center gap-3"):
+                    ui.label("Price").classes("font-semibold text-sm")
+                    basis = ui.toggle({p.value: basis_label(p).capitalize() for p in PriceSource},
+                                      value=work.price_basis.value).props("dense no-caps")
+                with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
+                    rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key}: {r.name} (${r.rate}/{r.unit})"
+                                                               for r in cat.rates}}, work.rate_key),
+                                     label="Rate", value=work.rate_key or "").props("dense").classes("col-span-2")
+                    allow = ui.select(keep_current({"": "-", **{a.id: f"{a.category}: {a.description} ({a.unit} {a.low}-{a.high})"
+                                                               for a in cat.allowances}}, work.allowance_id),
+                                      label="Price range", value=work.allowance_id or "").props("dense") \
+                        .classes("col-span-2")
+                    tier = ui.select({t.value: t.value for t in LineTier}, label="Tier", value=work.tier.value) \
+                        .props("dense")
+                    price_shown = work.unit_price * 100 if (work.unit_price is not None and work.is_percent) else work.unit_price
+                    price = ui.number("Unit price ($)", value=_num(price_shown)).props("dense")
+                    override = ui.button("Override", icon="edit", on_click=lambda: basis.set_value("fixed")) \
+                        .props("dense flat no-caps").tooltip("Type your own price; the line becomes Fixed")
+                    price_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind price to variable",
+                                          value=work.price_var or "").props("dense").classes("col-span-2")
+                    src_lbl = ui.label().classes("text-xs text-gray-600 col-span-6")
 
             def sync_price(source: str) -> None:
-                b = PriceSource(basis.value)
                 if source == "rate" and rate.value:
                     r = cat.rate(rate.value)
                     if r:
@@ -942,20 +956,67 @@ class Editor:
                             work.allowance_low, work.allowance_high = a.low, a.high
                             unit.set_value(a.unit)
                         t = LineTier(tier.value)
-                        tier_lbl.set_text(f"low ${work.allowance_low}  mid ${(work.allowance_low + work.allowance_high) / 2:.2f}"
-                                          f"  high ${work.allowance_high}")
                         if t is not LineTier.CUSTOM:
                             work.tier = t
                             price.set_value(float(work.tier_price()))
-                            if b is not PriceSource.ALLOWANCE:
+                            if basis.value != PriceSource.ALLOWANCE.value:
                                 basis.set_value(PriceSource.ALLOWANCE.value)
+                refresh_form()
+
+            def refresh_form(_=None) -> None:
+                b, notinc = basis.value, bool(ni.value)
+                pct = b == PriceSource.PERCENT.value
+                qty_box.set_visibility(not pct and not notinc)
+                price_box.set_visibility(not notinc)
+                m = qmode.value
+                qty.set_visibility(m == "typed")
+                qty_var.set_visibility(m == "variable")
+                for el in (takeoff, stock, waste, stock_lbl):
+                    el.set_visibility(m == "takeoff")
+                rate.set_visibility(b == "rate")
+                override.set_visibility(b == "rate")
+                allow.set_visibility(b == "allowance")
+                tier.set_visibility(b == "allowance")
+                price_var.set_visibility(b in ("fixed", "percent"))
+                for el in (unit, performer, sub_row, is_allow, of, ni):
+                    el.set_visibility(not pct)
+                if b == "rate":
+                    r = cat.rate(rate.value or "")
+                    price.props('label="Unit price (from rate)"')
+                    price.disable()
+                    src_lbl.set_text(f"{r.name}: ${r.rate} per {r.unit}. Override to type a different price."
+                                     if r else "Pick a rate.")
+                elif b == "allowance":
+                    custom = tier.value == LineTier.CUSTOM.value
+                    price.props(f'label="{"Unit price (custom)" if custom else "Unit price (from tier)"}"')
+                    price.enable() if custom else price.disable()
+                    if work.allowance_low is not None and work.allowance_high is not None and allow.value:
+                        mid = (work.allowance_low + work.allowance_high) / 2
+                        src_lbl.set_text(f"low ${work.allowance_low}   mid ${mid:.2f}   high ${work.allowance_high}"
+                                         + ("   (custom price; a warning shows if it is outside the range)" if custom else ""))
+                    else:
+                        src_lbl.set_text("Pick a price range, or use Fixed if this price did not come from a range.")
+                elif pct:
+                    price.props('label="Percent of subtotal (%)"')
+                    price.enable()
+                    src_lbl.set_text("Calculated on the subtotal; quantity and unit do not apply.")
+                else:
+                    price.props('label="Unit price ($)"')
+                    price.enable()
+                    src_lbl.set_text("")
 
             rate.on_value_change(lambda _: sync_price("rate"))
             allow.on_value_change(lambda _: sync_price("allow"))
             tier.on_value_change(lambda _: sync_price("tier"))
-            if work.allowance_low is not None and work.allowance_high is not None:
-                mid = (work.allowance_low + work.allowance_high) / 2
-                tier_lbl.set_text(f"low ${work.allowance_low}  mid ${mid:.2f}  high ${work.allowance_high}")
+
+            def basis_changed(_=None) -> None:
+                if basis.value == "rate" and rate.value:
+                    sync_price("rate")
+                elif basis.value == "allowance" and allow.value and tier.value != LineTier.CUSTOM.value:
+                    sync_price("tier")
+                refresh_form()
+            basis.on_value_change(basis_changed)
+            qmode.on_value_change(refresh_form)
 
             def upd_stock() -> None:
                 from ..calc import stock_round
@@ -968,7 +1029,7 @@ class Editor:
                     if unit.value != "LF" and any(u.code == "LF" for u in cat.units):
                         unit.set_value("LF")
                 else:
-                    stock_lbl.set_text("")
+                    stock_lbl.set_text("Enter takeoff LF and a stock class; quantity rounds up to stock lengths.")
             for el in (takeoff, stock, waste):
                 el.on_value_change(lambda _: upd_stock())
             upd_stock()
@@ -979,6 +1040,8 @@ class Editor:
                 ni = ui.checkbox("Not included ($0 line)", value=work.not_included)
                 of = ui.checkbox("Owner-furnished", value=work.owner_furnished)
                 cu = ui.checkbox("Credit if unused", value=work.credit_if_unused)
+            ni.on_value_change(refresh_form)
+            refresh_form()
             with ui.expansion("Internal (never prints)", icon="lock").classes("w-full"):
                 with ui.grid(columns=4).classes("w-full gap-x-3"):
                     vnames = vendor_names()
@@ -996,6 +1059,13 @@ class Editor:
                     p = to_decimal(price.value)
                     if b is PriceSource.PERCENT and p is not None:
                         p = p / 100
+                    m = qmode.value
+                    if b is PriceSource.PERCENT:          # quantity does not apply
+                        m = "typed"
+                        qty.set_value(1)
+                    if ni.value:                          # not included: always 1 x $0
+                        m, p = "typed", Decimal(0)
+                        qty.set_value(1)
                     new_section = int(section.value)
                     ln_id = ln.id
                     if new_section != ln.section:
@@ -1010,12 +1080,18 @@ class Editor:
                         alternate=int(alt.value) or None, print_general=print_general.value,
                         notes=notes.value or "",
                         qty=to_decimal(qty.value) if qty.value not in (None, "") else Decimal(0),
-                        qty_var=qty_var.value or None,
-                        takeoff=to_decimal(takeoff.value), stock_class=stock.value or None,
-                        waste_pct=(to_decimal(waste.value) / 100) if waste.value not in (None, "") else None,
-                        price_basis=b, unit_price=p, rate_key=rate.value or None,
-                        allowance_id=allow.value or None, tier=LineTier(tier.value),
-                        price_var=price_var.value or None,
+                        qty_var=(qty_var.value or None) if m == "variable" else None,
+                        takeoff=to_decimal(takeoff.value) if m == "takeoff" else None,
+                        stock_class=(stock.value or None) if m == "takeoff" else None,
+                        waste_pct=((to_decimal(waste.value) / 100) if waste.value not in (None, "") else None)
+                        if m == "takeoff" else None,
+                        price_basis=b, unit_price=p,
+                        rate_key=(rate.value or None) if b is PriceSource.RATE else None,
+                        allowance_id=(allow.value or None) if b is PriceSource.ALLOWANCE else None,
+                        allowance_low=work.allowance_low if b is PriceSource.ALLOWANCE else None,
+                        allowance_high=work.allowance_high if b is PriceSource.ALLOWANCE else None,
+                        tier=LineTier(tier.value) if b is PriceSource.ALLOWANCE else LineTier.HIGH,
+                        price_var=(price_var.value or None) if b in (PriceSource.FIXED, PriceSource.PERCENT) else None,
                         is_allowance=is_allow.value, not_included=ni.value, owner_furnished=of.value,
                         credit_if_unused=cu.value, vendor=vendor.value or "", quote_ref=quote_ref.value or "",
                         quote_amount=to_decimal(quote_amt.value), internal_notes=internal.value or "",
@@ -1280,6 +1356,17 @@ class Editor:
                     and not ln.is_percent and not (ln.allowance_low <= ln.unit_price <= ln.allowance_high)):
                 out.append(("warn", f"{ln.id}: price {money(ln.unit_price)} is outside its price range "
                                     f"{money(ln.allowance_low)} to {money(ln.allowance_high)}"))
+            if ln.price_basis is PriceSource.ALLOWANCE and not ln.allowance_id:
+                out.append(("warn", f"{ln.id} {ln.title}: basis is Range but no price range is picked; "
+                                    "pick one, or set the basis to Fixed"))
+            if ln.price_basis is PriceSource.RATE:
+                r = self.cat.rate(ln.rate_key or "")
+                if r and r.unit != ln.unit and not ln.is_percent:
+                    out.append(("info", f"{ln.id} {ln.title}: priced at the {r.key} rate (per {r.unit}) "
+                                        f"but the line unit is {ln.unit}"))
+            if ln.stock_class and ln.takeoff is None:
+                out.append(("info", f"{ln.id} {ln.title}: has a stock class but no takeoff, so the quantity "
+                                    "is not rounded to stock lengths"))
         for b in self.rev.blocks:
             if b.on:
                 miss = undefined_references(b.body, v)
