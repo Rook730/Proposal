@@ -61,7 +61,7 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
    - Terms block "$0 and owner-supplied lines" is now "Not included, $0 and owner-supplied lines": a line marked Not included is work outside this proposal; a line with a $0 cost (shown as $ -) is included at no charge. The library updates itself if that block is unedited; existing proposals use Terms & options > Reset to library text on that block.
    - Lines marked Not included print "Not included" in the Cost column instead of $ -.
 
-## Next release
+## Released in 1.7.0 (2026-10-21)
 
 UX review items (numbers from docs/ux-review.md):
 
@@ -83,3 +83,7 @@ UX review items (numbers from docs/ux-review.md):
 38. [x] (26) Dark mode: primary buttons are a mid blue with white text (was white on light blue).
 39. [x] (27) Issues tab shows a count badge (red with errors, orange with warnings); the totals strip shows "N errors, N warnings" and opens the Issues tab when clicked.
 40. [x] Custom line and New change order create nothing until Save; Cancel leaves no blank line or draft behind.
+
+## Next release
+
+(nothing yet)
