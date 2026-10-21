@@ -29,6 +29,13 @@ OLD_ZERO_2 = ("A line showing $0 is work that is not included in this proposal, 
               "project cost.")
 
 
+
+def previous_library_bodies(block_id: str) -> tuple[str, ...]:
+    """Library texts that a later version replaced, so a proposal still carrying one is shown as
+    "library text updated" rather than "edited"."""
+    return {"gray-lines": (OLD_GRAY,), "scope-clarif-allowances": (OLD_ALLOWANCES,),
+            "zero-lines": (OLD_ZERO, OLD_ZERO_2)}.get(block_id, ())
+
 def _seed_catalog() -> Catalog:
     return Catalog.model_validate_json((resources.files("proposal_builder") / "seed" / "catalog.json")
                                        .read_text(encoding="utf-8"))

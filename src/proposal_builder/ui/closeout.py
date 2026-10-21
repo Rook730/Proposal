@@ -35,7 +35,7 @@ from ..proposal import ProjectStatus
 from ..render.closeout_docs import change_order_document, ledger_document, safe_name
 from ..render.document import compile_document
 from .state import get_state
-from .widgets import Col, EditableGrid, layout
+from .widgets import Col, EditableGrid, date_input, fmt_date, layout, parse_date
 
 ZERO = Decimal(0)
 
@@ -106,6 +106,8 @@ class Closeout:
                 ui.label("Change orders and the ledger work from the accepted contract. In the proposal editor: "
                          "issue the final revision (Finalize, then issue 2.0) and use Mark accepted once the client "
                          "signs.").classes("text-sm")
+                ui.button("Open the proposal", icon="description",
+                          on_click=lambda: ui.navigate.to(f"/project/{p.number}")).props("dense")
             return
         self.close_bar()
         self.tiles()
@@ -179,9 +181,11 @@ class Closeout:
             tile("Contingency left", money(lg.unused_contingency), f"of {money(c.contingency)}")
             tile("CO management left", money(lg.co_management_credit), f"of {money(c.co_management)}")
             tile("Line variance", money(lg.net_variance + lg.variance_markup), "incl. overhead and profit")
-            tile("Final cost", money(lg.total_final))
+            # unused contingency and management are credited until used, so this is a projection
+            tile("Projected final cost", money(lg.total_final), "if nothing else changes")
+            invoiced = bool(lg.payments_received) or self.closed
             tile("Balance due", money(lg.balance_due), f"after {money(lg.payments_received)} received",
-                 color="red" if lg.balance_due > 0 else "green")
+                 color=("red" if lg.balance_due > 0 else "green") if invoiced else "brand")
             if lg.warnings:
                 tile("Warnings", str(len(lg.warnings)), "see Ledger tab", color="amber")
 
@@ -225,7 +229,7 @@ class Closeout:
         for o in sorted(self.log.orders, key=lambda o: o.number):
             pr = pricing[o.number]
             rows.append({"number": o.number, "title": o.title, "status": o.status.value, "funding": o.funding.value,
-                         "requested": o.requested.isoformat(), "delta": money(pr.cost_delta), "price": money(pr.price),
+                         "requested": fmt_date(o.requested), "delta": money(pr.cost_delta), "price": money(pr.price),
                          "mgmt": f"{o.mgmt_hours.normalize():f} HR" if o.mgmt_hours else "",
                          "contingency": money(pr.from_contingency), "billed": money(pr.billed)})
         g = ui.aggrid({
@@ -245,13 +249,12 @@ class Closeout:
         ui.label("Double-click a change order to open it.").classes("text-xs text-gray-500")
 
     def new_co(self) -> None:
+        """Open a blank change order; it is added to the log only when saved."""
         co = ChangeOrder(number=self.log.next_number(self.project.number),
                          recommended_by=self.st.settings.recommended_by, items=[COItem()])
-        self.log.orders.append(co)
-        self.save()
-        self.co_dialog(co)
+        self.co_dialog(co, new=True)
 
-    def co_dialog(self, co: ChangeOrder | None) -> None:
+    def co_dialog(self, co: ChangeOrder | None, new: bool = False) -> None:
         if co is None:
             return
         locked = co.locked or self.closed
@@ -260,14 +263,14 @@ class Closeout:
         ro = "dense readonly" if locked else "dense"
         with ui.dialog() as dlg, ui.card().classes("w-[1100px] max-w-full"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"Change order {co.number}").classes("text-lg font-semibold")
+                ui.label(f"{'New change order' if new else 'Change order'} {co.number}").classes("text-lg font-semibold")
                 ui.badge(co.status.value, color={"Draft": "grey-7", "Issued": "blue-8", "Approved": "green-8",
                                                   "Rejected": "red-8"}[co.status.value])
                 ui.space()
                 price_lbl = ui.label().classes("text-sm font-semibold")
             with ui.grid(columns=4).classes("w-full gap-x-3"):
                 title = ui.input("Title", value=work.title).props(ro).classes("col-span-2")
-                requested = ui.input("Requested date (YYYY-MM-DD)", value=work.requested.isoformat()).props(ro)
+                requested = date_input("Requested", work.requested, readonly=locked)
                 funding = ui.select({f.value: f.value for f in COFunding}, label="Funding",
                                     value=work.funding.value).props(ro)
                 hours = ui.number("Management hours (scoping, pricing, paperwork)",
@@ -279,6 +282,8 @@ class Closeout:
             def recompute() -> None:
                 try:
                     tmp = self.log.model_copy(deep=True)
+                    if new:
+                        tmp.orders.append(work.model_copy(deep=True))
                     i = next(n for n, o in enumerate(tmp.orders) if o.number == co.number)
                     hrs = Decimal(str(hours.value)) if hours.value not in (None, "") else ZERO
                     tmp.orders[i] = work.model_copy(update={"funding": COFunding(funding.value), "mgmt_hours": hrs})
@@ -300,11 +305,11 @@ class Closeout:
                           Col("action", "Action", "select", self.st.settings.lists.co_actions, width=100),
                           Col("change", "Change", flex=2),
                           Col("line_ids", "Lines", "strlist", width=110),
-                          Col("performer", "Performed by", "select", self.st.settings.performer_names(), width=170),
+                          Col("performer", "Performer", "select", self.st.settings.performer_names(), width=170),
                           Col("contractor_id", "Contractor", "lookup", width=170,
                               lookup={c.id: c.company for c in self.st.contractors.sorted()}),
-                          Col("original_cost", "Original cost", "number", width=120),
-                          Col("final_cost", "Final cost", "number", width=110)],
+                          Col("original_cost", "Original cost", "money", width=120),
+                          Col("final_cost", "Final cost", "money", width=110)],
                          lambda: recompute(), lambda: COItem(), height="22vh", readonly=locked)
             lines_warn = ui.label().classes("text-xs text-orange-700")
             funding.on_value_change(lambda _: recompute())
@@ -320,7 +325,7 @@ class Closeout:
             def collect() -> bool:
                 try:
                     work.title = title.value or ""
-                    work.requested = date.fromisoformat(requested.value.strip())
+                    work.requested = parse_date(requested.value) or date.today()
                     work.funding = COFunding(funding.value)
                     work.mgmt_hours = Decimal(str(hours.value)) if hours.value not in (None, "") else ZERO
                     work.sow, work.payment_impacts = sow.value or "", pay.value or ""
@@ -332,8 +337,10 @@ class Closeout:
                 return True
 
             def commit() -> None:
-                i = self.log.orders.index(co)
-                self.log.orders[i] = work
+                if new and co not in self.log.orders:
+                    self.log.orders.append(work)
+                else:
+                    self.log.orders[self.log.orders.index(co)] = work
                 self.save()
 
             def save() -> None:
@@ -359,28 +366,38 @@ class Closeout:
             def doc() -> dict:
                 collect()
                 tmp = self.log.model_copy(deep=True)
-                tmp.orders[[o.number for o in tmp.orders].index(co.number)] = work
+                if new:
+                    tmp.orders.append(work)
+                else:
+                    tmp.orders[[o.number for o in tmp.orders].index(co.number)] = work
                 pr = price_change_orders(tmp, self.contract)[co.number]
                 return change_order_document(self.project, self.contract, work, pr, self.st.settings)
 
-            with ui.row().classes("w-full justify-end gap-2"):
-                if not locked and co.status is COStatus.DRAFT:
+            # footer: delete on the left, documents, then Cancel / Save and the next status step
+            with ui.row().classes("w-full items-center gap-2"):
+                if not locked and not new and co.status is COStatus.DRAFT:
                     ui.button("Delete", icon="delete", on_click=delete).props("flat color=negative")
-                ui.button("Preview", icon="visibility",
-                          on_click=lambda: self._preview(doc(), "co.typ", f"Change order {co.number}")) \
-                    .props("outline")
-                ui.button("Export PDF", icon="picture_as_pdf",
-                          on_click=lambda: self._export(doc(), "co.typ",
-                                                        safe_name(f"{co.number}_Change_Order.pdf"))).props("outline")
+                with ui.button_group().props("outline"):
+                    ui.button("Preview", icon="visibility",
+                              on_click=lambda: self._preview(doc(), "co.typ", f"Change order {co.number}")) \
+                        .props("outline")
+                    ui.button("Export PDF", icon="picture_as_pdf",
+                              on_click=lambda: self._export(doc(), "co.typ",
+                                                            safe_name(f"{co.number}_Change_Order.pdf"))).props("outline")
                 ui.space()
                 ui.button("Close" if locked else "Cancel", on_click=dlg.close).props("flat")
                 if not locked:
+                    ui.button("Save", icon="save", on_click=save).props("outline")
+                    # one button for the next step; the other outcomes sit in its menu
                     if co.status is COStatus.DRAFT:
-                        ui.button("Mark issued", on_click=lambda: set_status(COStatus.ISSUED)).props("outline")
-                    ui.button("Reject", on_click=lambda: set_status(COStatus.REJECTED)).props("outline color=negative")
-                    ui.button("Approve", icon="check", on_click=lambda: set_status(COStatus.APPROVED)) \
-                        .props("color=positive")
-                    ui.button("Save", icon="save", on_click=save)
+                        nxt, other = (("Mark issued", COStatus.ISSUED),
+                                      [("Approve", COStatus.APPROVED), ("Reject", COStatus.REJECTED)])
+                    else:
+                        nxt, other = ("Approve", COStatus.APPROVED), [("Reject", COStatus.REJECTED)]
+                    with ui.dropdown_button(nxt[0], icon="arrow_forward", split=True,
+                                            on_click=lambda s=nxt[1]: set_status(s)):
+                        for label, st_ in other:
+                            ui.item(label, on_click=lambda s=st_: set_status(s))
         dlg.open()
 
     # ------------------------------------------------------------ actual costs
@@ -406,8 +423,8 @@ class Closeout:
                           {a.vendor for a in self.recon.actuals if a.vendor} - set(vendor_names())), width=180),
                       Col("description", "Description", flex=1),
                       Col("hours", "Hours", "number", width=90),
-                      Col("amount", "Amount", "number", width=120),
-                      Col("tax", "Tax", "number", width=90),
+                      Col("amount", "Amount", "money", width=120),
+                      Col("tax", "Tax", "money", width=90),
                       Col("paid_by", "Paid by", "select", [p.value for p in PaidBy], width=140)],
                      lambda: self.save(), new_entry, height="34vh", readonly=self.closed)
 
@@ -449,7 +466,7 @@ class Closeout:
             .classes("text-xs text-gray-500")
         EditableGrid(lambda: self.recon.payments,
                      [Col("draw", "Draw", width=120), Col("milestone", "Milestone", flex=1),
-                      Col("date", "Date received", "date", width=140), Col("amount", "Amount", "number", width=140)],
+                      Col("date", "Date received", "date", width=140), Col("amount", "Amount", "money", width=140)],
                      lambda: self.save(),
                      lambda: Payment(draw=f"Draw {len(self.recon.payments) + 1}", date=date.today()), height="40vh",
                      readonly=self.closed)

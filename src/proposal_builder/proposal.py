@@ -132,6 +132,29 @@ class ProposalBlock(_Model):
     body: str
     on: bool = True
     order: int = 0
+    # library text this block was copied from (None: copied before 1.7.0, or a custom block)
+    source_title: str | None = None
+    source_body: str | None = None
+
+    def library_status(self, lib_title: str | None, lib_body: str | None) -> str:
+        """"" (same as the library), "edited" (changed in this proposal), "library" (the library text was
+        updated since it was copied), "both", or "custom" (no library block)."""
+        if lib_body is None:
+            return "custom"
+        if self.title == lib_title and self.body == lib_body:
+            return ""
+        if self.source_body is not None:
+            edited = self.title != self.source_title or self.body != self.source_body
+            updated = lib_title != self.source_title or lib_body != self.source_body
+        else:   # older proposals: recognise library text that a later version replaced
+            from .migrations import previous_library_bodies
+            updated = self.body in previous_library_bodies(self.id)
+            edited = not updated
+        return "both" if edited and updated else ("edited" if edited else ("library" if updated else ""))
+
+    def copy_library(self, lib_title: str, lib_body: str) -> None:
+        self.title, self.body = lib_title, lib_body
+        self.source_title, self.source_body = lib_title, lib_body
 
 
 class Revision(_Model):
@@ -389,4 +412,5 @@ def pull_update(ln: Line, catalog: Catalog) -> list[str]:
 
 def default_blocks(blocks: list[BoilerplateBlock]) -> list[ProposalBlock]:
     return [ProposalBlock(id=b.id, heading=b.heading, title=b.title, body=b.body,
-                          on=b.default_on, order=b.order) for b in blocks]
+                          on=b.default_on, order=b.order, source_title=b.title, source_body=b.body)
+            for b in blocks]

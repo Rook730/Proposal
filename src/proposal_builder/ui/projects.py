@@ -14,7 +14,7 @@ from ..calc import DOCUMENT_VARIABLES, SPECIAL_PLACEHOLDERS, referenced, variabl
 from ..models import PriceSource, Variable
 from ..proposal import WON_STATUSES, Project, ProjectStatus, Revision, default_blocks, line_from_item
 from .state import get_state
-from .widgets import layout
+from .widgets import filter_box, layout, no_rows, page_title, toolbar
 
 
 def _project_rows(show_archived: bool = False) -> list[dict]:
@@ -152,6 +152,8 @@ def projects_page() -> None:
     def refresh() -> None:
         grid.options["rowData"] = _project_rows(show.value)
         grid.update()
+        arch_btn.disable()
+        del_btn.disable()
 
     async def selected():
         rows = await grid.get_selected_rows()
@@ -211,15 +213,19 @@ def projects_page() -> None:
         ui.notify(f"Deleted {p.number}. Moved to {dest}", type="positive", multi_line=True)
         refresh()
 
-    with ui.row().classes("gap-2 mb-2 items-center"):
+    page_title("Projects", "Every proposal and its revisions. Double-click a project to open it; click once to select "
+               "it for Archive or Delete.")
+    with toolbar():
         ui.button("New project", icon="add", on_click=new_project_dialog).props("dense")
         ui.button("Import from Excel", icon="upload_file", on_click=lambda: import_dialog(refresh)) \
             .props("dense outline")
-        ui.button("Archive / restore", icon="inventory_2", on_click=archive).props("dense flat")
-        ui.button("Delete", icon="delete", on_click=delete).props("dense flat color=negative")
+        filter_box(lambda: grid)
         show = ui.switch("Show archived", on_change=lambda _: refresh()).props("dense")
-        ui.label("Double-click a project to open it; click once to select it for Archive or Delete.") \
-            .classes("text-xs text-gray-500")
+        ui.space()
+        arch_btn = ui.button("Archive / restore", icon="inventory_2", on_click=archive).props("dense flat")
+        del_btn = ui.button("Delete", icon="delete", on_click=delete).props("dense flat color=negative")
+        for b in (arch_btn, del_btn):
+            b.disable()            # enabled once a project is selected
     grid = ui.aggrid({
         "columnDefs": [
             {"field": "number", "headerName": "#", "width": 90, "sort": "desc"},
@@ -228,14 +234,21 @@ def projects_page() -> None:
             {"field": "address", "headerName": "Address", "flex": 1},
             {"field": "status", "headerName": "Status", "width": 160},
             {"field": "rev", "headerName": "Rev", "width": 130},
-            {"field": "total", "headerName": "Total", "width": 130, "type": "rightAligned"},
+            {"field": "total", "headerName": "Total Price", "width": 130, "type": "rightAligned"},
         ],
         "rowData": _project_rows(),
         "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
         "defaultColDef": {"sortable": True, "resizable": True, "filter": True},
         "rowHeight": 34,
-    }, auto_size_columns=False).classes("w-full").style("height:75vh")
+        "overlayNoRowsTemplate": no_rows("No projects yet. Use New project, or Import from Excel."),
+    }, auto_size_columns=False).classes("w-full").style("height:calc(100vh - 230px)")
     grid.on("cellDoubleClicked", lambda e: ui.navigate.to(f"/project/{e.args['data']['number']}"))
+
+    async def selection(_=None) -> None:
+        on = bool(await grid.get_selected_rows())
+        arch_btn.set_enabled(on)
+        del_btn.set_enabled(on)
+    grid.on("selectionChanged", selection)
 
 
 STATUS_OPTIONS = [s.value for s in ProjectStatus]

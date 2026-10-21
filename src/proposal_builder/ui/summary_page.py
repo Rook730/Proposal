@@ -10,7 +10,7 @@ from ..income import CW, KS
 from ..proposal import WON_STATUSES, ProjectStatus
 from ..summary import all_project_income, in_window, pipeline, to_csv
 from .state import get_state
-from .widgets import layout
+from .widgets import date_input, fmt_date, layout, no_rows, page_title, parse_date
 
 
 def _m(v) -> str:
@@ -34,11 +34,10 @@ PRESETS = {
 async def summary_page() -> None:
     layout("Income summary")
     st = get_state()
-    ui.label("Income summary").classes("text-xl font-semibold")
-    ui.label("Projects are placed by acceptance date (proposals never accepted use the date they were issued). "
+    page_title("Income summary", "Projects are placed by acceptance date (proposals never accepted use the date they were issued). "
              "Income counts the same items as each project's Income tab; Kept Spec includes overhead, profit and "
              "change order items. Share is of the Total Price for estimates and of the final cost for actuals. "
-             "Internal only.").classes("text-xs text-gray-500 mb-2")
+             "Internal only.")
 
     rows_all = await run.io_bound(all_project_income, st.projects, st.settings, st.catalog)
     state = {"start": date(date.today().year, 1, 1), "end": date(date.today().year, 12, 31),
@@ -46,8 +45,8 @@ async def summary_page() -> None:
 
     with ui.row().classes("items-end gap-3 flex-wrap"):
         preset = ui.select(list(PRESETS), value="This year", label="Timeframe").props("dense").classes("w-40")
-        d_from = ui.input("From", value=state["start"].isoformat()).props("dense type=date").classes("w-40")
-        d_to = ui.input("To", value=state["end"].isoformat()).props("dense type=date").classes("w-40")
+        d_from = date_input("From", state["start"]).classes("w-40")
+        d_to = date_input("To", state["end"]).classes("w-40")
         stat = ui.select([s.value for s in ProjectStatus], value=state["statuses"], label="Status",
                          multiple=True).props("dense use-chips").classes("min-w-[320px]")
         kind = ui.toggle({"estimate": "Estimate", "actual": "Actual"}, value="actual").props("dense no-caps")
@@ -71,7 +70,7 @@ async def summary_page() -> None:
             share = r.share(kk)
             data.append({"number": r.project.number, "client": r.project.client_name,
                          "name": r.project.project_name, "status": r.project.status.value,
-                         "date": r.when.isoformat() + ("" if r.basis == "accepted" else f" ({r.basis})"),
+                         "date": fmt_date(r.when) + ("" if r.basis == "accepted" else f" ({r.basis})"),
                          "price": _m(r.total_price), "ks": _m(ks), "cw": _m(cw), "all": _m(al),
                          "share": _p(share), "basis": "" if kk == k else "estimate"})
             tot["price"] += r.total_price
@@ -115,6 +114,8 @@ async def summary_page() -> None:
                 {"field": "basis", "headerName": "", "width": 85, "headerTooltip": "Shown as estimate: not accepted"},
             ],
             "rowData": data, "pinnedBottomRowData": pinned, "rowHeight": 32, "headerHeight": 36,
+            "overlayNoRowsTemplate": no_rows("No projects in this timeframe and status. Widen the dates or "
+                                             "pick more statuses."),
         }, auto_size_columns=False).classes("w-full").style("height:56vh")
         g.on("cellDoubleClicked", lambda e: e.args["data"].get("number", "Total") != "Total"
              and ui.navigate.to(f"/project/{e.args['data']['number']}"))
@@ -123,8 +124,8 @@ async def summary_page() -> None:
 
     def refresh_from_inputs() -> None:
         try:
-            state["start"] = date.fromisoformat(d_from.value) if d_from.value else None
-            state["end"] = date.fromisoformat(d_to.value) if d_to.value else None
+            state["start"] = parse_date(d_from.value)
+            state["end"] = parse_date(d_to.value)
         except ValueError:
             return
         state["statuses"] = list(stat.value or [])
@@ -133,8 +134,8 @@ async def summary_page() -> None:
 
     def apply_preset(e) -> None:
         a, b = PRESETS[e.value](date.today())
-        d_from.set_value(a.isoformat() if a else "")
-        d_to.set_value(b.isoformat() if b else "")
+        d_from.set_value(fmt_date(a))
+        d_to.set_value(fmt_date(b))
         refresh_from_inputs()
 
     def export() -> None:

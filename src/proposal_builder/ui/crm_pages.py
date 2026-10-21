@@ -1,26 +1,39 @@
-"""Catalog pages: Customers, Contractors, Suppliers."""
+"""Contacts pages: Customers, Contractors, Suppliers."""
 
 from __future__ import annotations
-
-from datetime import date
 
 from nicegui import ui
 
 from ..crm import Contact, Contractor, Customer, Supplier, line_contractor
 from ..proposal import WON_STATUSES
 from .state import get_state
-from .widgets import Col, EditableGrid, keep_current, layout
+from .widgets import (
+    Col,
+    EditableGrid,
+    date_input,
+    filter_box,
+    fmt_date,
+    keep_current,
+    layout,
+    list_grid,
+    page_title,
+    parse_date,
+    toolbar,
+)
 
 INS_COLOR = {"expired": "#B00020", "expiring": "#B26A00", "unknown": "#80868b", "ok": ""}
 
 
-def _grid(rows: list[dict], cols: list[dict], on_open, height: str = "64vh"):
-    g = ui.aggrid({"columnDefs": cols, "rowData": rows, "rowHeight": 32, "headerHeight": 36,
-                   "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
-                   "defaultColDef": {"resizable": True, "sortable": True, "filter": True}},
-                  auto_size_columns=False).classes("w-full").style(f"height:{height}")
-    g.on("cellDoubleClicked", lambda e: on_open(e.args["data"]["id"]))
-    return g
+def _list_page(title: str, help_text: str, new_label: str, new_icon: str, on_new, table, holder: dict) -> None:
+    """Shared frame for the contacts pages: title, help, toolbar (New + filter + hint), grid.
+    table(holder) builds the grid and stores it in holder["grid"] for the filter box."""
+    page_title(title, help_text)
+    with toolbar():
+        ui.button(new_label, icon=new_icon, on_click=on_new).props("dense")
+        filter_box(lambda: holder["grid"])
+        ui.space()
+        ui.label("Double-click a row to open it.").classes("text-xs text-gray-500")
+    table(holder)
 
 
 # ---------------------------------------------------------------- customers
@@ -34,12 +47,9 @@ def _customer_projects(cid: str) -> list:
 def customers_page() -> None:
     layout("Customers")
     st = get_state()
-    ui.label("Customers").classes("text-xl font-semibold")
-    ui.label("One entry per client, with as many contacts and addresses as needed. A project picks its customer "
-             "and site address in Project info.").classes("text-xs text-gray-500 mb-2")
 
     @ui.refreshable
-    def table() -> None:
+    def table(holder: dict) -> None:
         counts: dict[str, int] = {}
         for p in st.projects.list_projects():
             if p.customer_id:
@@ -50,33 +60,34 @@ def customers_page() -> None:
             mail = c.address(c.mailing_address_id)
             rows.append({"id": c.id, "name": c.name, "contact": pc.name if pc else "", "phone": pc.phone if pc else "",
                          "email": pc.email if pc else "", "address": (mail.address if mail else "").replace("\n", ", "),
-                         "projects": counts.get(c.id, 0), "source": c.source, "active": "" if c.active else "inactive"})
-        flt = ui.input(placeholder="Filter").props("dense clearable").classes("w-64")
-        g = _grid(rows, [{"field": "name", "headerName": "Customer", "width": 210},
-                         {"field": "contact", "headerName": "Primary contact", "width": 170},
-                         {"field": "phone", "headerName": "Phone", "width": 130},
-                         {"field": "email", "headerName": "Email", "width": 200},
-                         {"field": "address", "headerName": "Mailing address", "flex": 1},
-                         {"field": "projects", "headerName": "Projects", "width": 95, "type": "rightAligned"},
-                         {"field": "source", "headerName": "Source", "width": 120},
-                         {"field": "active", "headerName": "", "width": 80}],
-                  lambda cid: customer_dialog(st.customers.get(cid), lambda *_: table.refresh()))
-        flt.on_value_change(lambda e: g.run_grid_method("setGridOption", "quickFilterText", e.value or ""))
-        ui.label("Double-click a customer to open it.").classes("text-xs text-gray-500")
+                         "projects": counts.get(c.id, 0), "source": c.source, "active": "Yes" if c.active else "No"})
+        holder["grid"] = list_grid(rows, [
+            {"field": "name", "headerName": "Customer", "width": 210},
+            {"field": "contact", "headerName": "Primary contact", "width": 160},
+            {"field": "phone", "headerName": "Phone", "width": 130},
+            {"field": "email", "headerName": "Email", "width": 190},
+            {"field": "address", "headerName": "Mailing address", "flex": 1, "minWidth": 180},
+            {"field": "projects", "headerName": "Projects", "width": 100, "type": "rightAligned"},
+            {"field": "source", "headerName": "How they found you", "width": 160},
+            {"field": "active", "headerName": "Active", "width": 100}],
+            lambda cid: customer_dialog(st.customers.get(cid), lambda *_: table.refresh(holder)),
+            "No customers yet. Use New customer, or pick one when you create a project.")
 
-    ui.button("New customer", icon="person_add",
-              on_click=lambda: customer_dialog(None, lambda *_: table.refresh())).props("dense")
-    table()
+    holder: dict = {}
+    _list_page("Customers", "One entry per client, with as many contacts and addresses as needed. A project "
+               "picks its customer and site address in Project info.", "New customer", "person_add",
+               lambda: customer_dialog(None, lambda *_: table.refresh(holder)), table, holder)
 
 
 def customer_dialog(cust: Customer | None, on_saved, preset_name: str = "") -> None:
     st = get_state()
     is_new = cust is None
-    work = (cust.model_copy(deep=True) if cust else Customer(name=preset_name or "New customer"))
+    work = (cust.model_copy(deep=True) if cust else Customer(name=preset_name or ""))
     with ui.dialog() as dlg, ui.card().classes("w-[1000px] max-w-full"):
         ui.label("New customer" if is_new else work.name).classes("text-lg font-semibold")
         with ui.grid(columns=4).classes("w-full gap-x-3"):
-            name = ui.input("Name (as printed on proposals)", value=work.name).props("dense").classes("col-span-2")
+            name = ui.input("Name (as printed on proposals)", value=work.name,
+                            placeholder="e.g. Kim and Pam Hotch").props("dense").classes("col-span-2")
             source = ui.select(keep_current({x: x for x in st.settings.lists.lead_sources}, work.source),
                                value=work.source or None, label="How they found you", with_input=True,
                                new_value_mode="add-unique").props("dense clearable")
@@ -107,6 +118,9 @@ def customer_dialog(cust: Customer | None, on_saved, preset_name: str = "") -> N
 
         def save() -> None:
             work.name = (name.value or "").strip() or work.name
+            if not work.name:
+                ui.notify("Enter the customer's name.", type="warning")
+                return
             work.source, work.notes, work.active = source.value or "", notes.value or "", active.value
             work.mailing_address_id = mailing.value or None
             other = st.customers.find(work.name)
@@ -198,54 +212,52 @@ def project_contractor_ids(project, rev) -> set[str]:
 def contractors_page() -> None:
     layout("Contractors")
     st = get_state()
-    ui.label("Contractors").classes("text-xl font-semibold")
-    ui.label("Subcontractors. Proposal lines and change order items pick from this list. Insurance that has "
-             "lapsed or lapses within 30 days is flagged here and on accepted projects.") \
-        .classes("text-xs text-gray-500 mb-2")
 
     @ui.refreshable
-    def table() -> None:
+    def table(holder: dict) -> None:
         rows = []
         for c in st.contractors.sorted():
             ins = c.insurance_status()
             rows.append({"id": c.id, "company": c.company, "trades": ", ".join(c.trades), "contact": c.contact,
                          "phone": c.phone, "email": c.email,
                          "license": " ".join(x for x in (c.license_type, c.license_no) if x),
-                         "insurance": (f"{c.insurance_expiry:%Y-%m-%d}" if c.insurance_expiry else "none on file")
-                         + ("" if ins == "ok" else f" ({ins})"),
-                         "ins": ins, "w9": "yes" if c.w9_on_file else "", "rating": "★" * (c.rating or 0),
-                         "active": "" if c.active else "inactive"})
-        flt = ui.input(placeholder="Filter").props("dense clearable").classes("w-64")
-        g = _grid(rows, [{"field": "company", "headerName": "Company", "width": 200},
-                         {"field": "trades", "headerName": "Trades", "width": 170},
-                         {"field": "contact", "headerName": "Contact", "width": 150},
-                         {"field": "phone", "headerName": "Phone", "width": 130},
-                         {"field": "email", "headerName": "Email", "flex": 1},
-                         {"field": "license", "headerName": "License", "width": 140},
-                         {"field": "insurance", "headerName": "Insurance expiry", "width": 190,
-                          ":cellStyle": "p => ({expired: {color: '#B00020', fontWeight: 600}, "
-                                        "expiring: {color: '#B26A00', fontWeight: 600}, "
-                                        "unknown: {color: '#80868b'}})[p.data.ins] || null"},
-                         {"field": "w9", "headerName": "W-9", "width": 70},
-                         {"field": "rating", "headerName": "Rating", "width": 90},
-                         {"field": "active", "headerName": "", "width": 80}],
-                  lambda cid: contractor_dialog(st.contractors.get(cid), lambda *_: table.refresh()))
-        flt.on_value_change(lambda e: g.run_grid_method("setGridOption", "quickFilterText", e.value or ""))
-        ui.label("Double-click a contractor to open it.").classes("text-xs text-gray-500")
+                         "insurance": (fmt_date(c.insurance_expiry) if c.insurance_expiry else "none on file")
+                         + ("" if ins in ("ok", "unknown") else f" ({ins})"),
+                         "ins": ins, "w9": "Yes" if c.w9_on_file else "", "rating": "★" * (c.rating or 0),
+                         "active": "Yes" if c.active else "No"})
+        holder["grid"] = list_grid(rows, [
+            {"field": "company", "headerName": "Company", "width": 190},
+            {"field": "trades", "headerName": "Trades", "width": 150},
+            {"field": "contact", "headerName": "Contact", "width": 130},
+            {"field": "phone", "headerName": "Phone", "width": 120},
+            {"field": "email", "headerName": "Email", "flex": 1, "minWidth": 150},
+            {"field": "license", "headerName": "License", "width": 120},
+            {"field": "insurance", "headerName": "Insurance expiry", "width": 170,
+             ":cellStyle": "p => ({expired: {color: '#B00020', fontWeight: 600}, "
+                           "expiring: {color: '#B26A00', fontWeight: 600}, "
+                           "unknown: {color: '#80868b'}})[p.data.ins] || null"},
+            {"field": "w9", "headerName": "W-9", "width": 70},
+            {"field": "rating", "headerName": "Rating", "width": 90},
+            {"field": "active", "headerName": "Active", "width": 100}],
+            lambda cid: contractor_dialog(st.contractors.get(cid), lambda *_: table.refresh(holder)),
+            "No contractors yet. Use New contractor, or the + beside Contractor on a line.")
 
-    ui.button("New contractor", icon="engineering",
-              on_click=lambda: contractor_dialog(None, lambda *_: table.refresh())).props("dense")
-    table()
+    holder: dict = {}
+    _list_page("Contractors", "Subcontractors. Proposal lines and change order items pick from this list. Insurance "
+               "that has lapsed or lapses within 30 days is flagged here and on accepted projects.",
+               "New contractor", "engineering",
+               lambda: contractor_dialog(None, lambda *_: table.refresh(holder)), table, holder)
 
 
 def contractor_dialog(con: Contractor | None, on_saved, preset_name: str = "") -> None:
     st = get_state()
     is_new = con is None
-    work = con.model_copy(deep=True) if con else Contractor(company=preset_name or "New contractor")
+    work = con.model_copy(deep=True) if con else Contractor(company=preset_name or "")
     with ui.dialog() as dlg, ui.card().classes("w-[860px] max-w-full"):
         ui.label("New contractor" if is_new else work.company).classes("text-lg font-semibold")
         with ui.grid(columns=4).classes("w-full gap-x-3"):
-            company = ui.input("Company", value=work.company).props("dense").classes("col-span-2")
+            company = ui.input("Company", value=work.company, placeholder="e.g. Sparky Electric").props("dense") \
+                .classes("col-span-2")
             trade_opts = list(dict.fromkeys([*st.settings.lists.trades, *work.trades]))
             trades = ui.select(trade_opts, value=list(work.trades), label="Trades", multiple=True, with_input=True,
                                new_value_mode="add-unique").props("dense use-chips").classes("col-span-2")
@@ -254,8 +266,7 @@ def contractor_dialog(con: Contractor | None, on_saved, preset_name: str = "") -
             email = ui.input("Email", value=work.email).props("dense").classes("col-span-2")
             lic_type = ui.input("License type", value=work.license_type).props("dense")
             lic_no = ui.input("License number", value=work.license_no).props("dense")
-            ins = ui.input("Insurance expiry", value=work.insurance_expiry.isoformat() if work.insurance_expiry else "") \
-                .props("dense type=date")
+            ins = date_input("Insurance expiry", work.insurance_expiry)
             rating = ui.select({0: "-", 1: "★", 2: "★★", 3: "★★★", 4: "★★★★", 5: "★★★★★"}, value=work.rating or 0,
                                label="Rating").props("dense")
             w9 = ui.checkbox("W-9 on file", value=work.w9_on_file)
@@ -273,10 +284,12 @@ def contractor_dialog(con: Contractor | None, on_saved, preset_name: str = "") -
         def save() -> None:
             try:
                 work.company = (company.value or "").strip() or work.company
+                if not work.company:
+                    raise ValueError("enter the company name")
                 work.trades = [t.strip() for t in (trades.value or []) if t.strip()]
                 work.contact, work.phone, work.email = contact.value or "", phone.value or "", email.value or ""
                 work.license_type, work.license_no = lic_type.value or "", lic_no.value or ""
-                work.insurance_expiry = date.fromisoformat(ins.value) if ins.value else None
+                work.insurance_expiry = parse_date(ins.value)
                 work.rating = int(rating.value) or None
                 work.w9_on_file, work.active, work.notes = w9.value, active.value, notes.value or ""
             except ValueError as err:
@@ -319,15 +332,79 @@ def contractor_dialog(con: Contractor | None, on_saved, preset_name: str = "") -
 def suppliers_page() -> None:
     layout("Suppliers")
     st = get_state()
-    ui.label("Suppliers").classes("text-xl font-semibold")
-    ui.label("Material and equipment vendors. Vendor fields on lines and actual costs pick from suppliers and "
-             "contractors. Edit cells in place.").classes("text-xs text-gray-500 mb-2")
-    EditableGrid(lambda: st.suppliers.suppliers,
-                 [Col("name", "Name", width=200), Col("contact", "Contact", width=150),
-                  Col("phone", "Phone", width=130), Col("email", "Email", width=200),
-                  Col("account_no", "Account #", width=120), Col("website", "Website", width=180),
-                  Col("notes", "Notes", flex=1), Col("active", "Active", "bool", width=80)],
-                 st.save_suppliers, lambda: Supplier(name="New supplier"))
+
+    @ui.refreshable
+    def table(holder: dict) -> None:
+        rows = [{"id": s.id, "name": s.name, "contact": s.contact, "phone": s.phone, "email": s.email,
+                 "account": s.account_no, "website": s.website, "active": "Yes" if s.active else "No"}
+                for s in st.suppliers.sorted()]
+        holder["grid"] = list_grid(rows, [
+            {"field": "name", "headerName": "Supplier", "width": 210},
+            {"field": "contact", "headerName": "Contact", "width": 150},
+            {"field": "phone", "headerName": "Phone", "width": 130},
+            {"field": "email", "headerName": "Email", "flex": 1, "minWidth": 160},
+            {"field": "account", "headerName": "Account #", "width": 130},
+            {"field": "website", "headerName": "Website", "width": 190},
+            {"field": "active", "headerName": "Active", "width": 100}],
+            lambda sid: supplier_dialog(st.suppliers.get(sid), lambda *_: table.refresh(holder)),
+            "No suppliers yet. Use New supplier.")
+
+    holder: dict = {}
+    _list_page("Suppliers", "Material and equipment vendors. Vendor fields on lines and actual costs pick from "
+               "suppliers and contractors.", "New supplier", "add_business",
+               lambda: supplier_dialog(None, lambda *_: table.refresh(holder)), table, holder)
+
+
+def supplier_dialog(sup: Supplier | None, on_saved) -> None:
+    st = get_state()
+    is_new = sup is None
+    work = sup.model_copy(deep=True) if sup else Supplier(name="")
+    with ui.dialog() as dlg, ui.card().classes("w-[760px] max-w-full"):
+        ui.label("New supplier" if is_new else work.name).classes("text-lg font-semibold")
+        with ui.grid(columns=4).classes("w-full gap-x-3"):
+            name = ui.input("Name", value=work.name, placeholder="e.g. Lowe's Pro Desk").props("dense") \
+                .classes("col-span-2")
+            contact = ui.input("Contact", value=work.contact).props("dense")
+            phone = ui.input("Phone", value=work.phone).props("dense")
+            email = ui.input("Email", value=work.email).props("dense").classes("col-span-2")
+            account = ui.input("Account #", value=work.account_no).props("dense")
+            active = ui.checkbox("Active", value=work.active)
+            website = ui.input("Website", value=work.website).props("dense").classes("col-span-4")
+        notes = ui.textarea("Notes", value=work.notes).props("dense autogrow").classes("w-full")
+
+        def save() -> None:
+            work.name = (name.value or "").strip()
+            if not work.name:
+                ui.notify("Enter the supplier's name.", type="warning")
+                return
+            other = st.suppliers.find(work.name)
+            if other is not None and other.id != work.id:
+                ui.notify(f"A supplier named {work.name} already exists.", type="warning")
+                return
+            work.contact, work.phone, work.email = contact.value or "", phone.value or "", email.value or ""
+            work.account_no, work.website, work.notes = account.value or "", website.value or "", notes.value or ""
+            work.active = active.value
+            if is_new:
+                st.suppliers.suppliers.append(work)
+            else:
+                st.suppliers.suppliers[st.suppliers.suppliers.index(sup)] = work
+            st.save_suppliers()
+            dlg.close()
+            on_saved(work)
+
+        def delete() -> None:
+            st.suppliers.suppliers.remove(sup)
+            st.save_suppliers()
+            dlg.close()
+            on_saved(None)
+
+        with ui.row().classes("w-full justify-end gap-2"):
+            if not is_new:
+                ui.button("Delete", icon="delete", on_click=delete).props("flat color=negative")
+            ui.space()
+            ui.button("Cancel", on_click=dlg.close).props("flat")
+            ui.button("Save", icon="save", on_click=save)
+    dlg.open()
 
 
 def vendor_names() -> list[str]:

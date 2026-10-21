@@ -15,19 +15,27 @@ NAV_PROPOSALS = [
     ("Income summary", "/summary", "insights"),
 ]
 
-NAV = [
+NAV_CATALOG = [
     ("Catalog items", "/items", "list_alt"),
     ("Sections", "/sections", "view_agenda"),
     ("Rates", "/rates", "schedule"),
     ("Price ranges", "/allowances", "straighten"),
     ("Units", "/units", "square_foot"),
     ("Stock lengths", "/stock", "carpenter"),
-    ("Boilerplate", "/boilerplate", "article"),
+    ("Terms library", "/boilerplate", "article"),
+]
+
+NAV_CONTACTS = [
     ("Customers", "/customers", "people"),
     ("Contractors", "/contractors", "engineering"),
     ("Suppliers", "/suppliers", "local_shipping"),
-    ("Settings", "/settings", "settings"),
 ]
+
+NAV_SETTINGS = [("Settings", "/settings", "settings")]
+
+NAV_GROUPS = [("Proposals", NAV_PROPOSALS), ("Catalog", NAV_CATALOG), ("Contacts", NAV_CONTACTS),
+              ("", NAV_SETTINGS)]
+NAV = NAV_CATALOG + NAV_CONTACTS + NAV_SETTINGS
 
 BRAND = "#1F3A5F"
 
@@ -36,6 +44,10 @@ BRAND = "#1F3A5F"
 THEME_CSS = """
     .nicegui-content { padding: 16px 24px; }
     .ag-theme-quartz, .nicegui-aggrid { --ag-font-size: 13px; }
+    .pb-strip { background: #ffffff; }
+    .pb-navsel { background: rgba(31, 58, 95, 0.08); }
+    .body--dark .pb-navsel { background: rgba(169, 196, 232, 0.12); }
+    .body--dark .pb-strip { background: #1d1d1d; border-color: #3a3a3a !important; }
     .pb-brand { color: #1F3A5F; }      .pb-red { color: #B00020; }
     .pb-green { color: #1B5E20; }      .pb-amber { color: #B26A00; }
     .pb-pct { background: #E6E8EB !important; }
@@ -47,9 +59,8 @@ THEME_CSS = """
     .pb-last .ag-cell { font-weight: 600; }
     .pb-warnbox { background: #FFF4E5; border: 1px solid #F0C36D; }
     .pb-selected { background: #eef3f9; border-radius: 4px; }
-    .body--dark { --q-primary: #8FB3E0 !important; }
+    .body--dark { --q-primary: #4C7DBD !important; }   /* white text 4.5:1; as text on dark 4:1 */
     .body--dark .q-header { --q-primary: #1F3A5F !important; }
-    .body--dark .bg-primary.text-white { color: #0E1B2C !important; }
     .body--dark .pb-brand { color: #A9C4E8; }  .body--dark .pb-red { color: #FF8A80; }
     .body--dark .pb-green { color: #81C784; }  .body--dark .pb-amber { color: #FFB74D; }
     .body--dark .pb-pct { background: #33373d !important; }
@@ -86,6 +97,7 @@ def layout(title: str, drawer: bool = True) -> None:
     with ui.header().classes("items-center py-2 px-4").style(f"background:{BRAND}"):
         ui.label("Kept Spec Proposal Builder").classes("text-lg font-semibold")
         ui.space()
+        _saved_indicator()
         ui.label(title).classes("text-sm opacity-80")
         from .. import __version__
         ui.label(f"v{__version__}").classes("text-xs opacity-60")
@@ -93,21 +105,75 @@ def layout(title: str, drawer: bool = True) -> None:
         header_slot()
     with ui.left_drawer(value=drawer, bordered=True).classes("p-0").props("width=210"):
         with ui.list().props("dense padding").classes("w-full"):
-            ui.item_label("Proposals").props("header").classes("text-xs uppercase")
-            for label, path, icon in NAV_PROPOSALS:
-                with ui.item(on_click=lambda p=path: ui.navigate.to(p)).props("clickable"):
-                    with ui.item_section().props("avatar"):
-                        ui.icon(icon, size="xs")
-                    with ui.item_section():
-                        ui.item_label(label).classes("font-semibold" if label == title else "")
-            ui.separator()
-            ui.item_label("Catalog").props("header").classes("text-xs uppercase")
-            for label, path, icon in NAV:
-                with ui.item(on_click=lambda p=path: ui.navigate.to(p)).props("clickable"):
-                    with ui.item_section().props("avatar"):
-                        ui.icon(icon, size="xs")
-                    with ui.item_section():
-                        ui.item_label(label).classes("font-semibold" if label == title else "")
+            for n, (group, items) in enumerate(NAV_GROUPS):
+                if n:
+                    ui.separator()
+                if group:
+                    ui.item_label(group).props("header").classes("text-xs uppercase")
+                for label, path, icon in items:
+                    with ui.item(on_click=lambda p=path: ui.navigate.to(p)).props("clickable") \
+                            .classes("pb-navsel" if label == title else ""):
+                        with ui.item_section().props("avatar"):
+                            ui.icon(icon, size="xs")
+                        with ui.item_section():
+                            ui.item_label(label).classes("font-semibold" if label == title else "")
+
+
+# ---------------------------------------------------------------- saved indicator
+
+
+def _saved_indicator() -> None:
+    """Small "Saved 6:41 PM" in the top bar, updated by every write to the data folder."""
+    from .. import store
+    lbl = ui.label("").classes("text-xs opacity-80 mr-3")
+    lbl.set_visibility(False)
+    ui.context.client.pb_saved_label = lbl
+    if _flash_saved not in store.SAVE_HOOKS:
+        store.SAVE_HOOKS.append(_flash_saved)
+
+
+def _flash_saved(_path=None) -> None:
+    try:
+        client = ui.context.client
+    except Exception:  # noqa: BLE001  no page context (startup, background thread)
+        return
+    lbl = getattr(client, "pb_saved_label", None)
+    if lbl is not None:
+        lbl.set_text(f"Saved {datetime.now():%I:%M %p}".replace(" 0", " "))
+        lbl.set_visibility(True)
+
+
+# ---------------------------------------------------------------- page frame
+
+
+def page_title(title: str, help_text: str = "") -> None:
+    """Title and one line of help at the top of every page."""
+    ui.label(title).classes("text-xl font-semibold")
+    if help_text:
+        ui.label(help_text).classes("text-xs text-gray-500 mb-1")
+
+
+def toolbar():
+    """Row for a page's main button(s) and its filter box."""
+    return ui.row().classes("w-full items-center gap-2 mb-2 no-wrap")
+
+
+def filter_box(grid_getter, placeholder: str = "Filter"):
+    inp = ui.input(placeholder=placeholder).props("dense clearable").classes("w-64")
+    inp.on_value_change(lambda e: grid_getter().run_grid_method("setGridOption", "quickFilterText", e.value or ""))
+    return inp
+
+
+def list_grid(rows: list[dict], cols: list[dict], on_open, empty: str, height: str = "calc(100vh - 230px)",
+              key: str = "id"):
+    """Read-only list; double-click a row to open it."""
+    g = ui.aggrid({"columnDefs": cols, "rowData": rows, "rowHeight": 32, "headerHeight": 36,
+                   "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
+                   "defaultColDef": {"resizable": True, "sortable": True, "filter": True},
+                   "overlayNoRowsTemplate": no_rows(empty)},
+                  auto_size_columns=False).classes("w-full").style(f"height:{height}")
+    g.on("cellDoubleClicked", lambda e: on_open(e.args["data"][key]))
+    return g
 
 
 def keep_current(options: dict, value) -> dict:
@@ -146,6 +212,54 @@ def warn(problems: list[str]) -> None:
                   + (" ..." if len(problems) > 5 else ""), type="warning", multi_line=True, timeout=8000)
 
 
+# ---------------------------------------------------------------- dates and money
+
+DATE_FMT = "%Y.%m.%d"          # one date format everywhere (matches the proposal)
+MONEY_JS = ("p => (p.value === null || p.value === undefined || p.value === '') ? '' : "
+            "(Number(p.value) < 0 ? '-$' : '$') + Math.abs(Number(p.value)).toLocaleString('en-US', "
+            "{minimumFractionDigits: 2, maximumFractionDigits: 2})")
+DATE_JS = "p => p.value ? String(p.value).slice(0, 10).replaceAll('-', '.') : ''"
+
+
+def fmt_date(d: date | datetime | None) -> str:
+    return d.strftime(DATE_FMT) if d else ""
+
+
+def parse_date(s: Any) -> date | None:
+    """2026.10.20, 2026-10-20, 10/20/2026 or 10/20 (this year); blank -> None."""
+    if s in (None, ""):
+        return None
+    if isinstance(s, date):
+        return s
+    txt = str(s).strip()
+    for fmt in (DATE_FMT, "%Y-%m-%d", "%m/%d/%Y", "%m/%d/%y"):
+        try:
+            return datetime.strptime(txt[:10], fmt).date()
+        except ValueError:
+            continue
+    try:
+        return datetime.strptime(f"{txt}/{date.today().year}", "%m/%d/%Y").date()
+    except ValueError:
+        raise ValueError(f"not a date: {txt!r} (use {date.today():%Y.%m.%d})") from None
+
+
+def date_input(label: str, value: date | None, readonly: bool = False):
+    """Text field showing 2026.10.20 with a calendar picker. Read it back with parse_date(x.value)."""
+    inp = ui.input(label, value=fmt_date(value), placeholder=f"{date.today():%Y.%m.%d}").props(
+        "dense" + (" readonly" if readonly else ""))
+    if not readonly:
+        with ui.menu().props("no-parent-event") as menu:
+            ui.date(mask="YYYY.MM.DD").bind_value(inp).on_value_change(lambda _: menu.close())
+        with inp.add_slot("append"):
+            ui.icon("event").on("click", menu.open).classes("cursor-pointer")
+    return inp
+
+
+def no_rows(text: str) -> str:
+    """AG Grid empty-state overlay."""
+    return f'<span class="text-sm text-gray-500">{text}</span>'
+
+
 # ---------------------------------------------------------------- editable grid
 
 
@@ -153,7 +267,7 @@ def warn(problems: list[str]) -> None:
 class Col:
     field: str
     header: str
-    kind: str = "text"                  # text | number | bool | select | list | strlist | date
+    kind: str = "text"                  # text | number | money | bool | select | list | strlist | date | lookup
     options: list[str] = field(default_factory=list)
     width: int | None = None
     flex: int | None = None
@@ -166,27 +280,67 @@ class EditableGrid:
 
     def __init__(self, models: Callable[[], list[BaseModel]], cols: list[Col],
                  save: Callable[[], list[str] | None], new_model: Callable[[], BaseModel] | None = None,
-                 height: str = "70vh", readonly: bool = False):
+                 height: str = "70vh", readonly: bool = False, empty: str = ""):
         self.models, self.cols, self.save, self.new_model = models, cols, save, new_model
         self.readonly = readonly
         if readonly:
             self.cols = cols = [Col(**{**c.__dict__, "editable": False}) for c in cols]
-        toolbar = ui.row().classes("gap-2 mb-2")
+        toolbar = ui.row().classes("gap-2 mb-2 items-center")
         toolbar.set_visibility(not readonly)
         with toolbar:
             if new_model:
                 ui.button("Add row", icon="add", on_click=self.add).props("outline dense")
-            ui.button("Delete selected", icon="delete", on_click=self.delete).props("outline dense color=negative")
+            self.del_btn = ui.button("Delete selected", icon="delete", on_click=self.delete) \
+                .props("outline dense color=negative")
+            self.del_btn.disable()             # enabled once rows are ticked
             self.filter = ui.input(placeholder="Filter").props("dense clearable").classes("w-64")
             self.filter.on_value_change(lambda e: self.grid.run_grid_method("setGridOption", "quickFilterText", e.value or ""))
+        if not empty:
+            empty = ("Nothing here yet. Use Add row to add one." if new_model and not readonly else "Nothing here yet.")
         self.grid = ui.aggrid({
             "columnDefs": [self._coldef(c) for c in cols],
             "rowData": self._rows(),
             "rowSelection": {"mode": "multiRow"},
             "rowHeight": 32, "headerHeight": 36,
             "stopEditingWhenCellsLoseFocus": True,
+            "overlayNoRowsTemplate": no_rows(empty),
         }).classes("w-full").style(f"height:{height}")
         self.grid.on("cellValueChanged", self._changed)
+        self.grid.on("selectionChanged", self._selection)
+        self.grid.on("cellDoubleClicked", self._date_pick)
+
+    async def _selection(self, _=None) -> None:
+        rows = await self.grid.get_selected_rows()
+        self.del_btn.set_enabled(bool(rows))
+
+    def _date_pick(self, e) -> None:
+        """Date cells open a calendar (2026.10.20) instead of the browser's own date field."""
+        col = next((c for c in self.cols if c.field == e.args.get("colId")), None)
+        data = e.args.get("data", {})
+        models = self.models()
+        if col is None or col.kind != "date" or not col.editable or data.get("_i") is None \
+                or data["_i"] >= len(models):
+            return
+        model = models[data["_i"]]
+        cur = getattr(model, col.field)
+        with ui.dialog() as dlg, ui.card():
+            ui.label(col.header).classes("font-semibold")
+            picker = ui.date(value=fmt_date(cur) or None, mask="YYYY.MM.DD")
+
+            def done(value) -> None:
+                try:
+                    setattr(model, col.field, parse_date(value))
+                except (ValidationError, ValueError) as err:
+                    ui.notify(f"Not saved: {err}", type="negative")
+                    return
+                dlg.close()
+                warn(self.save() or [])
+                self.refresh()
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Clear", on_click=lambda: done(None)).props("flat")
+                ui.button("Cancel", on_click=dlg.close).props("flat")
+                ui.button("OK", on_click=lambda: done(picker.value))
+        dlg.open()
 
     def _coldef(self, c: Col) -> dict:
         d: dict[str, Any] = {"field": c.field, "headerName": c.header, "editable": c.editable,
@@ -197,6 +351,14 @@ class EditableGrid:
             d["flex"] = c.flex
         if c.kind == "number":
             d["cellDataType"] = "number"
+        elif c.kind == "money":
+            d["cellDataType"] = "number"
+            d["type"] = "rightAligned"
+            d[":valueFormatter"] = MONEY_JS
+        elif c.kind == "date":
+            d["editable"] = False                  # double-click opens the calendar (_date_pick)
+            d["cellDataType"] = "text"
+            d[":valueFormatter"] = DATE_JS
         elif c.kind == "bool":
             d["cellDataType"] = "boolean"
         elif c.kind == "select":
@@ -205,7 +367,7 @@ class EditableGrid:
         elif c.kind == "lookup":
             d["cellEditor"] = "agSelectCellEditor"
             d["cellEditorParams"] = {"values": ["", *c.lookup.values()]}
-        elif c.kind in ("list", "strlist", "date"):
+        elif c.kind in ("list", "strlist"):
             d["cellDataType"] = "text"
         return d
 
@@ -227,14 +389,14 @@ class EditableGrid:
         self.grid.update()
 
     def _convert(self, c: Col, v: Any) -> Any:
-        if c.kind == "number":
+        if c.kind in ("number", "money"):
             return to_decimal(v)
         if c.kind == "list":
             return [to_decimal(x) for x in str(v or "").split(",") if x.strip()]
         if c.kind == "strlist":
             return [x.strip() for x in str(v or "").split(",") if x.strip()]
         if c.kind == "date":
-            return date.fromisoformat(str(v).strip()[:10]) if v not in (None, "") else None
+            return parse_date(v)
         if c.kind == "lookup":
             return next((k for k, label in c.lookup.items() if label == v), None) if v else None
         return v
@@ -284,3 +446,4 @@ class EditableGrid:
             del models[i]
         warn(self.save() or [])
         self.refresh()
+        self.del_btn.disable()

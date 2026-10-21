@@ -76,6 +76,10 @@ def save_data_dir(path: Path) -> None:
 # ---------------------------------------------------------------- io helpers
 
 
+# called after every successful write (the app shows a "Saved" time in the top bar)
+SAVE_HOOKS: list = []
+
+
 def _atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
@@ -89,6 +93,11 @@ def _atomic_write(path: Path, text: str) -> None:
         if os.path.exists(tmp):
             os.remove(tmp)
         raise
+    for hook in SAVE_HOOKS:
+        try:
+            hook(path)
+        except Exception:  # noqa: BLE001  a display hook must never break a save
+            pass
 
 
 def dump_model(model: BaseModel) -> str:

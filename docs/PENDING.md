@@ -63,4 +63,23 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 
 ## Next release
 
-(nothing yet)
+UX review items (numbers from docs/ux-review.md):
+
+23. [x] (3) Line form: header and Save / Save & close / Cancel stay in view; the form between them scrolls.
+24. [x] (4) Terms & options: each block knows the library text it was copied from. Labels: "edited for this proposal", "library text updated since; open it and Reset to library text to use it" (orange), or both. The group heading counts library updates. Proposals copied before this version are recognised from the replaced library texts (e.g. the $0 block).
+25. [x] (5) Editor: one compact header row (back, title, revision, state, date, status, Preview, Issue, and a menu with Project info, Export PDF, Change orders & ledger); totals in one strip; the lines grid and sections panel fill the window. About 16 lines show at 900 px (was about 14 with page scrolling, 8 at 720 px).
+26. [x] (8) Suppliers: list plus a form like Contractors (was edited in the grid).
+27. [x] (9) Same frame on every list page: title, one line of help, toolbar with the main button and filter, grid. Projects gets a filter; Archive / restore and Delete enable once a project is selected.
+28. [x] (10) Delete selected stays disabled until rows are ticked.
+29. [x] (11) Dates show as 2026.10.20 everywhere (header, grids, lists). Every date field has a calendar picker: project date, change order requested date, insurance expiry, income summary From / To, and date cells in grids (double-click opens the calendar). Typed dates accept 2026.10.20, 2026-10-20, 10/20/2026 or 10/20. Money in every grid shows as $1,234.00 (rates, price ranges, quotes, change order items, actual costs, payments).
+30. [x] (12) Terminology: "Basis" everywhere for Fixed / Rate / Range / Percent (catalog list, catalog picker, item and line forms; values capitalised); "Terms library" in the menu (was Boilerplate); change order items say Performer; the price range column "Basis" is now "Includes". Menu groups: Proposals / Catalog / Contacts / Settings.
+31. [x] (18) "Saved 6:41 PM" in the top bar after every write to the data folder.
+32. [x] (19) Empty states say what to do: every grid has its own message; Sub quotes explains how to assign a contractor (request controls hidden until one is) and when the comparison becomes available; Change orders before acceptance has an Open the proposal button.
+33. [x] (20) Read-only revisions: the sections panel shows a print / not printed icon instead of checkboxes and arrows.
+34. [x] (21) Change orders page: "Projected final cost" (if nothing else changes); Balance due stays neutral until a payment is received or the project is closed.
+35. [x] (22) Change order form footer: Delete on the left, Preview and Export together, then Cancel, Save and one button for the next step (Mark issued, or Approve) with the other outcomes in its menu.
+36. [x] (23) Settings in tabs: Company, Proposals, Sub quotes, Lists, Variables, App and data. % / $ / days markers on number fields; the two cut-off labels are shorter with help text below.
+37. [x] (25) New contractor, customer, supplier, custom line and alternate start blank with an example hint instead of "New contractor", "New line", "Alternate 1".
+38. [x] (26) Dark mode: primary buttons are a mid blue with white text (was white on light blue).
+39. [x] (27) Issues tab shows a count badge (red with errors, orange with warnings); the totals strip shows "N errors, N warnings" and opens the Issues tab when clicked.
+40. [x] Custom line and New change order create nothing until Save; Cancel leaves no blank line or draft behind.

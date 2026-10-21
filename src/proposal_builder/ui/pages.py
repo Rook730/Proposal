@@ -24,7 +24,7 @@ from ..models import (
     Variable,
 )
 from .state import get_state, set_data_dir
-from .widgets import keep_current, Col, EditableGrid, layout, to_decimal, warn
+from .widgets import keep_current, Col, EditableGrid, filter_box, layout, no_rows, page_title, to_decimal, toolbar, warn
 
 
 def md_breaks(text: str) -> str:
@@ -60,7 +60,7 @@ def _item_rows() -> list[dict]:
                                          ("credit", i.credit_if_unused), ("inactive", not i.active)] if on)
         rows.append({
             "code": i.code, "section": f"{i.section} {sections.get(i.section, '?')}",
-            "group": i.group, "title": i.title, "unit": i.unit, "source": basis_label(i.price_source),
+            "group": i.group, "title": i.title, "unit": i.unit, "source": basis_label(i.price_source).capitalize(),
             "price": shown, "performer": i.performer, "flags": flags,
             "description": i.description,
         })
@@ -86,7 +86,7 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
         desc = ui.textarea("General description (printed on every use)", value=f["description"]) \
             .props("dense autogrow").classes("w-full")
         with ui.row().classes("items-center gap-3 mt-1"):
-            ui.label("Price").classes("font-semibold text-sm")
+            ui.label("Basis").classes("font-semibold text-sm")
             source = ui.toggle({p.value: basis_label(p).capitalize() for p in PriceSource},
                                value=f["price_source"]).props("dense no-caps")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
@@ -190,10 +190,13 @@ def items_page() -> None:
         code = e.args["data"]["code"]
         item_dialog(st.catalog.item(code), refresh)
 
-    with ui.row().classes("gap-2 mb-2 items-center"):
+    page_title("Catalog items", "Items you add to proposals. Each line keeps a copy, so editing an item here never "
+               "changes a saved proposal.")
+    with toolbar():
         ui.button("New item", icon="add", on_click=lambda: item_dialog(None, refresh)).props("dense")
-        flt = ui.input(placeholder="Search code, title, description").props("dense clearable").classes("w-80")
-        ui.label("Double-click a row to edit.").classes("text-xs text-gray-500")
+        flt = filter_box(lambda: grid, "Filter code, title, description")
+        ui.space()
+        ui.label("Double-click a row to open it.").classes("text-xs text-gray-500")
     grid = ui.aggrid({
         "columnDefs": [
             {"field": "code", "headerName": "Code", "width": 80, "sort": "asc"},
@@ -201,7 +204,7 @@ def items_page() -> None:
             {"field": "group", "headerName": "Group", "width": 100},
             {"field": "title", "headerName": "Title", "width": 230},
             {"field": "unit", "headerName": "Unit", "width": 70},
-            {"field": "source", "headerName": "Source", "width": 95},
+            {"field": "source", "headerName": "Basis", "width": 95},
             {"field": "price", "headerName": "Default price", "width": 150},
             {"field": "performer", "headerName": "Performer", "width": 180},
             {"field": "flags", "headerName": "Flags", "width": 120},
@@ -211,9 +214,9 @@ def items_page() -> None:
         "rowData": _item_rows(),
         "defaultColDef": {"sortable": True, "resizable": True},
         "rowHeight": 32, "headerHeight": 36,
-    }, auto_size_columns=False).classes("w-full").style("height:78vh")
+        "overlayNoRowsTemplate": no_rows("No catalog items yet. Use New item."),
+    }, auto_size_columns=False).classes("w-full").style("height:calc(100vh - 230px)")
     grid.on("cellDoubleClicked", open_selected)
-    flt.on_value_change(lambda e: grid.run_grid_method("setGridOption", "quickFilterText", e.value or ""))
 
 
 # ---------------------------------------------------------------- simple tables
@@ -223,8 +226,7 @@ def items_page() -> None:
 def sections_page() -> None:
     layout("Sections")
     st = get_state()
-    ui.label("Sections print in number order. Changing a number does not move its items.") \
-        .classes("text-xs text-gray-500")
+    page_title("Sections", "Sections print in number order. Changing a number does not move its items.")
 
     def new() -> Section:
         n = max((s.number for s in st.catalog.sections), default=0) + 100
@@ -243,12 +245,12 @@ def sections_page() -> None:
 def rates_page() -> None:
     layout("Rates")
     st = get_state()
-    ui.label("Items priced by rate pick up rate changes. Saved proposals keep their snapshot.") \
-        .classes("text-xs text-gray-500")
+    page_title("Rates", "Hourly and unit rates. Items priced by rate pick up rate changes; saved proposals keep "
+               "their copy.")
     EditableGrid(lambda: st.catalog.rates,
                  [Col("key", "Key", width=140), Col("name", "Name", flex=2),
                   Col("unit", "Unit", "select", [u.code for u in st.catalog.units], width=90),
-                  Col("rate", "Rate ($)", "number", width=120)],
+                  Col("rate", "Rate", "money", width=120)],
                  st.save_catalog,
                  lambda: Rate(key=f"rate{len(st.catalog.rates) + 1}", name="New rate", rate=Decimal(0)))
 
@@ -257,14 +259,14 @@ def rates_page() -> None:
 def allowances_page() -> None:
     layout("Price ranges")
     st = get_state()
-    ui.label("Mid is computed as (low + high) / 2. Link ranges to items on the item form.") \
-        .classes("text-xs text-gray-500")
+    page_title("Price ranges", "Low and high prices for selections; mid is (low + high) / 2. Link ranges to items "
+               "on the item form (Basis: Range).")
     EditableGrid(lambda: st.catalog.allowances,
                  [Col("category", "Category", width=150), Col("description", "Description", flex=2),
                   Col("unit", "Unit", "select", [u.code for u in st.catalog.units], width=80),
-                  Col("low", "Low ($)", "number", width=100), Col("high", "High ($)", "number", width=100),
-                  Col("mid", "Mid ($)", "number", width=100, editable=False),
-                  Col("basis", "Basis", flex=1), Col("id", "ID", width=200, editable=False)],
+                  Col("low", "Low", "money", width=100), Col("high", "High", "money", width=100),
+                  Col("mid", "Mid", "money", width=100, editable=False),
+                  Col("basis", "Includes", flex=1), Col("id", "ID", width=200, editable=False)],
                  st.save_catalog,
                  lambda: AllowanceRange(id=f"new-{len(st.catalog.allowances) + 1}", category="New",
                                         description="New range", unit="EA", low=Decimal(0), high=Decimal(0)))
@@ -274,9 +276,8 @@ def allowances_page() -> None:
 def units_page() -> None:
     layout("Units")
     st = get_state()
-
-    ui.label("Renaming a unit updates catalog items, rates and price ranges that use it. Saved proposals keep "
-             "the unit they were written with; change it on the line if needed.").classes("text-xs text-gray-500")
+    page_title("Units", "Renaming a unit updates catalog items, rates and price ranges that use it. Saved "
+               "proposals keep the unit they were written with; change it on the line if needed.")
     st.catalog.units.sort(key=lambda u: u.code)   # sorted on open only: grid rows map to list positions
     prev = [u.code for u in st.catalog.units]
 
@@ -308,7 +309,8 @@ def units_page() -> None:
 def stock_page() -> None:
     layout("Stock lengths")
     st = get_state()
-    ui.label("Lengths in feet, comma separated. Waste % is under Settings.").classes("text-xs text-gray-500")
+    page_title("Stock lengths", "Lengths in feet, comma separated. Takeoff quantities round up to these. Waste % is "
+               "under Settings > Proposals.")
     EditableGrid(lambda: st.catalog.stock_classes,
                  [Col("key", "Key", width=140), Col("name", "Name", flex=1),
                   Col("lengths_ft", "Lengths (ft)", "list", flex=1)],
@@ -359,10 +361,10 @@ def block_dialog(block: BoilerplateBlock | None, heading: str, on_saved) -> None
 
 @ui.page("/boilerplate")
 def boilerplate_page() -> None:
-    layout("Boilerplate")
+    layout("Terms library")
     st = get_state()
-    ui.label("Library text. Each proposal starts with the blocks that are on by default and can "
-             "toggle or edit them without changing this library.").classes("text-xs text-gray-500 mb-2")
+    page_title("Terms library", "Text and terms for proposals. Each proposal starts with the blocks that are on by "
+               "default and can toggle or edit them (Terms & options) without changing this library.")
 
     @ui.refreshable
     def body() -> None:
@@ -431,142 +433,169 @@ def settings_page() -> None:
 
     pct = lambda v: (to_decimal(v) or Decimal(0)) / 100  # noqa: E731
 
-    with ui.row().classes("w-full gap-8 items-start"):
-        with ui.card().classes("w-[440px]"):
-            ui.label("Company").classes("font-semibold")
-            for label, attr in [("Legal name", "legal_name"), ("DBA", "dba"), ("Address", "address"),
-                                ("Phone", "phone"), ("Email", "email"), ("Logo file (in data folder)", "logo_path")]:
-                ui.input(label, value=getattr(c, attr)).props("dense").classes("w-full") \
-                    .on_value_change(bind(c, attr))
-        with ui.card().classes("w-[360px]"):
-            ui.label("Defaults").classes("font-semibold")
-            ui.number("Proposal year (YY)", value=s.proposal_year, format="%d").props("dense") \
-                .on_value_change(bind(s, "proposal_year", int))
-            ui.number("Next proposal sequence", value=s.next_proposal_seq, format="%d").props("dense") \
-                .on_value_change(bind(s, "next_proposal_seq", int))
-            ui.label().bind_text_from(s, "next_proposal_seq", lambda _: f"Next number: {s.next_proposal_number()}") \
-                .classes("text-xs text-gray-500")
-            ui.number("Stick goods waste %", value=float(s.default_waste_pct * 100)).props("dense") \
-                .on_value_change(bind(s, "default_waste_pct", pct))
-            ui.number("Deposit %", value=float(s.deposit_pct * 100)).props("dense") \
-                .on_value_change(bind(s, "deposit_pct", pct))
-            ui.number("Retainage %", value=float(s.retainage_pct * 100)).props("dense") \
-                .on_value_change(bind(s, "retainage_pct", pct))
-            ui.number("Proposal validity (days)", value=s.validity_days, format="%d").props("dense") \
-                .on_value_change(bind(s, "validity_days", int))
-            def set_dark(e) -> None:
-                s.dark_mode = bool(e.value)
-                st.save_settings()
-                ui.navigate.reload()
-            ui.switch("Dark mode", value=s.dark_mode, on_change=set_dark).props("dense")
-            ui.number("License threshold warning ($, 0 = off)", value=float(s.license_threshold), format="%.0f") \
-                .props("dense").on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
-            ui.textarea("Request for quote: text above the scope ({company_email} and proposal variables work)",
-                        value=s.rfq_note).props("dense autogrow").classes("w-full") \
-                .on_value_change(bind(s, "rfq_note"))
-            ui.textarea("Quote comparison: note under the table", value=s.comparison_note) \
-                .props("dense autogrow").classes("w-full").on_value_change(bind(s, "comparison_note"))
-        with ui.card().classes("w-[420px]"):
-            ui.label("Data folder").classes("font-semibold")
-            ui.label(str(st.store.root)).classes("text-xs break-all")
-            folder = ui.input("Change to (point at your Proton Drive folder)").props("dense").classes("w-full")
+    page_title("Settings", "Changes save as you type.")
+    with ui.tabs().props("dense inline-label align=left no-caps").classes("w-full border-b") as tabs:
+        t_company = ui.tab("Company", icon="business")
+        t_prop = ui.tab("Proposals", icon="description")
+        t_quotes = ui.tab("Sub quotes", icon="request_quote")
+        t_lists = ui.tab("Lists", icon="list")
+        t_vars = ui.tab("Variables", icon="data_object")
+        t_app = ui.tab("App and data", icon="tune")
+    with ui.tab_panels(tabs, value=t_company).classes("w-full"):
+        with ui.tab_panel(t_company):
+            with ui.card().classes("w-[560px]"):
+                ui.label("Printed in the proposal header and used by {company_*} variables.") \
+                    .classes("text-xs text-gray-500")
+                for label, attr in [("Legal name", "legal_name"), ("DBA", "dba"), ("Address", "address"),
+                                    ("Phone", "phone"), ("Email", "email"), ("Logo file (in data folder)", "logo_path")]:
+                    ui.input(label, value=getattr(c, attr)).props("dense").classes("w-full") \
+                        .on_value_change(bind(c, attr))
 
-            def change() -> None:
-                from ..store import save_data_dir
-                p = Path(folder.value or "").expanduser()
-                if not str(folder.value or "").strip():
-                    ui.notify("Enter a folder path.")
-                    return
-                save_data_dir(p)
-                set_data_dir(p)
-                ui.notify(f"Data folder set to {p}. Seed files copied if it was empty.")
-                ui.navigate.reload()
+        with ui.tab_panel(t_prop):
+            with ui.card().classes("w-[560px]"):
+                with ui.grid(columns=2).classes("w-full gap-x-4"):
+                    ui.number("Proposal year (YY)", value=s.proposal_year, format="%d").props("dense") \
+                        .on_value_change(bind(s, "proposal_year", int))
+                    ui.number("Next proposal sequence", value=s.next_proposal_seq, format="%d").props("dense") \
+                        .on_value_change(bind(s, "next_proposal_seq", int))
+                ui.label().bind_text_from(s, "next_proposal_seq", lambda _: f"Next number: {s.next_proposal_number()}") \
+                    .classes("text-xs text-gray-500")
+                with ui.grid(columns=2).classes("w-full gap-x-4"):
+                    ui.number("Deposit", value=float(s.deposit_pct * 100)).props('dense suffix="%"') \
+                        .on_value_change(bind(s, "deposit_pct", pct))
+                    ui.number("Retainage", value=float(s.retainage_pct * 100)).props('dense suffix="%"') \
+                        .on_value_change(bind(s, "retainage_pct", pct))
+                    ui.number("Stick goods waste", value=float(s.default_waste_pct * 100)).props('dense suffix="%"') \
+                        .on_value_change(bind(s, "default_waste_pct", pct))
+                    ui.number("Proposal validity", value=s.validity_days, format="%d").props('dense suffix="days"') \
+                        .on_value_change(bind(s, "validity_days", int))
+                    ui.number("License threshold warning", value=float(s.license_threshold), format="%.0f") \
+                        .props('dense prefix="$"').classes("col-span-2") \
+                        .on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
+                ui.label("Issues tab and change orders warn when a total including owner-supplied items reaches "
+                         "this amount. 0 turns the warning off.").classes("text-xs text-gray-500")
 
-            ui.button("Use this folder", on_click=change).props("dense outline")
-            ui.separator().classes("my-2")
+        with ui.tab_panel(t_quotes):
+            with ui.card().classes("w-[720px]"):
+                ui.textarea("Request for quote: text above the scope", value=s.rfq_note) \
+                    .props("dense autogrow").classes("w-full").on_value_change(bind(s, "rfq_note"))
+                ui.label("{company_email} and other proposal variables work here.").classes("text-xs text-gray-500")
+                ui.textarea("Quote comparison: note under the table", value=s.comparison_note) \
+                    .props("dense autogrow").classes("w-full mt-2").on_value_change(bind(s, "comparison_note"))
 
-            def backup() -> None:
-                try:
-                    path = st.store.backup_zip()
-                except OSError as e:
-                    ui.notify(f"Backup failed: {e}", type="negative")
-                    return
-                ui.notify(f"Backup saved: {path}", type="positive", multi_line=True)
+        with ui.tab_panel(t_lists):
+            ui.label("Dropdown choices used across the app. Type and press Enter to add; click the x to remove. "
+                     "Removing a choice does not change records that already use it.").classes("text-xs text-gray-500")
+            with ui.card().classes("w-full max-w-[1100px]"):
+                ui.label("Performers").classes("font-semibold text-sm")
+                ui.label("Printed note goes at the start of a line's description. Income puts the line in the Kept "
+                         "Spec (KS) or Convenient Woodworking (CW) column of the Income tab; blank means pass-through. "
+                         "Renaming a performer updates catalog items; saved proposals keep the name they were written "
+                         "with.").classes("text-xs text-gray-500")
+                prev = [x.name for x in s.performers]
 
-            ui.label("Every save keeps the previous version in backups/. A full backup zips the whole "
-                     "data folder (catalog, settings, every project and PDF).").classes("text-xs text-gray-500")
-            ui.button("Create full backup (.zip)", icon="archive", on_click=backup).props("dense outline")
-            ui.separator().classes("my-2")
-            from .. import __version__
-            from .update_ui import check_now
-            ui.label(f"Program version v{__version__}. The app checks for a newer version when it starts and "
-                     "shows an Update button in the top bar.").classes("text-xs text-gray-500")
-            ui.button("Check for updates", icon="system_update", on_click=check_now).props("dense outline")
+                def save_performers():
+                    now = [x.name for x in s.performers]
+                    if len(now) == len(prev):
+                        for old, new in zip(prev, now):
+                            if old != new and old not in now:
+                                n = 0
+                                for it in st.catalog.items:
+                                    if it.performer == old:
+                                        it.performer, n = new, n + 1
+                                if n:
+                                    st.save_catalog()
+                                    ui.notify(f"Renamed {old} to {new}; updated {n} catalog items", type="info")
+                    elif len(now) < len(prev):
+                        for gone in set(prev) - set(now):
+                            used = [str(it.code) for it in st.catalog.items if it.performer == gone]
+                            if used:
+                                ui.notify(f"{gone} is still the default performer on items {', '.join(used[:8])}"
+                                          + ("..." if len(used) > 8 else ""), type="warning", multi_line=True)
+                    prev[:] = now
+                    st.save_settings()
 
-    ui.label("Lists").classes("font-semibold mt-6")
-    ui.label("Dropdown choices used across the app. Type and press Enter to add; click the x to remove. "
-             "Removing a choice does not change records that already use it.").classes("text-xs text-gray-500")
-    with ui.card().classes("w-full max-w-[1100px]"):
-        ui.label("Performers").classes("font-semibold text-sm")
-        ui.label("Printed note goes at the start of a line's description. Income puts the line in the Kept Spec (KS) "
-                 "or Convenient Woodworking (CW) column of the Income tab; blank means pass-through. Renaming a "
-                 "performer updates catalog items; saved proposals keep the name they were written with.") \
-            .classes("text-xs text-gray-500")
-        prev = [x.name for x in s.performers]
+                from ..models import PerformerDef
+                EditableGrid(lambda: s.performers,
+                             [Col("name", "Performer", width=230), Col("note", "Printed note", flex=1),
+                              Col("income", "Income", "select", ["", "KS", "CW"], width=100)],
+                             save_performers, lambda: PerformerDef(name="New performer"), height="26vh")
 
-        def save_performers():
-            now = [x.name for x in s.performers]
-            if len(now) == len(prev):
-                for old, new in zip(prev, now):
-                    if old != new and old not in now:
-                        n = 0
-                        for it in st.catalog.items:
-                            if it.performer == old:
-                                it.performer, n = new, n + 1
-                        if n:
-                            st.save_catalog()
-                            ui.notify(f"Renamed {old} to {new}; updated {n} catalog items", type="info")
-            elif len(now) < len(prev):
-                for gone in set(prev) - set(now):
-                    used = [str(it.code) for it in st.catalog.items if it.performer == gone]
-                    if used:
-                        ui.notify(f"{gone} is still the default performer on items {', '.join(used[:8])}"
-                                  + ("..." if len(used) > 8 else ""), type="warning", multi_line=True)
-            prev[:] = now
-            st.save_settings()
+                lists = s.lists
+                with ui.grid(columns=2).classes("w-full gap-x-6 gap-y-2 mt-2"):
+                    for attr, label in (("co_actions", "Change order actions"), ("contact_roles", "Contact roles"),
+                                        ("lead_sources", "How they found you"), ("trades", "Contractor trades"),
+                                        ("quote_scopes", "Quote scopes"), ("address_labels", "Address labels")):
+                        ui.input_chips(label, value=list(getattr(lists, attr)),
+                                       on_change=lambda e, a=attr: (setattr(lists, a, [x.strip() for x in (e.value or [])
+                                                                                        if str(x).strip()]),
+                                                                    st.save_settings())) \
+                            .props("dense").classes("w-full")
+                ui.input_chips("Spelling dictionary (words the spelling check accepts)",
+                               value=list(s.spelling_words),
+                               on_change=lambda e: (setattr(s, "spelling_words",
+                                                            sorted({str(x).strip() for x in (e.value or [])
+                                                                    if str(x).strip()}, key=str.lower)),
+                                                    st.save_settings())) \
+                    .props("dense").classes("w-full mt-2")
 
-        from ..models import PerformerDef
-        EditableGrid(lambda: s.performers,
-                     [Col("name", "Performer", width=230), Col("note", "Printed note", flex=1),
-                      Col("income", "Income", "select", ["", "KS", "CW"], width=100)],
-                     save_performers, lambda: PerformerDef(name="New performer"), height="26vh")
+        with ui.tab_panel(t_vars):
+            ui.label("Global variables: referenced in terms and line notes as {name}. Proposal variables override "
+                     "these.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: s.global_variables,
+                         [Col("name", "Name", width=200), Col("value", "Value", flex=1), Col("unit", "Unit", width=100),
+                          Col("description", "Description", flex=2)],
+                         lambda: st.save_settings(),
+                         lambda: Variable(name=f"var{len(s.global_variables) + 1}", value=""), height="50vh",
+                         empty="No global variables. Use Add row; proposals can also have their own.")
 
-        lists = s.lists
-        with ui.grid(columns=2).classes("w-full gap-x-6 gap-y-2 mt-2"):
-            for attr, label in (("co_actions", "Change order actions"), ("contact_roles", "Contact roles"),
-                                ("lead_sources", "How they found you"), ("trades", "Contractor trades"),
-                                ("quote_scopes", "Quote scopes"), ("address_labels", "Address labels")):
-                ui.input_chips(label, value=list(getattr(lists, attr)),
-                               on_change=lambda e, a=attr: (setattr(lists, a, [x.strip() for x in (e.value or [])
-                                                                                if str(x).strip()]),
-                                                            st.save_settings())) \
-                    .props("dense").classes("w-full")
-        ui.input_chips("Spelling dictionary (words the spelling check accepts)",
-                       value=list(s.spelling_words),
-                       on_change=lambda e: (setattr(s, "spelling_words",
-                                                    sorted({str(x).strip() for x in (e.value or []) if str(x).strip()},
-                                                           key=str.lower)),
-                                            st.save_settings())) \
-            .props("dense").classes("w-full mt-2")
+        with ui.tab_panel(t_app):
+            with ui.card().classes("w-[560px]"):
+                ui.label("Appearance").classes("font-semibold")
 
-    ui.label("Global variables").classes("font-semibold mt-6")
-    ui.label("Referenced in boilerplate and line notes as {name}. Proposal variables override these.") \
-        .classes("text-xs text-gray-500")
-    EditableGrid(lambda: s.global_variables,
-                 [Col("name", "Name", width=200), Col("value", "Value", flex=1), Col("unit", "Unit", width=100),
-                  Col("description", "Description", flex=2)],
-                 lambda: st.save_settings(),
-                 lambda: Variable(name=f"var{len(s.global_variables) + 1}", value=""), height="30vh")
+                def set_dark(e) -> None:
+                    s.dark_mode = bool(e.value)
+                    st.save_settings()
+                    ui.navigate.reload()
+                ui.switch("Dark mode", value=s.dark_mode, on_change=set_dark).props("dense")
+                ui.separator().classes("my-2")
+                ui.label("Data folder").classes("font-semibold")
+                ui.label(str(st.store.root)).classes("text-xs break-all")
+                folder = ui.input("Change to (point at your Proton Drive folder)").props("dense").classes("w-full")
+
+                def change() -> None:
+                    from ..store import save_data_dir
+                    p = Path(folder.value or "").expanduser()
+                    if not str(folder.value or "").strip():
+                        ui.notify("Enter a folder path.")
+                        return
+                    save_data_dir(p)
+                    set_data_dir(p)
+                    ui.notify(f"Data folder set to {p}. Seed files copied if it was empty.")
+                    ui.navigate.reload()
+
+                ui.button("Use this folder", on_click=change).props("dense outline")
+                ui.separator().classes("my-2")
+
+                def backup() -> None:
+                    try:
+                        path = st.store.backup_zip()
+                    except OSError as e:
+                        ui.notify(f"Backup failed: {e}", type="negative")
+                        return
+                    ui.notify(f"Backup saved: {path}", type="positive", multi_line=True)
+
+                ui.label("Backups").classes("font-semibold")
+                ui.label("Every save keeps the previous version in backups/. A full backup zips the whole "
+                         "data folder (catalog, settings, every project and PDF).").classes("text-xs text-gray-500")
+                ui.button("Create full backup (.zip)", icon="archive", on_click=backup).props("dense outline")
+                ui.separator().classes("my-2")
+                from .. import __version__
+                from .update_ui import check_now
+                ui.label("Updates").classes("font-semibold")
+                ui.label(f"Program version v{__version__}. The app checks for a newer version when it starts and "
+                         "shows an Update button in the top bar.").classes("text-xs text-gray-500")
+                ui.button("Check for updates", icon="system_update", on_click=check_now).props("dense outline")
 
 
 @ui.page("/")
