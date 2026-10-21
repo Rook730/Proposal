@@ -19,7 +19,7 @@ NAV = [
     ("Catalog items", "/items", "list_alt"),
     ("Sections", "/sections", "view_agenda"),
     ("Rates", "/rates", "schedule"),
-    ("Allowance ranges", "/allowances", "straighten"),
+    ("Price ranges", "/allowances", "straighten"),
     ("Units", "/units", "square_foot"),
     ("Stock lengths", "/stock", "carpenter"),
     ("Boilerplate", "/boilerplate", "article"),

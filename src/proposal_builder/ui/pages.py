@@ -14,6 +14,7 @@ from ..models import (
     BoilerplateBlock,
     CatalogItem,
     Performer,
+    basis_label,
     PriceSource,
     Rate,
     Section,
@@ -59,7 +60,7 @@ def _item_rows() -> list[dict]:
                                          ("credit", i.credit_if_unused), ("inactive", not i.active)] if on)
         rows.append({
             "code": i.code, "section": f"{i.section} {sections.get(i.section, '?')}",
-            "group": i.group, "title": i.title, "unit": i.unit, "source": i.price_source.value,
+            "group": i.group, "title": i.title, "unit": i.unit, "source": basis_label(i.price_source),
             "price": shown, "performer": i.performer, "flags": flags,
             "description": i.description,
         })
@@ -85,7 +86,7 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
         desc = ui.textarea("General description (printed on every use)", value=f["description"]) \
             .props("dense autogrow").classes("w-full")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
-            source = ui.select({p.value: p.value for p in PriceSource}, label="Price source",
+            source = ui.select({p.value: basis_label(p) for p in PriceSource}, label="Price basis",
                                value=f["price_source"]).props("dense")
             price_val = f["price"]
             if price_val is not None and f["price_source"] == PriceSource.PERCENT.value:
@@ -94,11 +95,11 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                               value=float(price_val) if price_val is not None else None).props("dense")
             rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key} (${r.rate})" for r in cat.rates}}, f["rate_key"]),
                              label="Rate", value=f["rate_key"] or "").props("dense")
-            tier = ui.select({t.value: t.value for t in Tier}, label="Default allowance tier",
+            tier = ui.select({t.value: t.value for t in Tier}, label="Default range tier",
                              value=f["default_tier"]).props("dense")
         allow = ui.select(keep_current({a.id: f"{a.category}: {a.description} ({a.unit} {a.low} to {a.high})"
                                         for a in cat.allowances}, f["allowance_ids"]),
-                          label="Linked allowance ranges", value=f["allowance_ids"], multiple=True) \
+                          label="Linked price ranges", value=f["allowance_ids"], multiple=True) \
             .props("dense use-chips").classes("w-full")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
             performer = ui.select(keep_current({n: n or "-" for n in st.settings.performer_names()}, f["performer"]),
@@ -239,7 +240,7 @@ def rates_page() -> None:
 
 @ui.page("/allowances")
 def allowances_page() -> None:
-    layout("Allowance ranges")
+    layout("Price ranges")
     st = get_state()
     ui.label("Mid is computed as (low + high) / 2. Link ranges to items on the item form.") \
         .classes("text-xs text-gray-500")
@@ -259,7 +260,7 @@ def units_page() -> None:
     layout("Units")
     st = get_state()
 
-    ui.label("Renaming a unit updates catalog items, rates and allowance ranges that use it. Saved proposals keep "
+    ui.label("Renaming a unit updates catalog items, rates and price ranges that use it. Saved proposals keep "
              "the unit they were written with; change it on the line if needed.").classes("text-xs text-gray-500")
     st.catalog.units.sort(key=lambda u: u.code)   # sorted on open only: grid rows map to list positions
     prev = [u.code for u in st.catalog.units]

@@ -28,6 +28,16 @@ class PriceSource(str, Enum):
     PERCENT = "percent"      # price is a fraction of the subtotal
 
 
+# What the app shows for each price basis. The stored value stays "allowance" for compatibility with saved files;
+# on screen it is "range" so it is not confused with the Allowance flag (which is what prints).
+BASIS_LABEL = {"fixed": "fixed", "rate": "rate", "allowance": "range", "percent": "percent"}
+
+
+def basis_label(v) -> str:
+    v = getattr(v, "value", v)
+    return BASIS_LABEL.get(v, v)
+
+
 class Performer(str, Enum):
     NONE = ""
     KEPT_SPEC = "Kept Spec Advisors"

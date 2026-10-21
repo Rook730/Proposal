@@ -14,7 +14,7 @@ from nicegui import run, ui
 from pydantic import ValidationError
 
 from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
-from ..models import Performer, PriceSource, Variable
+from ..models import Performer, PriceSource, Variable, basis_label
 from ..proposal import (
     Alternate,
     Line,
@@ -529,7 +529,7 @@ class Editor:
                 flags.append("catalog changed")
             if lr.errors:
                 flags.append("error")
-            basis = ln.price_basis.value + (f" ({ln.rate_key})" if ln.rate_key and ln.price_basis is PriceSource.RATE else "")
+            basis = basis_label(ln.price_basis) + (f" ({ln.rate_key})" if ln.rate_key and ln.price_basis is PriceSource.RATE else "")
             qty_note = ""
             if ln.qty_var:
                 qty_note = f" ={{{ln.qty_var}}}"
@@ -714,7 +714,7 @@ class Editor:
                 continue
             price = self.cat.unit_price(it)
             rows.append({"code": it.code, "section": self.section_name(it.section), "title": it.title,
-                         "unit": it.unit, "source": it.price_source.value,
+                         "unit": it.unit, "source": basis_label(it.price_source),
                          "price": (f"{price * 100:.1f}%" if it.price_source is PriceSource.PERCENT
                                    else money(price)) if price is not None else "",
                          "description": it.description})
@@ -888,13 +888,13 @@ class Editor:
 
             ui.label("Price").classes("font-semibold text-sm mt-2")
             with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
-                basis = ui.select({p.value: p.value for p in PriceSource}, label="Basis",
+                basis = ui.select({p.value: basis_label(p) for p in PriceSource}, label="Basis",
                                   value=work.price_basis.value).props("dense")
                 rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key} ${r.rate}" for r in cat.rates}}, work.rate_key),
                                  label="Rate", value=work.rate_key or "").props("dense")
                 allow = ui.select(keep_current({"": "-", **{a.id: f"{a.category}: {a.description} ({a.unit} {a.low}-{a.high})"
                                                            for a in cat.allowances}}, work.allowance_id),
-                                  label="Allowance range", value=work.allowance_id or "").props("dense") \
+                                  label="Price range", value=work.allowance_id or "").props("dense") \
                     .classes("col-span-2")
                 tier = ui.select({t.value: t.value for t in LineTier}, label="Tier", value=work.tier.value) \
                     .props("dense")
@@ -1221,7 +1221,7 @@ class Editor:
             if (ln.price_basis is PriceSource.ALLOWANCE and ln.tier is LineTier.CUSTOM
                     and ln.allowance_low is not None and ln.unit_price is not None
                     and not ln.is_percent and not (ln.allowance_low <= ln.unit_price <= ln.allowance_high)):
-                out.append(("warn", f"{ln.id}: price {money(ln.unit_price)} is outside its allowance range "
+                out.append(("warn", f"{ln.id}: price {money(ln.unit_price)} is outside its price range "
                                     f"{money(ln.allowance_low)} to {money(ln.allowance_high)}"))
         for b in self.rev.blocks:
             if b.on:
