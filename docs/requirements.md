@@ -470,3 +470,5 @@ A toggle shows fields that never print:
 **1.5.2:** Alternates tab can add lines (from catalog, custom, or copies of the removed base lines) and edit or delete them; dialogs are hosted outside refreshable panels. Dark mode setting (Settings), with theme colors in CSS classes.
 
 **1.6.0:** alternates show owner-supplied differences; Settings > Lists (editable performers with printed note and income side, plus change order actions, contact roles, lead sources, trades, quote scopes, address labels); the allowance price basis shows as "range" and allowance ranges as price ranges; line form previous/next navigation with Save (stay) and Save & close.
+
+**1.6.1:** line and catalog item forms show only the fields for the chosen price basis and quantity source (Fixed / Rate / Range / Percent; Typed / Variable / Takeoff); rate price is read-only with Override; stale fields are cleared on save; Issues tab flags range lines with no range, rate/unit mismatches and stock classes without a takeoff.

@@ -33,12 +33,16 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 16. [x] Naming: the "allowance" price basis is shown as "range" everywhere on screen (Basis column, line form, catalog item form and list, catalog picker), and allowance ranges are called price ranges (catalog page "Price ranges", "Price range" picker, "Default range tier"). "Allowance" now only means the flag that prints "Allowance." Saved files are unchanged.
 17. [x] Line form: previous / next buttons beside the title, labeled with the neighboring line IDs (same order and section filter as the grid). They grey out as soon as anything in the form changes. "Save" keeps the form open on the saved line (so you can move on); "Save & close" closes it; Cancel asks before discarding unsaved changes.
 
-## Next release
+## Released in 1.6.1 (2026-10-21)
 
-18. [~] Line form shows only the fields that apply.
+18. [x] Line form shows only the fields that apply.
    - Price basis is a set of buttons (Fixed | Rate | Range | Percent) and the row below shows only that basis's fields: Fixed = unit price (or bind to variable); Rate = rate, price shown read-only "from rate" with an Override button that switches to Fixed; Range = price range + tier, price read-only unless the tier is Custom, with low/mid/high shown; Percent = percent (or variable).
    - Quantity is Typed | Variable | Takeoff (stick goods), showing only that source's fields.
    - Percent lines hide quantity, unit, performer, contractor and the Allowance / Not included / Owner-furnished flags. Not included lines hide quantity and price (saved as 1 x $0).
    - On save, fields that don't apply are cleared (stale tier, rate key, range, variable, takeoff / stock class).
    - Catalog item form: same Price buttons; Price, Rate, or Linked ranges + Default tier shown only for their basis (hidden links are kept).
    - Issues tab: Range basis with no range picked (warning); rate line whose unit differs from the rate's unit; stock class with no takeoff (info).
+
+## Next release
+
+(nothing yet)
