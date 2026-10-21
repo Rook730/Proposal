@@ -541,7 +541,7 @@ class Editor:
             rows.append({
                 "id": ln.id, "code": ln.code, "section_name": self.section_name(ln.section),
                 "title": ln.title, "notes": render(ln.notes, self.variables()) or ln.general_description,
-                "performer": ln.performer.value, "unit": ln.unit,
+                "performer": ln.performer, "unit": ln.unit,
                 "qty": _num(lr.qty), "qty_locked": bool(ln.qty_var or lr.stock or ln.is_percent),
                 "price": _num(lr.unit_price * 100 if ln.is_percent else lr.unit_price),
                 "cost": money(cost) + qty_note if cost is not None else qty_note,
@@ -778,10 +778,34 @@ class Editor:
         cat, rev = self.cat, self.rev
         work = ln.model_copy(deep=True)
         var_names = sorted(self.variables())
+        order = self._ordered_lines()          # same order (and section filter) as the grid
+        pos = next((i for i, x in enumerate(order) if x.id == ln.id), None)
+        prev_ln = order[pos - 1] if pos else None
+        next_ln = order[pos + 1] if pos is not None and pos + 1 < len(order) else None
+        state = {"dirty": False}
         with self.host, ui.dialog() as dlg, ui.card().classes("w-[1000px] max-w-full"):
             with ui.row().classes("w-full items-center"):
                 ui.label(f"Line {ln.id}" + (f"  (catalog {ln.code})" if ln.code else "  (custom)")) \
                     .classes("text-lg font-semibold")
+
+                def go(target: Line | None) -> None:
+                    if target is None or state["dirty"]:
+                        return
+                    dlg.close()
+                    self.mark_edited(target.id)
+                    self.refresh_grid()
+                    self.line_dialog(self.rev.line(target.id))
+                nav_prev = ui.button(prev_ln.id if prev_ln else "", icon="chevron_left",
+                                     on_click=lambda: go(prev_ln)).props("dense flat no-caps")
+                nav_next = ui.button(next_ln.id if next_ln else "",
+                                     on_click=lambda: go(next_ln)).props("dense flat no-caps icon-right=chevron_right")
+                nav_prev.tooltip(f"Previous line: {prev_ln.id} {prev_ln.title}" if prev_ln else "First line")
+                nav_next.tooltip(f"Next line: {next_ln.id} {next_ln.title}" if next_ln else "Last line")
+
+                def set_nav() -> None:
+                    for b, target in ((nav_prev, prev_ln), (nav_next, next_ln)):
+                        b.set_enabled(target is not None and not state["dirty"])
+                set_nav()
                 ui.space()
                 diffs = catalog_differences(ln, cat)
                 if diffs:
@@ -1010,11 +1034,44 @@ class Editor:
                 dlg.close()
                 self.mark_edited(updated.id)
                 self.save()
+                return updated
 
-            with ui.row().classes("w-full justify-end gap-2"):
-                ui.button("Close" if self.locked else "Cancel", on_click=dlg.close).props("flat")
+            def save_stay() -> None:
+                updated = save()
+                if updated is not None:
+                    self.line_dialog(self.rev.line(updated.id))    # fresh form; previous / next become active
+
+            async def close() -> None:
+                if state["dirty"] and not self.locked:
+                    with self.host, ui.dialog() as ask, ui.card():
+                        ui.label("Discard the unsaved changes on this line?")
+                        with ui.row():
+                            ui.button("Keep editing", on_click=lambda: ask.submit(False)).props("flat")
+                            ui.button("Discard", on_click=lambda: ask.submit(True)).props("color=negative")
+                    if not await ask:
+                        return
+                dlg.close()
+
+            with ui.row().classes("w-full items-center justify-end gap-2"):
                 if not self.locked:
-                    ui.button("Save", icon="save", on_click=save)
+                    ui.label("Save to move to the previous or next line.").classes("text-xs text-gray-500") \
+                        .bind_visibility_from(state, "dirty")
+                ui.space()
+                ui.button("Close" if self.locked else "Cancel", on_click=close).props("flat")
+                if not self.locked:
+                    ui.button("Save & close", icon="done", on_click=save).props("flat")
+                    ui.button("Save", icon="save", on_click=save_stay)
+
+        # any edit in the form disables previous / next until it is saved
+        from nicegui.elements.mixins.value_element import ValueElement
+
+        def mark_dirty(_=None) -> None:
+            if not state["dirty"]:
+                state["dirty"] = True
+                set_nav()
+        for el in dlg.descendants():
+            if isinstance(el, ValueElement):
+                el.on_value_change(mark_dirty)
         dlg.open()
 
     # ------------------------------------------------------------ variables
