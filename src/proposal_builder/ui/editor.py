@@ -1389,12 +1389,17 @@ class Editor:
                 out.append(("info", f"Variable '{pv.name}' is not used anywhere"))
         return out
 
+    def spelling(self) -> list:
+        from .. import spelling
+        if not spelling.available():
+            return []
+        return spelling.check(self.project, self.rev, self.st.settings.spelling_words)
+
     @ui.refreshable_method
     def issues_panel(self) -> None:
         items = self.issues()
         if not items:
             ui.label("No issues.").classes("text-green-700")
-            return
         icons = {"error": ("error", "text-red-700"), "warn": ("warning", "text-orange-700"),
                  "info": ("info", "text-blue-700")}
         for kind, msg in sorted(items, key=lambda x: ["error", "warn", "info"].index(x[0])):
@@ -1402,6 +1407,60 @@ class Editor:
             with ui.row().classes("items-center gap-2"):
                 ui.icon(icon).classes(cls)
                 ui.label(msg).classes("text-sm")
+        self._spelling_section()
+
+    def _spelling_section(self) -> None:
+        from ..spelling import suggestions
+        found = self.spelling()
+        ui.label(f"Spelling ({len(found)})" if found else "Spelling: no unknown words") \
+            .classes("font-semibold mt-4" + ("" if found else " text-green-700"))
+        if not found:
+            return
+        ui.label(("Click a suggestion to replace the word everywhere it appears in this revision. A word in a "
+                  "catalog description is fixed in the catalog item too, and a word in the terms is fixed in the "
+                  "terms library too. Add to dictionary accepts the word in every proposal (the list is in "
+                  "Settings). Words in all capitals, {variables}, web and email addresses are not checked.")
+                 if not self.locked else
+                 f"Rev {self.rev.rev} is read-only; fix spelling in a new revision.").classes("text-xs text-gray-500")
+        for i, f in enumerate(found):
+            with ui.row().classes("items-center gap-2 w-full no-wrap"):
+                ui.icon("spellcheck").classes("text-blue-700")
+                ui.label(f.word).classes("text-sm font-semibold min-w-[110px]")
+                ui.label(f.where()).classes("text-xs text-gray-500 min-w-[180px]")
+                if not self.locked:
+                    for s in (suggestions(f.word) if i < 40 else ()):
+                        ui.button(s, on_click=lambda _, f=f, s=s: self.fix_spelling(f, s)) \
+                            .props("dense outline no-caps size=sm")
+                ui.button("Add to dictionary", icon="playlist_add",
+                          on_click=lambda _, w=f.word: self.add_to_dictionary(w)) \
+                    .props("dense flat no-caps size=sm")
+
+    def fix_spelling(self, finding, new: str) -> None:
+        if self.locked:
+            return
+        from ..spelling import apply_fix
+        counts = apply_fix(self.project, self.rev, finding, new, self.cat, self.st.boilerplate)
+        if counts.get("project"):
+            self.save_project()
+        also = []
+        if counts.get("catalog"):
+            self.st.save_catalog()
+            also.append("catalog")
+        if counts.get("library"):
+            self.st.save_boilerplate()
+            also.append("terms library")
+        n = sum(v for k, v in counts.items() if k not in ("catalog", "library"))
+        self.save()
+        ui.notify(f"Replaced {finding.word} with {new} ({n})" + (f"; also fixed in the {' and '.join(also)}"
+                                                                if also else ""), type="positive")
+
+    def add_to_dictionary(self, word: str) -> None:
+        words = self.st.settings.spelling_words
+        if word.lower() not in {w.lower() for w in words}:
+            words.append(word)
+            words.sort(key=str.lower)
+            self.st.save_settings()
+        self.issues_panel.refresh()
 
     # ------------------------------------------------------------ PDF
     def _logo(self) -> Path | None:
@@ -1623,14 +1682,20 @@ class Editor:
                          f"{money(diff.new_total)}).").classes("text-sm")
             ui.label(f"Total Price: {money(self.results.base.total)}").classes("text-sm font-semibold")
             for m in errors:
-                with ui.row().classes("items-center gap-2"):
+                with ui.row().classes("items-start gap-2 no-wrap w-full"):
                     ui.icon("error").classes("text-red-700")
-                    ui.label(m).classes("text-sm")
+                    ui.label(m).classes("text-sm flex-1")
             for m in warns:
-                with ui.row().classes("items-center gap-2"):
+                with ui.row().classes("items-start gap-2 no-wrap w-full"):
                     ui.icon("warning").classes("text-orange-700")
-                    ui.label(m).classes("text-sm")
-            if not errors and not warns:
+                    ui.label(m).classes("text-sm flex-1")
+            spell = self.spelling()
+            if spell:
+                with ui.row().classes("items-start gap-2 no-wrap w-full"):
+                    ui.icon("spellcheck").classes("text-blue-700")
+                    words = ", ".join(f.word for f in spell[:8]) + (", ..." if len(spell) > 8 else "")
+                    ui.label(f"{len(spell)} possible misspelling(s): {words} (see Issues tab)").classes("text-sm flex-1")
+            if not errors and not warns and not spell:
                 ui.label("No issues found.").classes("text-sm text-green-700")
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")

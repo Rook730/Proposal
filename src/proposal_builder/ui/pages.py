@@ -551,6 +551,13 @@ def settings_page() -> None:
                                                                                 if str(x).strip()]),
                                                             st.save_settings())) \
                     .props("dense").classes("w-full")
+        ui.input_chips("Spelling dictionary (words the spelling check accepts)",
+                       value=list(s.spelling_words),
+                       on_change=lambda e: (setattr(s, "spelling_words",
+                                                    sorted({str(x).strip() for x in (e.value or []) if str(x).strip()},
+                                                           key=str.lower)),
+                                            st.save_settings())) \
+            .props("dense").classes("w-full mt-2")
 
     ui.label("Global variables").classes("font-semibold mt-6")
     ui.label("Referenced in boilerplate and line notes as {name}. Proposal variables override these.") \

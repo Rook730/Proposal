@@ -50,6 +50,13 @@ def run_self_test() -> tuple[bool, str]:
                                    ds.path("logo.png"), template="ledger.typ")
             assert led[:4] == b"%PDF", "ledger PDF"
             lines.append(f"ledger pdf {len(led)} bytes")
+            from .spelling import check as spell_check
+            from .spelling import suggestions
+            rev.lines[-1].notes = "Install the cabinetery and recieve {project_name}"
+            bad = [f.word for f in spell_check(project, rev)]
+            assert bad == ["cabinetery", "recieve"], bad
+            assert "cabinetry" in [s.lower() for s in suggestions("cabinetery")]
+            lines.append("spelling ok")
             from .ui import closeout, crm_pages, editor, pages, projects, summary_page  # noqa: F401  UI modules import cleanly
             lines.append("ui modules ok")
             json.dumps({"ok": True})

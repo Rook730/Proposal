@@ -9,7 +9,12 @@ import socket
 import sys
 from pathlib import Path
 
+from .native_menu import install as _install_native_menu
+
 DEFAULT_PORT = 8731
+
+# Runs in the native window's child process too (it imports this module before opening the window).
+_install_native_menu()
 
 
 def _free_port(preferred: int) -> int:

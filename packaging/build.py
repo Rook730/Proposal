@@ -37,6 +37,7 @@ def main() -> int:
         "--collect-data", "proposal_builder",
         "--collect-submodules", "proposal_builder",
         "--collect-all", "typst",
+        "--collect-data", "spellchecker",
         "--distpath", str(ROOT / "dist"),
         "--workpath", str(ROOT / "build"),
         "--specpath", str(ROOT / "build"),

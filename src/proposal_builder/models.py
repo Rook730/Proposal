@@ -315,6 +315,7 @@ class Settings(_Model):
     comparison_note: str = ("Quotes are the subcontractors' prices for the scope listed. Contingency, overhead and "
                             "profit apply to the selected quote as they do to the rest of the proposal.")
     global_variables: list[Variable] = Field(default_factory=list)
+    spelling_words: list[str] = Field(default_factory=list)   # accepted by the spelling check
     # change orders and reconciliation: which catalog codes play which role
     co_markup_codes: list[int] = Field(default_factory=lambda: [1410, 1420])   # overhead, profit
     contingency_code: int = 1310

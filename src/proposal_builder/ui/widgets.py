@@ -62,12 +62,27 @@ THEME_CSS = """
     .body--dark .text-gray-500, .body--dark .text-gray-600, .body--dark .text-gray-700 { color: #a0a6ad !important; }
 """
 
+# Native window only: the right-click menu (turned on by native_menu) shows in text fields and on
+# selected text, where it offers spelling suggestions and cut / copy / paste. Elsewhere it would
+# offer Back and Refresh, which drop an open form, so it is suppressed there.
+CONTEXT_MENU_JS = """<script>
+document.addEventListener('contextmenu', function (e) {
+  if (!window.pywebview) return;
+  var t = e.target;
+  if (t && t.closest && t.closest('input, textarea, [contenteditable=""], [contenteditable="true"]')) return;
+  var sel = window.getSelection && window.getSelection();
+  if (sel && String(sel).trim()) return;
+  e.preventDefault();
+}, true);
+</script>"""
+
 
 def layout(title: str, drawer: bool = True) -> None:
     ui.colors(primary=BRAND)
     from .state import get_state
     ui.dark_mode(value=bool(get_state().settings.dark_mode))
     ui.add_css(THEME_CSS)
+    ui.add_head_html(CONTEXT_MENU_JS)
     with ui.header().classes("items-center py-2 px-4").style(f"background:{BRAND}"):
         ui.label("Kept Spec Proposal Builder").classes("text-lg font-semibold")
         ui.space()

@@ -45,4 +45,10 @@ Collected until Nick says to release. Status: [ ] open, [x] built, not released,
 
 ## Next release
 
-(nothing yet)
+19. [x] Right-click menu in the app window: in text fields and on selected text it shows Edge's spelling suggestions, Add to dictionary, and cut / copy / paste (pywebview had it turned off). Elsewhere right-click does nothing, so Back / Refresh can't drop an open form. Developer tools stay off.
+20. [x] Spelling check (Issues tab, offline English dictionary plus trade terms):
+   - Checks the printed text: project name, line titles, catalog descriptions, line notes, alternate names and descriptions, terms that are on. Skips words in all capitals (GFCI, LVP), words with inner capitals, {variables}, web and email addresses, unchecked sections and internal notes. Client name and site address are not checked.
+   - Each unknown word shows where it is and up to 3 suggestions. Clicking a suggestion replaces the word everywhere in the revision (case kept); a word in a catalog description is also fixed in the catalog item, and a word in the terms is also fixed in the terms library.
+   - Add to dictionary accepts a word in every proposal; the list is in Settings > Lists (Spelling dictionary).
+   - The Issue dialog lists the count and words; spelling never blocks issuing.
+   - Also fixed: long warnings in the Issue dialog no longer push their icon onto a separate line.
