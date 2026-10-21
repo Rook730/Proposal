@@ -21,6 +21,12 @@ OLD_ALLOWANCES = ("Allowance items are budget amounts for Client selections. Act
 OLD_ZERO = ("A line showing $0 is one of two things:\n\nWork that is not included in this proposal, listed so the "
             "scope is clear.\nAn owner-furnished item, which you purchase directly. We show it so the coordination "
             "and installation scope is clear.")
+# 1.6.2: a $0 line is included at no charge; Not included lines say so in the Cost column
+OLD_ZERO_2 = ("A line showing $0 is work that is not included in this proposal, listed so the scope is clear.\n\n"
+              "Owner-supplied items are purchased directly by you. We list them so the coordination and installation "
+              "scope is clear. When an estimated cost is known it is shown in parentheses; it is not part of the "
+              "subtotal or Total Price. The Total *Incl. Owner-supplied items line adds these costs to show the full "
+              "project cost.")
 
 
 def _seed_catalog() -> Catalog:
@@ -60,7 +66,7 @@ def migrate_library(catalog: Catalog, boilerplate: Boilerplate) -> tuple[bool, b
                                                        title=title, body=body, order=order))
         bp_changed = True
     blk = next((b for b in boilerplate.blocks if b.id == "zero-lines"), None)
-    if blk is not None and blk.body == OLD_ZERO:
+    if blk is not None and blk.body in (OLD_ZERO, OLD_ZERO_2):
         from .added_terms import NEW
         _, title, body, _ = NEW["zero-lines"]
         blk.title, blk.body = title, body

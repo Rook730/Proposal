@@ -69,8 +69,8 @@
     {
       "id": "zero-lines",
       "heading": "How to read this proposal",
-      "title": "$0 and owner-supplied lines",
-      "body": "A line showing $0 is work that is not included in this proposal, listed so the scope is clear.\n\nOwner-supplied items are purchased directly by you. We list them so the coordination and installation scope is clear. When an estimated cost is known it is shown in parentheses; it is not part of the subtotal or Total Price. The Total *Incl. Owner-supplied items line adds these costs to show the full project cost.",
+      "title": "Not included, $0 and owner-supplied lines",
+      "body": "A line marked Not included is work outside this proposal, listed so the scope is clear. A line with a $0 cost (shown as $ -) is included at no charge.\n\nOwner-supplied items are purchased directly by you. We list them so the coordination and installation scope is clear. When an estimated cost is known it is shown in parentheses; it is not part of the subtotal or Total Price. The Total *Incl. Owner-supplied items line adds these costs to show the full project cost.",
       "default_on": true,
       "order": 60
     },

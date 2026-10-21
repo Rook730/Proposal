@@ -146,3 +146,17 @@ def test_owner_supplied_prints_in_parentheses_and_incl_total():
     assert labels["Total *Incl. Owner-supplied items"] == "4,300.00"
     assert not any("Alternate" in k and "Owner" in k for k in labels)
     compile_document(doc, None, "pdf")
+
+
+def test_not_included_prints_in_cost_column_and_zero_line_prints_zero():
+    st = Settings.model_validate_json(seed("settings.json"))
+    cat = Catalog.model_validate_json(seed("catalog.json"))
+    bp = Boilerplate.model_validate_json(seed("boilerplate.json"))
+    rev = Revision(sections=[1100])
+    rev.add_line(Line(id="11.01", section=1100, title="Tile", unit_price=Decimal(1000)))
+    rev.add_line(Line(id="11.02", section=1100, title="Abatement", unit_price=Decimal(0), not_included=True))
+    rev.add_line(Line(id="11.03", section=1100, title="Final inspection", unit_price=Decimal(0)))
+    doc = build_document(Project(number="26999", client_name="X", project_name="Y"), rev, st, cat, bp)
+    rows = {r["id"]: r for s in doc["sections"] for r in s["rows"]}
+    assert rows["11.02"]["excluded"] and not rows["11.03"]["excluded"] and rows["11.03"]["cost"] == "-"
+    compile_document(doc, None, "pdf")

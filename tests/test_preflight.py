@@ -1,9 +1,7 @@
 from decimal import Decimal
 
 from proposal_builder import preflight
-from proposal_builder.calc import calculate
 from proposal_builder.crm import Contact, Customer, CustomerBook
-from proposal_builder.models import Settings
 from proposal_builder.proposal import Line, Project, Revision, Variable
 
 
@@ -18,16 +16,6 @@ def _rev(*lines):
 def L(id, title="Item", price="10", **kw):
     return Line(id=id, section=kw.pop("section", 100), title=title,
                 unit_price=None if price is None else Decimal(price), **kw)
-
-
-def test_zero_lines():
-    rev = _rev(L("1.01", "Free", "0"), L("1.02", "Excluded", "0", not_included=True),
-               L("1.03", "Owner", "0", owner_furnished=True), L("1.04", "Paid"), L("1.05", "No qty", "0", qty=0),
-               L("2.01", "Unchecked", "0", section=200))
-    res = calculate(rev, Settings(), [], Project(number="1"))
-    assert [m for _, m in preflight.zero_lines(rev, res)] == [
-        "1.01 Free: prices at $0 but is not marked Not included (the terms say a $0 line is not included); "
-        "enter a price or mark it Not included"]
 
 
 def test_placeholders():
@@ -69,3 +57,16 @@ def test_project_info():
     assert [m for _, m in preflight.project_info(p, book)] == ["Customer Pat: no contact with a phone or email"]
     p.customer_id = "c2"
     assert preflight.project_info(p, book) == []
+
+
+def test_zero_lines_term_migrates_and_not_included_prints():
+    from proposal_builder.added_terms import NEW
+    from proposal_builder.migrations import OLD_ZERO_2, migrate_library
+    from proposal_builder.models import Boilerplate, BoilerplateBlock, Catalog
+    bp = Boilerplate(blocks=[BoilerplateBlock(id="zero-lines", heading="H", title="$0 and owner-supplied lines",
+                                              body=OLD_ZERO_2)])
+    assert migrate_library(Catalog(), bp) == (False, True)
+    assert (bp.blocks[0].title, bp.blocks[0].body) == NEW["zero-lines"][1:3]
+    assert "included at no charge" in bp.blocks[0].body
+    edited = Boilerplate(blocks=[BoilerplateBlock(id="zero-lines", heading="H", title="t", body="My own text")])
+    assert migrate_library(Catalog(), edited) == (False, False)

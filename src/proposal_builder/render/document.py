@@ -157,6 +157,7 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
                 "price_money": not ln.is_percent and bool(lr.unit_price),
                 "cost": fmt_money(amount) if amount is not None else "",
                 "kind": kind, "alt": ln.alternate or 0, "owner": owner,
+                "excluded": ln.not_included and not ln.is_percent,
             })
         has_pct = any(ln.is_percent for ln in lines)
         alts_here = [n for n in alt_nums

@@ -7,8 +7,9 @@ SC = "Scope Clarifications & Exclusions"
 HR = "How to read this proposal"
 
 NEW = {
-    "zero-lines": (HR, "$0 and owner-supplied lines",
-        "A line showing $0 is work that is not included in this proposal, listed so the scope is clear.\n\n"
+    "zero-lines": (HR, "Not included, $0 and owner-supplied lines",
+        "A line marked Not included is work outside this proposal, listed so the scope is clear. A line with a "
+        "$0 cost (shown as $ -) is included at no charge.\n\n"
         "Owner-supplied items are purchased directly by you. We list them so the coordination and installation "
         "scope is clear. When an estimated cost is known it is shown in parentheses; it is not part of the "
         "subtotal or Total Price. The Total *Incl. Owner-supplied items line adds these costs to show the full "

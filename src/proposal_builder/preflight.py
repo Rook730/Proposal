@@ -1,4 +1,4 @@
-"""Content checks for the Issues tab and the Issue dialog: $0 lines, leftover placeholders,
+"""Content checks for the Issues tab and the Issue dialog: leftover placeholders,
 Allowance wording against the Allowance flag, lines added twice, and blank project info.
 Each returns (kind, message) with kind "error", "warn" or "info"."""
 
@@ -20,20 +20,6 @@ _ALLOWANCE_START = re.compile(r"^\W*allowance\b", re.IGNORECASE)
 
 def _printed(rev, ln) -> bool:
     return ln.section in rev.sections
-
-
-def zero_lines(rev, results) -> list[tuple[str, str]]:
-    out = []
-    for ln in rev.lines:
-        if not _printed(rev, ln) or ln.is_percent or ln.not_included or ln.owner_furnished:
-            continue
-        lr = results.lines.get(ln.id)
-        if lr is None or lr.qty == 0 or (ln.unit_price is None and not ln.price_var):
-            continue                     # quantity 0 / no price are reported separately
-        if lr.cost == 0:
-            out.append(("warn", f"{ln.id} {ln.title}: prices at $0 but is not marked Not included (the terms "
-                                "say a $0 line is not included); enter a price or mark it Not included"))
-    return out
 
 
 def placeholders(project, rev) -> list[tuple[str, str]]:
@@ -99,5 +85,5 @@ def project_info(project, customers) -> list[tuple[str, str]]:
 
 
 def content_checks(project, rev, results, customers=None) -> list[tuple[str, str]]:
-    return (project_info(project, customers) + zero_lines(rev, results) + placeholders(project, rev)
+    return (project_info(project, customers) + placeholders(project, rev)
             + allowance_wording(rev) + duplicate_lines(rev))

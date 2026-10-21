@@ -89,7 +89,9 @@
   align(center, text(8.5pt, r.unit)),
   align(center, text(8.5pt, r.qty)),
   if r.price_money { text(8.5pt, money(r.price)) } else { align(right, text(8.5pt, r.price)) },
-  if r.at("owner", default: false) { text(8.5pt, fill: muted, money("(" + r.cost + ")")) } else { text(8.5pt, money(r.cost)) },
+  if r.at("excluded", default: false) { align(right, text(8.5pt, "Not included")) }
+  else if r.at("owner", default: false) { text(8.5pt, fill: muted, money("(" + r.cost + ")")) }
+  else { text(8.5pt, money(r.cost)) },
 )
 
 #let row-fill(r) = if r.kind == "pct" { pct-fill } else if r.kind == "alt" { altfill(r.alt) } else { none }
