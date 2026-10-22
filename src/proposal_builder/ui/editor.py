@@ -133,6 +133,7 @@ class Editor:
             with t_issues:
                 self.issue_badge = ui.badge("").classes("ml-1")
             self.tabs, self.t_issues = tabs, t_issues
+            self.t_lines, self.t_vars, self.t_alts = t_lines, t_vars, t_alts
             self._update_issue_badge()
             t_income = ui.tab("Income", icon="savings")
             t_quotes = ui.tab("Sub quotes", icon="request_quote")
@@ -425,7 +426,7 @@ class Editor:
 
     def issue_counts(self) -> tuple[int, int]:
         items = self.issues()
-        return sum(k == "error" for k, _ in items), sum(k == "warn" for k, _ in items)
+        return sum(x[0] == "error" for x in items), sum(x[0] == "warn" for x in items)
 
     @ui.refreshable_method
     def totals_bar(self) -> None:
@@ -1386,18 +1387,26 @@ class Editor:
             self.save()
 
     # ------------------------------------------------------------ issues
-    def issues(self) -> list[tuple[str, str]]:
-        out: list[tuple[str, str]] = [("error", e) for e in self.results.errors]
+    def issues(self) -> list[tuple]:
+        """(kind, message, target); target says where to fix it (see open_issue)."""
+        def calc_target(msg: str):
+            m = re.match(r"(\d+\.\d+):", msg)
+            return ("line", m.group(1)) if m else (("tab", "alternates") if msg.startswith("Alt ") else None)
+        out: list[tuple] = [("error", e, calc_target(e)) for e in self.results.errors]
         v = self.variables()
         if not any(ln.section in self.rev.sections and not ln.is_percent for ln in self.rev.lines):
-            out.append(("error", "The proposal has no priced lines"))
+            out.append(("error", "The proposal has no priced lines", ("tab", "lines")))
         for a, b in self.results.conflicts:
-            out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined"))
+            out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined",
+                        ("tab", "alternates")))
         from ..crm import insurance_warnings
         from ..proposal import WON_STATUSES
         from .crm_pages import project_contractor_ids
         ins = insurance_warnings(self.st.contractors, project_contractor_ids(self.project, self.rev))
-        out += [("warn" if self.project.status in WON_STATUSES else "info", w) for w in ins]
+        for w in ins:
+            con = self.st.contractors.find(w.split(":")[0])
+            out.append(("warn" if self.project.status in WON_STATUSES else "info", w,
+                        ("contractor", con.id) if con else None))
         limit = self.st.settings.license_threshold
         if limit:
             # owner-supplied items count toward the project cost here
@@ -1408,46 +1417,51 @@ class Editor:
             over = [f"{name} ${t:,.2f}" for name, t in totals if t >= limit]
             if over:
                 out.append(("warn", f"At or above the ${limit:,.0f} general contractor license threshold: "
-                                    + ", ".join(over)))
+                                    + ", ".join(over), None))
         for ln in self.rev.lines:
             lr = self.results.lines[ln.id]
             if not ln.is_percent and not ln.not_included and not ln.owner_furnished and ln.section in self.rev.sections:
                 if lr.qty == 0:
-                    out.append(("warn", f"{ln.id} {ln.title}: quantity is 0"))
+                    out.append(("warn", f"{ln.id} {ln.title}: quantity is 0", ("line", ln.id)))
                 elif ln.unit_price is None and not ln.price_var:
-                    out.append(("warn", f"{ln.id} {ln.title}: no unit price"))
+                    out.append(("warn", f"{ln.id} {ln.title}: no unit price", ("line", ln.id)))
             miss = undefined_references(ln.notes, v)
             if miss:
-                out.append(("error", f"{ln.id}: undefined variable(s) {', '.join(sorted(miss))} in notes"))
+                out.append(("error", f"{ln.id}: undefined variable(s) {', '.join(sorted(miss))} in notes",
+                            ("line", ln.id)))
             d = catalog_differences(ln, self.cat)
             if d:
-                out.append(("info", f"{ln.id}: catalog has changed ({', '.join(d)}); open the line to pull"))
+                out.append(("info", f"{ln.id}: catalog has changed ({', '.join(d)}); open the line to pull",
+                            ("line", ln.id)))
             if ln.section not in self.rev.sections:
-                out.append(("warn", f"{ln.id}: section {ln.section} is unchecked, line is excluded"))
+                out.append(("warn", f"{ln.id}: section {ln.section} is unchecked, line is excluded",
+                            ("section", str(ln.section))))
             if (ln.price_basis is PriceSource.ALLOWANCE and ln.tier is LineTier.CUSTOM
                     and ln.allowance_low is not None and ln.unit_price is not None
                     and not ln.is_percent and not (ln.allowance_low <= ln.unit_price <= ln.allowance_high)):
                 out.append(("warn", f"{ln.id}: price {money(ln.unit_price)} is outside its price range "
-                                    f"{money(ln.allowance_low)} to {money(ln.allowance_high)}"))
+                                    f"{money(ln.allowance_low)} to {money(ln.allowance_high)}", ("line", ln.id)))
             if ln.price_basis is PriceSource.ALLOWANCE and not ln.allowance_id:
                 out.append(("warn", f"{ln.id} {ln.title}: basis is Range but no price range is picked; "
-                                    "pick one, or set the basis to Fixed"))
+                                    "pick one, or set the basis to Fixed", ("line", ln.id)))
             if ln.price_basis is PriceSource.RATE:
                 r = self.cat.rate(ln.rate_key or "")
                 if r and r.unit != ln.unit and not ln.is_percent:
                     out.append(("info", f"{ln.id} {ln.title}: priced at the {r.key} rate (per {r.unit}) "
-                                        f"but the line unit is {ln.unit}"))
+                                        f"but the line unit is {ln.unit}", ("line", ln.id)))
             if ln.stock_class and ln.takeoff is None:
                 out.append(("info", f"{ln.id} {ln.title}: has a stock class but no takeoff, so the quantity "
-                                    "is not rounded to stock lengths"))
+                                    "is not rounded to stock lengths", ("line", ln.id)))
         for b in self.rev.blocks:
             if b.on:
                 miss = undefined_references(b.body, v)
                 if miss:
-                    out.append(("error", f"Terms '{b.title or b.id}': undefined {', '.join(sorted(miss))}"))
+                    out.append(("error", f"Terms '{b.title or b.id}': undefined {', '.join(sorted(miss))}",
+                                ("block", b.id)))
         for sec in self.rev.sections:
             if not self.rev.section_lines(sec):
-                out.append(("warn", f"Section {self.section_name(sec)} is checked but has no lines"))
+                out.append(("warn", f"Section {self.section_name(sec)} is checked but has no lines",
+                            ("section", str(sec))))
         used = set()
         for ln in self.rev.lines:
             used |= {ln.qty_var, ln.price_var} - {None}
@@ -1457,9 +1471,10 @@ class Editor:
                 used |= referenced(b.body)
         for pv in self.rev.variables:
             if pv.name in used and not pv.value.strip():
-                out.append(("warn", f"Variable '{pv.name}' is empty; fill it in on the Variables tab"))
+                out.append(("warn", f"Variable '{pv.name}' is empty; fill it in on the Variables tab",
+                            ("tab", "variables")))
             if pv.name not in used:
-                out.append(("info", f"Variable '{pv.name}' is not used anywhere"))
+                out.append(("info", f"Variable '{pv.name}' is not used anywhere", ("tab", "variables")))
         from ..preflight import content_checks
         out += content_checks(self.project, self.rev, self.results, self.st.customers)
         return out
@@ -1475,14 +1490,59 @@ class Editor:
         items = self.issues()
         if not items:
             ui.label("No issues.").classes("text-green-700")
+        else:
+            ui.label("Double-click an issue, or use the button on its right, to open where it is fixed.") \
+                .classes("text-xs text-gray-500 mb-1")
         icons = {"error": ("error", "text-red-700"), "warn": ("warning", "text-orange-700"),
                  "info": ("info", "text-blue-700")}
-        for kind, msg in sorted(items, key=lambda x: ["error", "warn", "info"].index(x[0])):
+        for kind, msg, target in sorted(items, key=lambda x: ["error", "warn", "info"].index(x[0])):
             icon, cls = icons[kind]
-            with ui.row().classes("items-center gap-2"):
+            with ui.row().classes("w-full items-center gap-2 no-wrap px-1 rounded pb-issue"
+                                  + (" cursor-pointer" if target else "")) as row:
                 ui.icon(icon).classes(cls)
-                ui.label(msg).classes("text-sm")
+                ui.label(msg).classes("text-sm grow")
+                if target:
+                    ui.button(self._target_label(target), icon="open_in_new",
+                              on_click=lambda t_=target: self.open_issue(t_)) \
+                        .props("dense flat no-caps size=sm").classes("shrink-0")
+            if target:
+                row.on("dblclick", lambda t_=target: self.open_issue(t_))
         self._spelling_section()
+
+    def _target_label(self, target: tuple) -> str:
+        kind, ref = target
+        if kind == "line":
+            return f"Open line {ref}"
+        if kind == "tab":
+            return {"variables": "Open Variables", "alternates": "Open Alternates", "lines": "Open Lines"}.get(ref, "Open")
+        return {"block": "Open terms block", "section": "Show section", "project": "Project info",
+                "customer": "Open customer", "contractor": "Open contractor"}.get(kind, "Open")
+
+    def open_issue(self, target: tuple) -> None:
+        """Go to the place an issue is fixed: a line's form, a terms block, a tab, project info, a contact."""
+        kind, ref = target
+        if kind == "line":
+            ln = self.rev.line(ref)
+            if ln is not None:
+                self.mark_edited(ln.id)
+                self.line_dialog(ln)
+        elif kind == "block":
+            b = next((x for x in self.rev.blocks if x.id == ref), None)
+            if b is not None:
+                self._block_dialog(b, b.heading)
+        elif kind == "tab":
+            self.tabs.set_value({"variables": self.t_vars, "alternates": self.t_alts}.get(ref, self.t_lines))
+        elif kind == "section":
+            self.tabs.set_value(self.t_lines)
+            self._filter(int(ref))
+        elif kind == "project":
+            self.project_dialog()
+        elif kind == "customer":
+            from .crm_pages import customer_dialog
+            customer_dialog(self.st.customers.get(ref), lambda *_: self.issues_panel.refresh())
+        elif kind == "contractor":
+            from .crm_pages import contractor_dialog
+            contractor_dialog(self.st.contractors.get(ref), lambda *_: self.issues_panel.refresh())
 
     def _spelling_section(self) -> None:
         from ..spelling import suggestions
@@ -1554,7 +1614,7 @@ class Editor:
                               self.results, diff=self._diff())
 
     async def preview(self) -> None:
-        errors = [m for k, m in self.issues() if k == "error"]
+        errors = [m for k, m, _ in self.issues() if k == "error"]
         n = ui.notification("Rendering preview...", spinner=True, timeout=None)
         try:
             pages = await run.io_bound(compile_document, self._document(), self._logo(), "png", 80)
@@ -1580,7 +1640,7 @@ class Editor:
         dlg.open()
 
     async def export_pdf(self, after_issue: bool = False) -> None:
-        errors = [m for k, m in self.issues() if k == "error"]
+        errors = [m for k, m, _ in self.issues() if k == "error"]
         if errors and not after_issue:
             ui.notify(f"Exporting with {len(errors)} issue(s); see Issues tab.", type="warning")
         n = ui.notification("Building PDF...", spinner=True, timeout=None)
@@ -1755,8 +1815,8 @@ class Editor:
     # ------------------------------------------------------------ revisions
     async def issue_dialog(self) -> None:
         items = self.issues()
-        errors = [m for k, m in items if k == "error"]
-        warns = [m for k, m in items if k == "warn"]
+        errors = [m for k, m, _ in items if k == "error"]
+        warns = [m for k, m, _ in items if k == "warn"]
         diff = self._diff()
         contract = self.rev.is_contract
         with self.host, ui.dialog() as dlg, ui.card().classes("w-[720px] max-w-full"):

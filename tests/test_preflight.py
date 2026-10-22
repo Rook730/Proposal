@@ -22,7 +22,7 @@ def test_placeholders():
     rev = _rev(L("1.01", "Cabinets TBD", notes="Size ?? and $XXX; [ ] confirm. Sixty boxes, tbd."),
                L("1.02", "Exxon tie-in", notes="Max 2XL, Texas"))
     rev.variables.append(Variable(name="start", value="TBA"))
-    msgs = [m for _, m in preflight.placeholders(Project(number="1"), rev)]
+    msgs = [m for _, m, _ in preflight.placeholders(Project(number="1"), rev)]
     assert msgs == ["1.01 title: placeholder TBD left in the text",
                     "1.01 notes: placeholder ??, XXX, [ ], tbd left in the text",
                     "Variable 'start': placeholder TBA in its value"]
@@ -35,26 +35,27 @@ def test_allowance_wording():
                L("1.04", "Hood", is_allowance=True, notes="Hood insert"),
                L("1.05", "PM", general_description="5% allowance for change order management"))
     msgs = preflight.allowance_wording(rev)
-    assert [m.split(":")[0] for _, m in msgs] == ["1.01 Tile", "1.02 Allowance for fixtures", "1.03 Lights"]
+    assert [m.split(":")[0] for _, m, _ in msgs] == ["1.01 Tile", "1.02 Allowance for fixtures", "1.03 Lights"]
     assert "flag also prints" in msgs[0][1] and "flag is off" in msgs[1][1]
+    assert msgs[0][2] == ("line", "1.01")
 
 
 def test_duplicate_lines():
     rev = _rev(L("1.01", "Appliances", notes="Range"), L("1.02", "Appliances", notes="Dishwasher"),
                L("1.03", "Trim", notes="Base"), L("1.04", "trim ", notes="Base "),
                L("1.05", "Trim", notes="Base", alternate=1))
-    assert [m for _, m in preflight.duplicate_lines(rev)] == [
+    assert [m for _, m, _ in preflight.duplicate_lines(rev)] == [
         "1.03, 1.04 Trim: same title and notes in one section; added twice?"]
 
 
 def test_project_info():
     book = CustomerBook(customers=[Customer(id="c1", name="Pat", contacts=[Contact(name="Pat")]),
                                    Customer(id="c2", name="Lee", contacts=[Contact(name="Lee", phone="555")])])
-    assert [m for _, m in preflight.project_info(Project(number="1"), book)] == [
+    assert [m for _, m, _ in preflight.project_info(Project(number="1"), book)] == [
         "Project info: client name is blank", "Project info: site address is blank",
         "Project info: not linked to a customer"]
     p = Project(number="1", client_name="Pat", site_address="1 Main", customer_id="c1")
-    assert [m for _, m in preflight.project_info(p, book)] == ["Customer Pat: no contact with a phone or email"]
+    assert [m for _, m, _ in preflight.project_info(p, book)] == ["Customer Pat: no contact with a phone or email"]
     p.customer_id = "c2"
     assert preflight.project_info(p, book) == []
 

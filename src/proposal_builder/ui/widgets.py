@@ -45,6 +45,8 @@ THEME_CSS = """
     .nicegui-content { padding: 16px 24px; }
     .ag-theme-quartz, .nicegui-aggrid { --ag-font-size: 13px; }
     .pb-strip { background: #ffffff; }
+    .pb-issue:hover { background: rgba(31, 58, 95, 0.06); }
+    .body--dark .pb-issue:hover { background: rgba(169, 196, 232, 0.10); }
     .pb-navsel { background: rgba(31, 58, 95, 0.08); }
     .body--dark .pb-navsel { background: rgba(169, 196, 232, 0.12); }
     .body--dark .pb-strip { background: #1d1d1d; border-color: #3a3a3a !important; }

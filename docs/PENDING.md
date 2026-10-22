@@ -86,4 +86,4 @@ UX review items (numbers from docs/ux-review.md):
 
 ## Next release
 
-(nothing yet)
+41. [x] Issues tab: double-click an issue, or use the button on its right, to open where it is fixed: the line's form (Open line 8.01), the terms block, the Variables or Alternates tab, the section in the Lines tab, Project info, or the customer or contractor form.

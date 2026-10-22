@@ -1,6 +1,7 @@
 """Content checks for the Issues tab and the Issue dialog: leftover placeholders,
 Allowance wording against the Allowance flag, lines added twice, and blank project info.
-Each returns (kind, message) with kind "error", "warn" or "info"."""
+Each returns (kind, message, target): kind "error", "warn" or "info"; target says where to fix it
+(("line", id), ("block", id), ("alternate", n), ("project", ""), ("customer", id), ("tab", name)) or None."""
 
 from __future__ import annotations
 
@@ -22,17 +23,22 @@ def _printed(rev, ln) -> bool:
     return ln.section in rev.sections
 
 
-def placeholders(project, rev) -> list[tuple[str, str]]:
+def placeholders(project, rev) -> list[tuple]:
     out = []
     for place, text in text_fields(project, rev):
         found = list(dict.fromkeys(m.group(0) for m in PLACEHOLDER.finditer(text)))
         if found:
-            out.append(("warn", f"{place.label}: placeholder {', '.join(found)} left in the text"))
+            out.append(("warn", f"{place.label}: placeholder {', '.join(found)} left in the text", _place_target(place)))
     for v in rev.variables:
         found = list(dict.fromkeys(m.group(0) for m in PLACEHOLDER.finditer(v.value or "")))
         if found:
-            out.append(("warn", f"Variable '{v.name}': placeholder {', '.join(found)} in its value"))
+            out.append(("warn", f"Variable '{v.name}': placeholder {', '.join(found)} in its value", ("tab", "variables")))
     return out
+
+
+def _place_target(place) -> tuple[str, str]:
+    return {"line": ("line", place.ref), "general": ("line", place.ref), "block": ("block", place.ref),
+            "alternate": ("tab", "alternates"), "project": ("project", "")}.get(place.kind, ("tab", "lines"))
 
 
 def _body_start(ln) -> str:
@@ -42,7 +48,7 @@ def _body_start(ln) -> str:
     return ln.notes or ""
 
 
-def allowance_wording(rev) -> list[tuple[str, str]]:
+def allowance_wording(rev) -> list[tuple]:
     out = []
     for ln in rev.lines:
         if not _printed(rev, ln) or ln.is_percent:
@@ -50,13 +56,14 @@ def allowance_wording(rev) -> list[tuple[str, str]]:
         says = bool(_ALLOWANCE_START.match(_body_start(ln)))
         if ln.is_allowance and says:
             out.append(("info", f"{ln.id} {ln.title}: description starts with \"Allowance\" and the Allowance flag "
-                                "also prints \"Allowance.\"; remove the word from the description"))
+                                "also prints \"Allowance.\"; remove the word from the description", ("line", ln.id)))
         elif not ln.is_allowance and (says or re.match(r"^\W*allowance\s+for\b", ln.title, re.IGNORECASE)):
-            out.append(("info", f"{ln.id} {ln.title}: worded as an allowance but the Allowance flag is off"))
+            out.append(("info", f"{ln.id} {ln.title}: worded as an allowance but the Allowance flag is off",
+                        ("line", ln.id)))
     return out
 
 
-def duplicate_lines(rev) -> list[tuple[str, str]]:
+def duplicate_lines(rev) -> list[tuple]:
     """Lines with the same title and notes in one section (and the same alternate): added twice."""
     groups: dict[tuple, list] = defaultdict(list)
     for ln in rev.lines:
@@ -66,24 +73,25 @@ def duplicate_lines(rev) -> list[tuple[str, str]]:
     for lines in groups.values():
         if len(lines) > 1:
             ids = ", ".join(ln.id for ln in lines)
-            out.append(("warn", f"{ids} {lines[0].title}: same title and notes in one section; added twice?"))
+            out.append(("warn", f"{ids} {lines[0].title}: same title and notes in one section; added twice?",
+                        ("line", lines[-1].id)))
     return out
 
 
-def project_info(project, customers) -> list[tuple[str, str]]:
+def project_info(project, customers) -> list[tuple]:
     out = []
     if not project.client_name.strip():
-        out.append(("warn", "Project info: client name is blank"))
+        out.append(("warn", "Project info: client name is blank", ("project", "")))
     if not project.site_address.strip():
-        out.append(("warn", "Project info: site address is blank"))
+        out.append(("warn", "Project info: site address is blank", ("project", "")))
     cust = customers.get(project.customer_id) if customers is not None else None
     if project.customer_id is None:
-        out.append(("info", "Project info: not linked to a customer"))
+        out.append(("info", "Project info: not linked to a customer", ("project", "")))
     elif cust is not None and not any(c.phone.strip() or c.email.strip() for c in cust.contacts):
-        out.append(("info", f"Customer {cust.name}: no contact with a phone or email"))
+        out.append(("info", f"Customer {cust.name}: no contact with a phone or email", ("customer", cust.id)))
     return out
 
 
-def content_checks(project, rev, results, customers=None) -> list[tuple[str, str]]:
+def content_checks(project, rev, results, customers=None) -> list[tuple]:
     return (project_info(project, customers) + placeholders(project, rev)
             + allowance_wording(rev) + duplicate_lines(rev))
