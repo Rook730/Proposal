@@ -478,3 +478,5 @@ A toggle shows fields that never print:
 **1.7.0:** UX pass: compact editor header and totals strip with the lines grid filling the window; line form footer always visible; custom lines and change orders created only on Save; terms blocks show edited vs library updated; one page frame for list pages; Suppliers form; dates as 2026.10.20 with calendar pickers and money formatted in every grid; Basis / Terms library naming and Proposals / Catalog / Contacts / Settings menu; Saved indicator; empty states; read-only sections panel; projected final cost; change order footer with one next-step button; Settings tabs; blank new records; readable dark mode buttons; Issues count badge.
 
 **1.7.1:** Issues tab: double-click an issue or use its button to open where it is fixed (line form, terms block, Variables or Alternates tab, section, Project info, customer or contractor).
+
+**1.7.2:** Alternates: a switch per pair to stop offering two alternates together (drops the combination from totals, the printed proposal, income by option and the license check; Finalize rejects selecting both).

@@ -88,6 +88,10 @@ UX review items (numbers from docs/ux-review.md):
 
 41. [x] Issues tab: double-click an issue, or use the button on its right, to open where it is fixed: the line's form (Open line 8.01), the terms block, the Variables or Alternates tab, the section in the Lines tab, Project info, or the customer or contractor form.
 
-## Next release
+## Released in 1.7.2 (2026-10-22)
 
 42. [x] Alternates tab > Combinations: a switch per pair of alternates, "Offer Alt 1 + Alt 2 together" (on by default). Off: the combination drops out of the totals strip, the proposal's Total Price lines, Income by option and the license check, and Finalize won't accept both. Pairs that remove the same base line show as "cannot be combined" as before.
+
+## Next release
+
+(nothing yet)
