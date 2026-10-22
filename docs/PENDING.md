@@ -90,4 +90,4 @@ UX review items (numbers from docs/ux-review.md):
 
 ## Next release
 
-(nothing yet)
+42. [x] Alternates tab > Combinations: a switch per pair of alternates, "Offer Alt 1 + Alt 2 together" (on by default). Off: the combination drops out of the totals strip, the proposal's Total Price lines, Income by option and the license check, and Finalize won't accept both. Pairs that remove the same base line show as "cannot be combined" as before.

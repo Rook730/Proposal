@@ -286,7 +286,7 @@ def calculate(rev: Revision, settings: Settings, stock_classes: list[StockClass]
     combos = []
     for k in range(2, len(nums) + 1):
         for combo in itertools.combinations(nums, k):
-            if any((x, y) in conflicts for x, y in itertools.combinations(combo, 2)):
+            if any((x, y) in conflicts or rev.kept_separate(x, y) for x, y in itertools.combinations(combo, 2)):
                 continue
             combos.append(_scenario(" + ".join(f"Alt {n}" for n in combo), combo, rev, lr))
     for a in rev.alternates:

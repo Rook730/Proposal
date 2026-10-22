@@ -1314,11 +1314,29 @@ class Editor:
                     ui.label("Click a line to edit it; the x deletes it.").classes("text-xs text-gray-500")
         if len(self.rev.alternates) < MAX_ALTERNATES and not self.locked:
             ui.button("Add alternate", icon="add", on_click=self._add_alt).props("outline dense")
-        if r.conflicts:
-            ui.label("Mutually exclusive (remove the same base line): " +
-                     ", ".join(f"Alt {a} / Alt {b}" for a, b in r.conflicts)).classes("text-sm text-orange-700 mt-2")
-        if r.combinations:
+        nums = sorted(a.number for a in self.rev.alternates)
+        if len(nums) >= 2:
             ui.label("Combinations").classes("font-semibold mt-3")
+            ui.label("Each pair of alternates is offered together unless you turn it off here (for choices where "
+                     "the client picks one or the other). Combinations print as their own Total Price lines.") \
+                .classes("text-xs text-gray-500")
+            import itertools
+
+            def set_pair(a: int, b: int, offered: bool) -> None:
+                self.rev.set_separate(a, b, not offered)
+                self.save()
+            for a, b in itertools.combinations(nums, 2):
+                with ui.row().classes("items-center gap-2"):
+                    if self.rev.remove_same_line(a, b):
+                        ui.icon("block").classes("text-orange-700")
+                        ui.label(f"Alt {a} + Alt {b}: cannot be combined (both remove the same base line)") \
+                            .classes("text-sm")
+                    else:
+                        sw = ui.switch(f"Offer Alt {a} + Alt {b} together", value=not self.rev.kept_separate(a, b),
+                                       on_change=lambda e, a=a, b=b: set_pair(a, b, e.value)).props("dense")
+                        if self.locked:
+                            sw.disable()
+        if r.combinations:
             ui.table(columns=[{"name": "n", "label": "Combination", "field": "n", "align": "left"},
                               {"name": "s", "label": "Subtotal", "field": "s", "align": "right"},
                               {"name": "t", "label": "Total", "field": "t", "align": "right"}],
@@ -1384,6 +1402,7 @@ class Editor:
                 if ln.alternate == alt.number:
                     ln.alternate = None
             self.rev.alternates.remove(alt)
+            self.rev.separate_alternates = [p for p in self.rev.separate_alternates if alt.number not in p]
             self.save()
 
     # ------------------------------------------------------------ issues

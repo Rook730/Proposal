@@ -171,6 +171,7 @@ class Revision(_Model):
     based_on: str | None = None                                # revision this one was copied from
     issued_at: datetime | None = None
     selected_alternates: list[int] = Field(default_factory=list)   # recorded on the contract revision
+    separate_alternates: list[list[int]] = Field(default_factory=list)  # pairs not offered together
     print_changes: bool = True                                 # "Changes from Rev X" page
     print_sov: bool = False                                    # schedule of values summary page
 
@@ -248,6 +249,24 @@ class Revision(_Model):
     def alternate(self, number: int) -> Alternate | None:
         return next((a for a in self.alternates if a.number == number), None)
 
+    def remove_same_line(self, a: int, b: int) -> bool:
+        """Both alternates remove the same base line, so they can never be combined."""
+        x, y = self.alternate(a), self.alternate(b)
+        return bool(x and y and set(x.removes) & set(y.removes))
+
+    def kept_separate(self, a: int, b: int) -> bool:
+        """The user chose not to offer these two alternates together."""
+        return sorted((a, b)) in [sorted(p) for p in self.separate_alternates]
+
+    def can_combine(self, a: int, b: int) -> bool:
+        return not self.remove_same_line(a, b) and not self.kept_separate(a, b)
+
+    def set_separate(self, a: int, b: int, separate: bool) -> None:
+        pair = sorted((a, b))
+        self.separate_alternates = [p for p in self.separate_alternates if sorted(p) != pair]
+        if separate:
+            self.separate_alternates.append(pair)
+
 
 def rev_major(rev: str) -> int:
     return int(rev.split(".")[0])
@@ -280,8 +299,10 @@ def contract_revision(src: Revision, selected: list[int]) -> Revision:
             raise ValueError(f"alternate {n} does not exist")
         removed |= set(alt.removes)
     for a, b in ((a, b) for i, a in enumerate(selected) for b in selected[i + 1:]):
-        if set(src.alternate(a).removes) & set(src.alternate(b).removes):
+        if src.remove_same_line(a, b):
             raise ValueError(f"Alt {a} and Alt {b} remove the same line and cannot both be selected")
+        if src.kept_separate(a, b):
+            raise ValueError(f"Alt {a} and Alt {b} are offered separately, not together; pick one")
     rev = new_revision_from(src, "2.0")
     lines = []
     for ln in rev.lines:
@@ -292,6 +313,7 @@ def contract_revision(src: Revision, selected: list[int]) -> Revision:
             lines.append(ln)
     rev.lines = lines
     rev.alternates = []
+    rev.separate_alternates = []
     rev.selected_alternates = selected
     return rev
 

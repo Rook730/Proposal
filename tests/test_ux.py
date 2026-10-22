@@ -46,3 +46,24 @@ def test_save_hook(tmp_path):
     finally:
         store.SAVE_HOOKS.remove(seen.append)
     assert seen == [tmp_path / "x.json"]
+
+
+def test_alternates_kept_separate():
+    from decimal import Decimal
+    from proposal_builder.calc import calculate
+    from proposal_builder.models import Settings
+    from proposal_builder.proposal import Alternate, Line, Revision, contract_revision
+    rev = Revision(sections=[100])
+    rev.add_line(Line(id="1.01", section=100, title="Base", unit_price=Decimal(100)))
+    rev.add_line(Line(id="1.02", section=100, title="Paint lowers", unit_price=Decimal(10), alternate=1))
+    rev.add_line(Line(id="1.03", section=100, title="Paint all", unit_price=Decimal(20), alternate=2))
+    rev.alternates += [Alternate(number=1, name="Lowers"), Alternate(number=2, name="All")]
+    assert [c.name for c in calculate(rev, Settings(), []).combinations] == ["Alt 1 + Alt 2"]
+    rev.set_separate(2, 1, True)
+    assert rev.kept_separate(1, 2) and not rev.can_combine(1, 2)
+    assert calculate(rev, Settings(), []).combinations == []
+    with pytest.raises(ValueError, match="offered separately"):
+        contract_revision(rev, [1, 2])
+    assert contract_revision(rev, [2]).separate_alternates == []
+    rev.set_separate(1, 2, False)
+    assert rev.separate_alternates == [] and len(calculate(rev, Settings(), []).combinations) == 1
