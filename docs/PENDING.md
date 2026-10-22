@@ -84,6 +84,10 @@ UX review items (numbers from docs/ux-review.md):
 39. [x] (27) Issues tab shows a count badge (red with errors, orange with warnings); the totals strip shows "N errors, N warnings" and opens the Issues tab when clicked.
 40. [x] Custom line and New change order create nothing until Save; Cancel leaves no blank line or draft behind.
 
-## Next release
+## Released in 1.7.1 (2026-10-21)
 
 41. [x] Issues tab: double-click an issue, or use the button on its right, to open where it is fixed: the line's form (Open line 8.01), the terms block, the Variables or Alternates tab, the section in the Lines tab, Project info, or the customer or contractor form.
+
+## Next release
+
+(nothing yet)
