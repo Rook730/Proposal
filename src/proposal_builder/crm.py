@@ -46,7 +46,8 @@ class Address(_Model):
 
 class Customer(_Model):
     id: str = Field(default_factory=new_id)
-    name: str                            # as printed on proposals, e.g. "Kim and Pam Hotch"
+    name: str                            # as printed on proposals, e.g. "Kim and Pam Hotch" or "Borg Warner Turbo"
+    is_company: bool = False             # a business: proposals print the company and an Attn: contact
     contacts: list[Contact] = Field(default_factory=list)
     addresses: list[Address] = Field(default_factory=list)
     mailing_address_id: str | None = None

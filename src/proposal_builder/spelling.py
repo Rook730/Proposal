@@ -21,6 +21,8 @@ etc fletcher ft gal grouted hardie hardieboard hardiplank haul hendersonville in
 onsite passthrough pre precon preconstruction prehung punchlist qty ramboard reinstall reinstalled
 schluter shiplap sq subfloor subfloors templated templating trex underlayment undermount
 walkthrough walkthroughs wk wks hr hrs approx sf ea ln mt romex ditra kerdi
+prefinished venmo paypal signoff sapwood heartwood hardwax tenon tenons dovetail dovetails dowel dowels
+mdf plywood veneer veneered crating reuleaux haywood
 """.split())
 
 _PROTECT = re.compile(VAR_RE.pattern + r"|https?://\S+|www\.\S+|\S+@\S+\.\S+|\]\([^)]*\)")

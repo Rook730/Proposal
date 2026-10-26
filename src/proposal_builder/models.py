@@ -9,7 +9,11 @@ from __future__ import annotations
 from decimal import Decimal
 from enum import Enum
 
+from datetime import date as Date
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from .buildsheet import BuildSheet, PricingPolicy
 
 SCHEMA_VERSION = 1
 
@@ -38,11 +42,17 @@ class PriceSource(str, Enum):
     RATE = "rate"            # unit price comes from the rate table
     ALLOWANCE = "allowance"  # unit price comes from an allowance range tier
     PERCENT = "percent"      # price is a fraction of the subtotal
+    BUILT = "built"          # unit price comes from the line's build sheet (Convenient Woodworking)
 
 
 # What the app shows for each price basis. The stored value stays "allowance" for compatibility with saved files;
 # on screen it is "range" so it is not confused with the Allowance flag (which is what prints).
-BASIS_LABEL = {"fixed": "fixed", "rate": "rate", "allowance": "range", "percent": "percent"}
+BASIS_LABEL = {"fixed": "fixed", "rate": "rate", "allowance": "range", "percent": "percent", "built": "built"}
+
+
+def bases_for(profile: str) -> list["PriceSource"]:
+    """Price bases offered for a company: Built is Convenient Woodworking's."""
+    return [p for p in PriceSource if p is not PriceSource.BUILT or profile == CW]
 
 
 def basis_label(v) -> str:
@@ -136,6 +146,7 @@ class CatalogItem(_Model):
     credit_if_unused: bool = False
     internal_notes: str = ""
     active: bool = True
+    build: BuildSheet | None = None       # BUILT: piece template, copied into the line
 
     @model_validator(mode="before")
     @classmethod
@@ -155,6 +166,106 @@ class CatalogItem(_Model):
         return self
 
 
+# ---------------------------------------------------------------- price references (Convenient Woodworking)
+
+
+class LumberPrice(_Model):
+    id: str
+    species: str                          # "Cherry"
+    thickness: str = "4/4"                # nominal
+    grade: str = ""
+    surfacing: str = "Rough"
+    price: Decimal = Decimal(0)           # per board foot at nominal thickness
+    supplier: str = ""
+    date: Date | None = None
+    notes: str = ""
+
+
+class SheetPrice(_Model):
+    id: str
+    product: str                          # "Baltic birch", "Prefinished maple, C2"
+    thickness: str = '3/4"'
+    width_in: Decimal = Decimal(48)
+    length_in: Decimal = Decimal(96)
+    price: Decimal = Decimal(0)           # per sheet
+    supplier: str = ""
+    date: Date | None = None
+    notes: str = ""
+
+    @property
+    def sf(self) -> Decimal:
+        return (self.width_in * self.length_in / 144).quantize(Decimal("0.01"))
+
+
+class DimensionalPrice(_Model):
+    id: str
+    material: str                         # "SPF", "Pressure treated #2"
+    size: str = "2x4"
+    length_ft: Decimal = Decimal(8)
+    price: Decimal = Decimal(0)           # per stick
+    supplier: str = ""
+    date: Date | None = None
+    notes: str = ""
+
+
+class HardwarePrice(_Model):
+    id: str
+    name: str
+    part_number: str = ""
+    supplier: str = ""
+    unit: str = "EA"
+    price: Decimal = Decimal(0)
+    date: Date | None = None
+    notes: str = ""
+
+
+class FinishPrice(_Model):
+    id: str
+    product: str                          # "General Finishes Arm-R-Seal"
+    kind: str = ""                        # oil, hardwax oil, film
+    container: str = ""                   # "1 qt"
+    container_price: Decimal = Decimal(0)
+    coverage_sf: Decimal = Decimal(0)     # per container, one coat
+    coats: Decimal = Decimal(1)
+    recoat_hours: Decimal | None = None
+    cure_days: Decimal | None = None
+    supplier: str = ""
+    date: Date | None = None
+    notes: str = ""
+
+    @property
+    def per_sf_coat(self) -> Decimal:
+        return (self.container_price / self.coverage_sf).quantize(Decimal("0.0001")) if self.coverage_sf else Decimal(0)
+
+
+class OutsourcedPrice(_Model):
+    id: str
+    service: str                          # "Spray finishing", "CNC cutting"
+    supplier: str = ""
+    basis: str = "EA"                     # unit the price is for
+    price: Decimal = Decimal(0)
+    date: Date | None = None
+    notes: str = ""
+
+
+class PriceReferences(_Model):
+    lumber: list[LumberPrice] = Field(default_factory=list)
+    sheets: list[SheetPrice] = Field(default_factory=list)
+    dimensional: list[DimensionalPrice] = Field(default_factory=list)
+    hardware: list[HardwarePrice] = Field(default_factory=list)
+    finishes: list[FinishPrice] = Field(default_factory=list)
+    outsourced: list[OutsourcedPrice] = Field(default_factory=list)
+
+    def lumber_price(self, species: str, nominal: str) -> LumberPrice | None:
+        return next((x for x in self.lumber if x.species.casefold() == species.casefold() and x.thickness == nominal),
+                    None)
+
+    def find(self, kind: str, ref: str):
+        table = {"lumber": self.lumber, "sheet": self.sheets, "dimensional": self.dimensional,
+                 "hardware": self.hardware, "finish": self.finishes, "outsourced": self.outsourced}.get(kind, [])
+        return next((x for x in table if x.id == ref), None)
+
+
 class Catalog(_Model):
     schema_version: int = SCHEMA_VERSION
     units: list[Unit] = Field(default_factory=list)
@@ -163,6 +274,8 @@ class Catalog(_Model):
     items: list[CatalogItem] = Field(default_factory=list)
     allowances: list[AllowanceRange] = Field(default_factory=list)
     stock_classes: list[StockClass] = Field(default_factory=list)
+    prices: PriceReferences = Field(default_factory=PriceReferences)
+    migrations: list[str] = Field(default_factory=list)     # one-time catalog additions already applied
 
     # lookups
     def item(self, code: int) -> CatalogItem | None:
@@ -197,6 +310,8 @@ class Catalog(_Model):
                 if a:
                     return a.price(tier or item.default_tier)
             return item.price
+        if item.price_source is PriceSource.BUILT:
+            return item.build.unit_price(Decimal(1)) if item.build else None
         return item.price
 
     def unit_options(self, current: str | None = None) -> dict[str, str]:
@@ -321,6 +436,11 @@ class Lists(_Model):
     address_labels: list[str] = Field(default_factory=lambda: ["Home", "Site", "Mailing", "Rental", "Office"])
 
 
+class TaxCounty(_Model):
+    name: str                       # "Buncombe"
+    rate: Decimal                   # combined state + local rate, fraction
+
+
 class Settings(_Model):
     schema_version: int = SCHEMA_VERSION
     company: Company = Field(default_factory=Company)
@@ -347,6 +467,17 @@ class Settings(_Model):
     co_management_code: int = 1320
     co_management_rate_key: str = "pm"     # rate for change order management hours
     recommended_by: str = "Kept Spec - Nick Matney"
+    # payment: "progress" (Kept Spec: deposit, progress payments, retainage) or "deposit" (Convenient
+    # Woodworking: deposit, balance at delivery; the deposit is deposit_pct_small below deposit_threshold)
+    payment_rule: str = "progress"
+    deposit_threshold: Decimal = Decimal(0)
+    deposit_pct_small: Decimal = Decimal(0)
+    pricing: PricingPolicy | None = None           # Convenient Woodworking build sheet defaults
+    tax_counties: list[TaxCounty] = Field(default_factory=list)
+    new_projects_taxable: bool = False
+
+    def tax_rate(self, county: str) -> Decimal | None:
+        return next((c.rate for c in self.tax_counties if c.name == county), None)
 
     def performer(self, name: str) -> PerformerDef | None:
         return next((p for p in self.performers if p.name == name), None) if name else None

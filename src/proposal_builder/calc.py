@@ -4,9 +4,12 @@ Rules (spec section 5):
 - line cost = qty x unit price, rounded to cents (half up)
 - subtotal = sum of base lines that are not percent items
 - each percent item = its fraction x subtotal (flat, no compounding)
-- total = subtotal + percent items
-- an alternate removes base lines and/or adds its own lines; its percent items
+- total = subtotal + percent items + rush fee + sales tax
+- rush fee = rush % x subtotal; sales tax = tax rate x (subtotal + percent items + rush) when the
+  proposal is taxable (both 0 for Kept Spec proposals)
+- an alternate removes base lines and/or adds its own lines; its percent items, rush fee and tax
   are recomputed on its own subtotal
+- a Built line's unit price comes from its build sheet at the line's quantity (buildsheet.py)
 """
 
 from __future__ import annotations
@@ -17,13 +20,15 @@ import re
 from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from .buildsheet import BuildTotals
 from .models import Settings, StockClass
 from .proposal import Line, Project, Revision
 
 CENT = Decimal("0.01")
 VAR_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 SPECIAL_PLACEHOLDERS = {"units_table", "rates_table"}   # rendered by the document layer
-DOCUMENT_VARIABLES = {"total_price", "subtotal", "deposit_amount", "progress_amount", "retainage_amount"}
+DOCUMENT_VARIABLES = {"total_price", "subtotal", "deposit_amount", "progress_amount", "retainage_amount",
+                      "balance_amount", "sales_tax", "rush_amount"}
 
 
 def money(v: Decimal) -> Decimal:
@@ -45,6 +50,8 @@ def builtin_variables(project: Project | None, rev: Revision | None, settings: S
         "company_phone": settings.company.phone,
         "company_email": settings.company.email,
         "deposit_pct": fmt_pct(settings.deposit_pct),
+        "deposit_pct_small": fmt_pct(settings.deposit_pct_small),
+        "deposit_threshold": f"${settings.deposit_threshold:,.0f}",
         "retainage_pct": fmt_pct(settings.retainage_pct),
         "validity_days": str(settings.validity_days),
         "waste_pct": fmt_pct(settings.default_waste_pct),
@@ -52,8 +59,14 @@ def builtin_variables(project: Project | None, rev: Revision | None, settings: S
     if project:
         v.update(proposal_number=project.number, client_name=project.client_name,
                  site_address=project.site_address, project_name=project.project_name)
+    if settings.pricing is not None:
+        v["shop_rate"] = f"${settings.pricing.shop_rate:,.2f}"
     if rev:
         v.update(revision=rev.rev, proposal_date=rev.proposal_date.strftime("%Y.%m.%d"))
+        if rev.taxable:
+            v.update(tax_county=rev.tax_county, tax_rate=fmt_pct(rev.tax_rate))
+        if rev.rush_pct:
+            v["rush_pct"] = fmt_pct(rev.rush_pct)
     return v
 
 
@@ -156,6 +169,7 @@ class LineResult:
     cost: Decimal
     stock: StockResult | None = None
     errors: list[str] = field(default_factory=list)
+    build: BuildTotals | None = None       # Built lines: the build sheet at this quantity
 
 
 @dataclass
@@ -169,14 +183,20 @@ class Scenario:
     section_pct: dict[int, Decimal]    # section -> percent items in that section
     owner_supplied: Decimal = Decimal(0)        # owner-furnished lines' cost: outside subtotal and total
     owner_lines: tuple[str, ...] = ()
+    rush: Decimal = Decimal(0)                  # rush fee
+    tax: Decimal = Decimal(0)                   # sales tax
 
     @property
     def percent_total(self) -> Decimal:
         return sum(self.percent_items.values(), Decimal(0))
 
     @property
+    def pre_tax(self) -> Decimal:
+        return self.subtotal + self.percent_total + self.rush
+
+    @property
     def total(self) -> Decimal:
-        return self.subtotal + self.percent_total
+        return self.pre_tax + self.tax
 
     @property
     def total_incl_owner(self) -> Decimal:
@@ -222,7 +242,14 @@ def line_result(ln: Line, variables: dict[str, str], settings: Settings,
             stock = stock_round(ln.takeoff, waste, sc.lengths_ft)
             qty = stock.total
     price = ln.unit_price if ln.unit_price is not None else Decimal(0)
-    if ln.price_var:
+    build = None
+    if ln.is_built:
+        if ln.build is None or ln.build.empty:
+            errors.append(f"{ln.id}: priced Built but the build sheet is empty")
+        else:
+            build = ln.build.totals(qty)
+            price = build.unit_price
+    elif ln.price_var:
         try:
             price = numeric(variables[ln.price_var])
             if ln.is_percent:
@@ -232,7 +259,7 @@ def line_result(ln: Line, variables: dict[str, str], settings: Settings,
         except ValueError as e:
             errors.append(f"{ln.id}: {e}")
     cost = Decimal(0) if ln.is_percent else money(qty * price)
-    return LineResult(line=ln, qty=qty, unit_price=price, cost=cost, stock=stock, errors=errors)
+    return LineResult(line=ln, qty=qty, unit_price=price, cost=cost, stock=stock, errors=errors, build=build)
 
 
 def _scenario(name: str, alts: tuple[int, ...], rev: Revision, lr: dict[str, LineResult]) -> Scenario:
@@ -263,9 +290,11 @@ def _scenario(name: str, alts: tuple[int, ...], rev: Revision, lr: dict[str, Lin
             amt = money(subtotal * lr[ln.id].unit_price)
             pct[ln.id] = amt
             section_pct[ln.section] = section_pct.get(ln.section, Decimal(0)) + amt
+    rush = money(subtotal * rev.rush_pct) if rev.rush_pct else Decimal(0)
+    tax = money((subtotal + sum(pct.values(), Decimal(0)) + rush) * rev.tax_rate) if rev.taxable else Decimal(0)
     return Scenario(name=name, alternates=alts, line_ids=[ln.id for ln in included], subtotal=subtotal,
                     percent_items=pct, section_base=section_base, section_pct=section_pct,
-                    owner_supplied=owner, owner_lines=tuple(owner_lines))
+                    owner_supplied=owner, owner_lines=tuple(owner_lines), rush=rush, tax=tax)
 
 
 def calculate(rev: Revision, settings: Settings, stock_classes: list[StockClass],
@@ -297,7 +326,16 @@ def calculate(rev: Revision, settings: Settings, stock_classes: list[StockClass]
                    conflicts=conflicts, errors=errors)
 
 
+def deposit_pct(total: Decimal, settings: Settings) -> Decimal:
+    """Deposit rule: below the threshold the smaller deposit applies (Convenient Woodworking)."""
+    if settings.payment_rule == "deposit" and settings.deposit_threshold and total < settings.deposit_threshold:
+        return settings.deposit_pct_small
+    return settings.deposit_pct
+
+
 def payment_schedule(total: Decimal, settings: Settings) -> dict[str, Decimal]:
-    deposit = money(total * settings.deposit_pct)
+    deposit = money(total * deposit_pct(total, settings))
+    if settings.payment_rule == "deposit":       # deposit, then the balance at delivery
+        return {"deposit": deposit, "progress": Decimal(0), "retainage": Decimal(0), "balance": total - deposit}
     retainage = money(total * settings.retainage_pct)
     return {"deposit": deposit, "progress": total - deposit - retainage, "retainage": retainage}

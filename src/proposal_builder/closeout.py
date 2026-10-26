@@ -172,6 +172,7 @@ class Contract:
     co_management_line: str | None
     mgmt_rate: Decimal = ZERO           # contract's project management rate
     license_threshold: Decimal = ZERO   # 0 = no check
+    tax_rate: Decimal = ZERO            # sales tax on change orders (taxable Convenient Woodworking contracts)
 
     @property
     def total(self) -> Decimal:
@@ -186,6 +187,8 @@ def contract_context(rev: Revision, settings: Settings, stock: list[StockClass],
         if ln.is_percent and ln.code is not None and ln.id in res.base.percent_items:
             by_code.setdefault(ln.code, []).append(ln)
     markup = sum((res.lines[ln.id].unit_price for c in settings.co_markup_codes for ln in by_code.get(c, [])), ZERO)
+    if settings.pricing is not None:     # Convenient Woodworking: the overhead and profit its build sheets use
+        markup = settings.pricing.overhead_pct + settings.pricing.profit_pct
     cont = by_code.get(settings.contingency_code, [])
     mgmt = by_code.get(settings.co_management_code, [])
     pm_line = next((ln for ln in rev.lines if ln.rate_key == settings.co_management_rate_key
@@ -198,6 +201,7 @@ def contract_context(rev: Revision, settings: Settings, stock: list[StockClass],
         co_management_line=mgmt[0].id if mgmt else None,
         mgmt_rate=pm_line.unit_price if pm_line else ZERO,
         license_threshold=settings.license_threshold,
+        tax_rate=rev.tax_rate if rev.taxable else ZERO,
     )
 
 
@@ -218,6 +222,7 @@ class COPricing:
     mgmt_from_allowance: Decimal = ZERO
     mgmt_billed: Decimal = ZERO        # beyond the allowance
     mgmt_allowance_after: Decimal = ZERO
+    tax: Decimal = ZERO                # sales tax, included in price
 
 
 def price_change_orders(log: ChangeOrderLog, contract: Contract,
@@ -228,8 +233,10 @@ def price_change_orders(log: ChangeOrderLog, contract: Contract,
     out: dict[str, COPricing] = {}
     for co in sorted(log.orders, key=lambda o: o.number):
         delta = co.cost_delta
-        price = money(delta * (1 + contract.markup_pct))
-        markup = price - delta
+        pre_tax = money(delta * (1 + contract.markup_pct))
+        markup = pre_tax - delta
+        tax = money(pre_tax * contract.tax_rate) if contract.tax_rate else ZERO
+        price = pre_tax + tax
         draw, billed = ZERO, ZERO
         counts = co.status in include
         if co.funding is COFunding.ABSORBED:
@@ -248,7 +255,7 @@ def price_change_orders(log: ChangeOrderLog, contract: Contract,
             remaining = after
             mgmt_left = mgmt_after
         out[co.number] = COPricing(co.number, delta, markup, price, draw, billed + mgmt_billed, after,
-                                   co.mgmt_hours, mgmt_cost, mgmt_draw, mgmt_billed, mgmt_after)
+                                   co.mgmt_hours, mgmt_cost, mgmt_draw, mgmt_billed, mgmt_after, tax)
     return out
 
 

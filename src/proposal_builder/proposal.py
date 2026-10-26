@@ -14,6 +14,7 @@ from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .buildsheet import BuildSheet
 from .models import (
     KS,
     BoilerplateBlock,
@@ -100,6 +101,11 @@ class Line(_Model):
     vendor: str = ""
     quote_ref: str = ""
     quote_amount: Decimal | None = None
+    build: BuildSheet | None = None           # BUILT: internal cost build-up (never printed)
+
+    @property
+    def is_built(self) -> bool:
+        return self.price_basis is PriceSource.BUILT
 
     @property
     def is_percent(self) -> bool:
@@ -158,6 +164,16 @@ class ProposalBlock(_Model):
         self.source_title, self.source_body = lib_title, lib_body
 
 
+class PieceSection(_Model):
+    """A section created in the proposal (Convenient Woodworking: one per piece). Numbers start at 9000 so they
+    never collide with catalog sections; line IDs read 90.01, 91.01 ..."""
+    number: int
+    name: str
+
+
+PIECE_START = 9000
+
+
 class Revision(_Model):
     schema_version: int = SCHEMA_VERSION
     rev: str = "1.0"
@@ -175,6 +191,38 @@ class Revision(_Model):
     separate_alternates: list[list[int]] = Field(default_factory=list)  # pairs not offered together
     print_changes: bool = True                                 # "Changes from Rev X" page
     print_sov: bool = False                                    # schedule of values summary page
+    pieces: list[PieceSection] = Field(default_factory=list)   # sections created in this proposal
+    rush_pct: Decimal = Decimal(0)                             # rush fee, fraction of the subtotal
+    taxable: bool = False                                      # sales tax on the whole proposal
+    tax_county: str = ""
+    tax_rate: Decimal = Decimal(0)                             # snapshot of the county's rate
+
+    # -- sections
+    def piece(self, number: int) -> PieceSection | None:
+        return next((p for p in self.pieces if p.number == number), None)
+
+    def section_title(self, number: int, catalog: Catalog | None = None) -> str:
+        p = self.piece(number)
+        if p is not None:
+            return p.name
+        sec = catalog.section(number) if catalog is not None else None
+        return sec.name if sec else str(number)
+
+    def add_piece(self, name: str) -> PieceSection:
+        used = {p.number for p in self.pieces}
+        n = PIECE_START
+        while n in used:
+            n += 100
+        p = PieceSection(number=n, name=name)
+        self.pieces.append(p)
+        self.sections.append(n)
+        self.sort_sections()
+        return p
+
+    def sort_sections(self) -> None:
+        """Number order, with the proposal's pieces first (delivery and other catalog sections follow)."""
+        pieces = {p.number for p in self.pieces}
+        self.sections.sort(key=lambda n: (n not in pieces, n))
 
     @property
     def locked(self) -> bool:
@@ -214,7 +262,7 @@ class Revision(_Model):
         """Append to the section, or with by_code insert it in catalog-code order."""
         if line.section not in self.sections:
             self.sections.append(line.section)
-            self.sections.sort()
+            self.sort_sections()
         existing = self.section_lines(line.section)
         if by_code and line.code is not None and existing:
             idx = next((i for i, e in enumerate(existing) if e.code is not None and e.code > line.code),
@@ -330,6 +378,8 @@ class Project(_Model):
     created: date = Field(default_factory=date.today)
     accepted_on: date | None = None   # set by Mark accepted; places the project in income summaries
     customer_id: str | None = None    # crm.Customer; client_name / site_address keep the printed text
+    attention: str = ""               # contact person printed under a company client
+    po_number: str = ""               # client's purchase order number, printed in the header
     site_address_id: str | None = None
     closed_on: date | None = None
     archived_on: date | None = None   # hidden from the project list; still counted in income summaries
@@ -369,6 +419,7 @@ def line_from_item(item: CatalogItem, catalog: Catalog, line_id: str,
         credit_if_unused=item.credit_if_unused,
         is_allowance=item.is_allowance,
         tier=LineTier((tier or item.default_tier).value),
+        build=item.build.model_copy(deep=True) if item.build else None,
     )
     apply_catalog_price(ln, item, catalog)
     if item.not_included:
@@ -390,6 +441,8 @@ def apply_catalog_price(ln: Line, item: CatalogItem, catalog: Catalog) -> None:
             ln.unit_price = ln.tier_price() if ln.tier is not LineTier.CUSTOM else ln.unit_price
         else:
             ln.unit_price = item.price
+    elif ln.price_basis is PriceSource.BUILT:
+        ln.unit_price = None              # comes from the build sheet
     else:
         ln.unit_price = item.price
 

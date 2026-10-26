@@ -14,7 +14,7 @@ from decimal import Decimal
 from importlib import resources
 from pathlib import Path
 
-from ..calc import Results, calculate, payment_schedule, render, variable_map
+from ..calc import Results, calculate, deposit_pct, payment_schedule, render, variable_map
 from ..models import Boilerplate, Catalog, Performer, PriceSource, Settings, default_performers
 from ..proposal import Line, Project, Revision
 from .markup import escape, md_to_typst
@@ -90,7 +90,9 @@ def document_variables(res: Results, settings: Settings) -> dict[str, str]:
     ps = payment_schedule(res.base.total, settings)
     return {"total_price": f"${res.base.total:,.2f}", "subtotal": f"${res.base.subtotal:,.2f}",
             "deposit_amount": f"${ps['deposit']:,.2f}", "progress_amount": f"${ps['progress']:,.2f}",
-            "retainage_amount": f"${ps['retainage']:,.2f}"}
+            "retainage_amount": f"${ps['retainage']:,.2f}",
+            "balance_amount": f"${ps.get('balance', res.base.total - ps['deposit']):,.2f}",
+            "sales_tax": f"${res.base.tax:,.2f}", "rush_amount": f"${res.base.rush:,.2f}"}
 
 
 def _changes(diff) -> dict | None:
@@ -115,8 +117,7 @@ def _sov(rev: Revision, res: Results, catalog: Catalog) -> dict:
         base = res.base.section_base.get(sec_num)
         if base is None:
             continue
-        sec = catalog.section(sec_num)
-        rows.append({"label": sec.name if sec else str(sec_num), "amount": fmt_money(base),
+        rows.append({"label": rev.section_title(sec_num, catalog), "amount": fmt_money(base),
                      "pct": f"{(base / total * 100):.1f}%" if total else ""})
     for lid, amt in res.base.percent_items.items():
         ln = rev.line(lid)
@@ -138,8 +139,7 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         lines = rev.section_lines(sec_num)
         if not lines:
             continue
-        sec = catalog.section(sec_num)
-        name = sec.name if sec else str(sec_num)
+        name = rev.section_title(sec_num, catalog)
         rows = []
         for ln in lines:
             lr = res.lines[ln.id]
@@ -183,6 +183,18 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         sections.append({"number": sec_num, "name": name, "rows": rows, "totals": totals})
 
     # ---------------------------------------------------------------- totals block
+    cw = settings.pricing is not None
+    if cw:
+        totals = _cw_totals(rev, res, alt_nums)
+    else:
+        totals = _ks_totals(rev, res, alt_nums)
+    alt_descriptions = [{"n": a.number, "name": a.name, "text": md_to_typst(render(a.description, v))}
+                        for a in sorted(rev.alternates, key=lambda a: a.number) if a.description or a.name]
+    return _finish(project, rev, settings, catalog, boilerplate, res, v, alt_nums, sections, totals,
+                   alt_descriptions, diff)
+
+
+def _ks_totals(rev: Revision, res: Results, alt_nums: list[int]) -> list[dict]:
     single = len(alt_nums) == 1
     alt_label = (lambda n: "*Alternate") if single else (lambda n: f"*Alternate {n}")
     totals = [{"label": "Subtotal (less % items):", "amount": fmt_money(res.base.subtotal), "style": "sub"}]
@@ -205,9 +217,45 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         if touches_owner and res.alternates[n].owner_supplied != res.base.owner_supplied:
             totals.append({"label": f"Total {alt_label(n)} Incl. Owner-supplied items",
                            "amount": fmt_money(res.alternates[n].total_incl_owner), "style": "incl", "alt": n})
-    alt_descriptions = [{"n": a.number, "name": a.name, "text": md_to_typst(render(a.description, v))}
-                        for a in sorted(rev.alternates, key=lambda a: a.number) if a.description or a.name]
+    return totals
 
+
+def _cw_totals(rev: Revision, res: Results, alt_nums: list[int]) -> list[dict]:
+    """Convenient Woodworking: subtotal, rush fee, sales tax and Total Price for the base, then the same for
+    each alternate (combinations show their Total Price)."""
+    single = len(alt_nums) == 1
+    tax_label = f"Sales tax ({rev.tax_county + ' County, ' if rev.tax_county else ''}{fmt_pct(rev.tax_rate)})"
+    rush_label = f"Rush fee ({fmt_pct(rev.rush_pct)})"
+
+    def block(sc, suffix: str, alt: int) -> list[dict]:
+        rows = [{"label": f"Subtotal{suffix}:", "amount": fmt_money(sc.subtotal), "style": "sub", "alt": alt}]
+        for lid, amt in sc.percent_items.items():
+            ln = rev.line(lid)
+            rows.append({"label": f"{ln.title if ln else lid}{suffix}", "amount": fmt_money(amt), "style": "line",
+                         "alt": alt})
+        if rev.rush_pct:
+            rows.append({"label": rush_label + suffix, "amount": fmt_money(sc.rush), "style": "line", "alt": alt})
+        if rev.taxable:
+            rows.append({"label": tax_label + suffix, "amount": fmt_money(sc.tax), "style": "line", "alt": alt})
+        rows.append({"label": f"Total Price{suffix}", "amount": fmt_money(sc.total), "style": "total", "alt": alt})
+        return rows
+
+    totals = block(res.base, "", 0)
+    for n in alt_nums:
+        totals += block(res.alternates[n], " *Alternate" if single else f" *Alternate {n}", n)
+    for c in res.combinations:
+        totals.append({"label": f"Total Price *{c.name.replace('Alt', 'Alternate')}",
+                       "amount": fmt_money(c.total), "style": "total", "alt": -1})
+    if res.base.owner_supplied:
+        totals.append({"label": "Total *Incl. Owner-supplied items",
+                       "amount": fmt_money(res.base.total_incl_owner), "style": "incl"})
+    return totals
+
+
+def _finish(project: Project, rev: Revision, settings: Settings, catalog: Catalog, boilerplate: Boilerplate,
+            res: Results, v: dict, alt_nums: list[int], sections: list, totals: list, alt_descriptions: list,
+            diff) -> dict:
+    cw = settings.pricing is not None
     # ---------------------------------------------------------------- boilerplate
     blocks_by_heading: dict[str, list] = {}
     for b in sorted(rev.blocks, key=lambda b: b.order):
@@ -227,13 +275,21 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         blocks_by_heading.setdefault(b.heading, []).append(item)
 
     ps = payment_schedule(res.base.total, settings)
-    payments = [
-        {"label": f"Deposit due at signing ({fmt_pct(settings.deposit_pct)})", "amount": fmt_money(ps["deposit"])},
-        {"label": "Construction progress payments", "amount": fmt_money(ps["progress"])},
-        {"label": f"Retainage due at final completion ({fmt_pct(settings.retainage_pct)})",
-         "amount": fmt_money(ps["retainage"])},
-        {"label": "Total Price", "amount": fmt_money(res.base.total), "style": "total"},
-    ]
+    if settings.payment_rule == "deposit":
+        payments = [
+            {"label": f"Deposit due at signing ({fmt_pct(deposit_pct(res.base.total, settings))})",
+             "amount": fmt_money(ps["deposit"])},
+            {"label": "Balance due at delivery or completion of installation", "amount": fmt_money(ps["balance"])},
+            {"label": "Total Price", "amount": fmt_money(res.base.total), "style": "total"},
+        ]
+    else:
+        payments = [
+            {"label": f"Deposit due at signing ({fmt_pct(settings.deposit_pct)})", "amount": fmt_money(ps["deposit"])},
+            {"label": "Construction progress payments", "amount": fmt_money(ps["progress"])},
+            {"label": f"Retainage due at final completion ({fmt_pct(settings.retainage_pct)})",
+             "amount": fmt_money(ps["retainage"])},
+            {"label": "Total Price", "amount": fmt_money(res.base.total), "style": "total"},
+        ]
 
     special = {"Intro", "How to read this proposal", "Totals", "Signature"}
     order = list(boilerplate.headings) + [h for h in blocks_by_heading if h not in boilerplate.headings]
@@ -247,7 +303,10 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
                     "email": c.email, "logo": "logo.png" if c.logo_path else ""},
         "proposal": {"number": project.number, "date": rev.proposal_date.strftime("%Y.%m.%d"),
                      "revision": rev.rev},
-        "client": {"name": project.client_name, "address": project.site_address, "project": project.project_name},
+        "client": {"name": project.client_name, "address": project.site_address, "project": project.project_name,
+                   "attention": project.attention, "po": project.po_number},
+        "company_signature": not cw,
+        "compact_terms": cw,
         "intro": blocks_by_heading.get("Intro", []),
         "how_to_read": blocks_by_heading.get("How to read this proposal", []),
         "sections": sections,

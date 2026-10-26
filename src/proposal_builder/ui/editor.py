@@ -14,7 +14,7 @@ from nicegui import run, ui
 from pydantic import ValidationError
 
 from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
-from ..models import Performer, PriceSource, Variable, basis_label, profile_name
+from ..models import Performer, PriceSource, Variable, bases_for, basis_label, profile_name
 from ..proposal import (
     Alternate,
     Line,
@@ -128,8 +128,20 @@ class Editor:
         self.header.refresh()
 
     def section_name(self, number: int) -> str:
+        piece = self.rev.piece(number)
+        if piece is not None:
+            return piece.name
         s = self.cat.section(number)
         return f"{number} {s.name}" if s else str(number)
+
+    @property
+    def is_cw(self) -> bool:
+        return self.settings.pricing is not None
+
+    def section_options(self) -> dict[int, str]:
+        """Sections a line can go in: this proposal's pieces, then the company's catalog sections."""
+        return {**{p.number: p.name for p in self.rev.pieces},
+                **{s.number: f"{s.number} {s.name}" for s in self.sections}}
 
     # ------------------------------------------------------------ page
     def build(self) -> None:
@@ -148,7 +160,7 @@ class Editor:
             with t_issues:
                 self.issue_badge = ui.badge("").classes("ml-1")
             self.tabs, self.t_issues = tabs, t_issues
-            self.t_lines, self.t_vars, self.t_alts = t_lines, t_vars, t_alts
+            self.t_lines, self.t_vars, self.t_alts, self.t_terms = t_lines, t_vars, t_alts, t_terms
             self._update_issue_badge()
             t_income = ui.tab("Income", icon="savings")
             t_quotes = ui.tab("Sub quotes", icon="request_quote")
@@ -292,11 +304,17 @@ class Editor:
         from ..closeout import accepted_revision, build_ledger, contract_context
         from ..income import contract_report, estimate_report
         s, ps, num = self.settings, self.st.projects, self.project.number
-        ui.label("What Kept Spec keeps on this project, before your own business expenses. Counts lines performed "
-                 "by Kept Spec Advisors or Convenient Woodworking, overhead, profit, change order management time, "
-                 "and overhead and profit on change orders and line variance. Subcontractors, materials, "
-                 "allowances, builder's risk, contingency and owner-supplied items pass through. Never printed.") \
-            .classes("text-xs text-gray-500 mb-2")
+        if self.is_cw:
+            ui.label("What Convenient Woodworking keeps on this project, before your own business expenses: every "
+                     "line less the materials and outsourced work on its build sheet, plus any rush fee. Sales tax, "
+                     "and lines performed by others, pass through. Never printed.") \
+                .classes("text-xs text-gray-500 mb-2")
+        else:
+            ui.label("What Kept Spec keeps on this project, before your own business expenses. Counts lines performed "
+                     "by Kept Spec Advisors or Convenient Woodworking, overhead, profit, change order management time, "
+                     "and overhead and profit on change orders and line variance. Subcontractors, materials, "
+                     "allowances, builder's risk, contingency and owner-supplied items pass through. Never printed.") \
+                .classes("text-xs text-gray-500 mb-2")
         revs = [self.rev if r == self.rev.rev else ps.load_revision(num, r) for r in self.revs]
         acc = accepted_revision(revs)
         if acc is not None:
@@ -461,8 +479,15 @@ class Editor:
                 if on_click:
                     c.on("click", on_click)
             fig("Subtotal", money(r.base.subtotal))
-            fig("Percent items", money(r.base.percent_total),
-                f"{(r.base.percent_total / r.base.subtotal * 100):.1f}%" if r.base.subtotal else "")
+            if not self.is_cw or r.base.percent_items:
+                fig("Percent items", money(r.base.percent_total),
+                    f"{(r.base.percent_total / r.base.subtotal * 100):.1f}%" if r.base.subtotal else "")
+            if self.rev.rush_pct:
+                fig("Rush", money(r.base.rush), f"{self.rev.rush_pct * 100:.0f}%")
+            if self.rev.taxable:
+                fig("Sales tax", money(r.base.tax),
+                    f"{self.rev.tax_county} {self.rev.tax_rate * 100:.2f}%" if self.rev.tax_county else "pick a county",
+                    color="brand" if self.rev.tax_county else "amber")
             fig("Total", money(r.base.total),
                 f"{money(r.base.total_incl_owner)} incl. owner-supplied" if r.base.owner_supplied else "")
             for n, sc in r.alternates.items():
@@ -471,7 +496,10 @@ class Editor:
                 fig(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))}"
                     + (f"; owner {'+' if od >= 0 else '-'}{money(abs(od))}" if od else ""), bg=f"pb-altbg{n}")
             ps = payment_schedule(r.base.total, self.settings)
-            fig("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
+            if "balance" in ps:
+                fig("Deposit", money(ps["deposit"]), f"balance {money(ps['balance'])}")
+            else:
+                fig("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
             errors, warns = self.issue_counts()
             if errors or warns:
                 parts = ([f"{errors} error{'s' if errors != 1 else ''}"] if errors else []) + \
@@ -665,6 +693,10 @@ class Editor:
                 ln.takeoff = None
             elif field == "price":
                 p = to_decimal(val)
+                if ln.is_built:
+                    ui.notify("This price comes from the build sheet; open the line to change it.", type="info")
+                    self.refresh_grid()
+                    return
                 if ln.is_percent:
                     ln.unit_price = p / 100 if p is not None else None
                 else:
@@ -732,8 +764,13 @@ class Editor:
                 .props(f"dense {'unelevated' if self.section_filter is None else 'flat'} size=sm")
         ui.label("Read-only revision." if self.locked else "Checked sections print; order sets print order.") \
             .classes("text-xs text-gray-500")
+        if self.is_cw and not self.locked:
+            ui.button("New piece", icon="add_box", on_click=lambda: self.piece_dialog(None)) \
+                .props("dense flat no-caps").tooltip("A section for one piece (table, cabinet, box); it gets its own "
+                                                     "total on the proposal")
         included = list(self.rev.sections)
-        others = [s.number for s in self.sections if s.number not in included]
+        others = [p.number for p in self.rev.pieces if p.number not in included] + \
+                 [s.number for s in self.sections if s.number not in included]
         for num in included + others:
             on = num in included
             n_lines = len(self.rev.section_lines(num))
@@ -748,6 +785,10 @@ class Editor:
                 lbl = ui.label(self.section_name(num)).classes(
                     "text-sm grow cursor-pointer truncate " + ("" if on else "text-gray-400"))
                 lbl.on("click", lambda n=num: self._filter(n))
+                piece = self.rev.piece(num)
+                if piece is not None and not self.locked:
+                    ui.button(icon="edit", on_click=lambda pc=piece: self.piece_dialog(pc)) \
+                        .props("flat dense round size=xs").tooltip("Rename or delete this piece")
                 if on:
                     ui.label(money(r.base.section_total(num))).classes("text-xs text-gray-600")
                     if not self.locked:
@@ -757,6 +798,47 @@ class Editor:
                             .props("flat dense round size=xs")
                 elif n_lines:
                     ui.label(f"{n_lines} hidden").classes("text-xs text-orange-700")
+
+    def piece_dialog(self, piece) -> None:
+        """Create, rename or delete a piece section (Convenient Woodworking)."""
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[420px]"):
+            ui.label("New piece" if piece is None else f"Piece: {piece.name}").classes("text-lg font-semibold")
+            name = ui.input("Name (prints as the section heading)", value=piece.name if piece else "",
+                            placeholder="e.g. Dining table").props("dense autofocus").classes("w-full")
+            n_lines = len(self.rev.section_lines(piece.number)) if piece else 0
+
+            def save() -> None:
+                text = (name.value or "").strip()
+                if not text:
+                    ui.notify("Enter a name.", type="warning")
+                    return
+                if piece is None:
+                    new = self.rev.add_piece(text)
+                    self.section_filter = new.number
+                else:
+                    piece.name = text
+                dlg.close()
+                self.save()
+
+            def delete() -> None:
+                if n_lines:
+                    ui.notify(f"Move or delete its {n_lines} line(s) first.", type="warning")
+                    return
+                self.rev.pieces = [p for p in self.rev.pieces if p.number != piece.number]
+                if piece.number in self.rev.sections:
+                    self.rev.sections.remove(piece.number)
+                if self.section_filter == piece.number:
+                    self.section_filter = None
+                dlg.close()
+                self.save()
+
+            with ui.row().classes("w-full justify-end"):
+                if piece is not None:
+                    ui.button("Delete", icon="delete", on_click=delete).props("flat color=negative")
+                ui.space()
+                ui.button("Cancel", on_click=dlg.close).props("flat")
+                ui.button("Save", icon="save", on_click=save)
+        dlg.open()
 
     def _filter(self, section: int | None) -> None:
         self.section_filter = section
@@ -792,8 +874,10 @@ class Editor:
                          "description": it.description})
         with self.host, ui.dialog().props("maximized=false") as dlg, ui.card().classes("w-[1100px] max-w-full"):
             ui.label("Add from catalog" + (f" to Alt {alternate}" if alternate else "")).classes("text-lg font-semibold")
-            ui.label("Tick one or more items. Each becomes a line in its own section; "
-                     "the line keeps a copy of the catalog values.").classes("text-xs text-gray-500")
+            piece_now = self.rev.piece(self.section_filter) if self.section_filter else None
+            ui.label((f"Tick one or more items. They are added to {piece_now.name}; " if piece_now else
+                      "Tick one or more items. Each becomes a line in its own section; ")
+                     + "the line keeps a copy of the catalog values.").classes("text-xs text-gray-500")
             flt = ui.input(placeholder="Search").props("dense clearable autofocus").classes("w-80")
             g = ui.aggrid({
                 "columnDefs": [
@@ -817,9 +901,12 @@ class Editor:
                     ui.notify("Tick at least one item.")
                     return
                 added = []
+                piece = self.rev.piece(self.section_filter) if self.section_filter else None
                 for r in sel:
                     it = self.cat.item(r["code"])
-                    ln = line_from_item(it, self.cat, self.new_id(it.section, it.code))
+                    sec = piece.number if piece is not None else it.section   # into the piece being viewed
+                    ln = line_from_item(it, self.cat, self.new_id(sec, it.code))
+                    ln.section = sec
                     ln.alternate = alternate
                     self.rev.add_line(ln, by_code=True)
                     added.append(ln.id)
@@ -907,7 +994,7 @@ class Editor:
                         .props("dense").classes("col-span-6")
                     title = ui.input("Title", value=work.title, placeholder="e.g. Install vanity").props("dense") \
                     .classes("col-span-3")
-                    section = ui.select(keep_current({s.number: f"{s.number} {s.name}" for s in self.sections}, work.section),
+                    section = ui.select(keep_current(self.section_options(), work.section),
                                         label="Section", value=work.section).props("dense").classes("col-span-2")
                     unit = ui.select(cat.unit_options(work.unit), label="Unit", value=work.unit).props("dense")
                     performer = ui.select(keep_current({n: n or "-" for n in self.settings.performer_names()},
@@ -1003,7 +1090,8 @@ class Editor:
                 with price_box:
                     with ui.row().classes("items-center gap-3"):
                         ui.label("Basis").classes("font-semibold text-sm")
-                        basis = ui.toggle({p.value: basis_label(p).capitalize() for p in PriceSource},
+                        offered = [p for p in PriceSource if p in bases_for(self.project.profile) or p is work.price_basis]
+                        basis = ui.toggle({p.value: basis_label(p).capitalize() for p in offered},
                                           value=work.price_basis.value).props("dense no-caps")
                     with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
                         rate = ui.select(keep_current({"": "-", **{r.key: f"{r.key}: {r.name} (${r.rate}/{r.unit})"
@@ -1022,6 +1110,40 @@ class Editor:
                         price_var = ui.select({"": "-", **{n: n for n in var_names}}, label="or bind price to variable",
                                               value=work.price_var or "").props("dense").classes("col-span-2")
                         src_lbl = ui.label().classes("text-xs text-gray-600 col-span-6")
+                        with ui.row().classes("items-center gap-3 col-span-6") as build_row:
+                            ui.button("Build sheet", icon="construction", on_click=lambda: open_build()) \
+                                .props("dense outline no-caps")
+                            build_lbl = ui.label().classes("text-xs text-gray-600")
+
+                def built_qty() -> Decimal:
+                    try:
+                        return to_decimal(qty.value) or Decimal(1)
+                    except ValueError:
+                        return Decimal(1)
+
+                def show_built() -> None:
+                    if work.build is None or work.build.empty:
+                        build_lbl.set_text("No build sheet yet. Open it to add materials and hours; the unit price "
+                                           "comes from it.")
+                        price.set_value(None)
+                        return
+                    t = work.build.totals(built_qty())
+                    price.set_value(float(t.unit_price))
+                    build_lbl.set_text(f"Cost {money(t.cost)} + overhead {money(t.overhead)} + profit "
+                                       f"{money(t.profit)}, rounded up: {money(t.unit_price)} each, "
+                                       f"{money(t.line_total)} for {t.qty.normalize():f}. "
+                                       f"{t.hours.normalize():f} hours, {money(t.effective_rate)} per shop hour.")
+
+                def open_build() -> None:
+                    from .build_ui import build_dialog
+
+                    def done(b) -> None:
+                        work.build = b
+                        mark_dirty()
+                        show_built()
+                    with self.host:
+                        build_dialog(work.build, built_qty(), cat, self.settings.pricing, done,
+                                     readonly=self.locked, title=title.value or work.title)
 
                 def sync_price(source: str) -> None:
                     if source == "rate" and rate.value:
@@ -1058,6 +1180,7 @@ class Editor:
                     allow.set_visibility(b == "allowance")
                     tier.set_visibility(b == "allowance")
                     price_var.set_visibility(b in ("fixed", "percent"))
+                    build_row.set_visibility(b == "built")
                     for el in (unit, performer, sub_row, is_allow, of, ni):
                         el.set_visibility(not pct)
                     if b == "rate":
@@ -1080,6 +1203,11 @@ class Editor:
                         price.props('label="Percent of subtotal (%)"')
                         price.enable()
                         src_lbl.set_text("Calculated on the subtotal; quantity and unit do not apply.")
+                    elif b == "built":
+                        price.props('label="Unit price (from build sheet)"')
+                        price.disable()
+                        src_lbl.set_text("")
+                        show_built()
                     else:
                         price.props('label="Unit price ($)"')
                         price.enable()
@@ -1097,6 +1225,7 @@ class Editor:
                     refresh_form()
                 basis.on_value_change(basis_changed)
                 qmode.on_value_change(refresh_form)
+                qty.on_value_change(lambda _: show_built() if basis.value == "built" else None)
 
                 def upd_stock() -> None:
                     from ..calc import stock_round
@@ -1139,6 +1268,8 @@ class Editor:
                     p = to_decimal(price.value)
                     if b is PriceSource.PERCENT and p is not None:
                         p = p / 100
+                    if b is PriceSource.BUILT:
+                        p = None                          # the build sheet sets the price
                     m = qmode.value
                     if b is PriceSource.PERCENT:          # quantity does not apply
                         m = "typed"
@@ -1175,6 +1306,7 @@ class Editor:
                         allowance_high=work.allowance_high if b is PriceSource.ALLOWANCE else None,
                         tier=LineTier(tier.value) if b is PriceSource.ALLOWANCE else LineTier.HIGH,
                         price_var=(price_var.value or None) if b in (PriceSource.FIXED, PriceSource.PERCENT) else None,
+                        build=work.build if b is PriceSource.BUILT else None,
                         is_allowance=is_allow.value, not_included=ni.value, owner_furnished=of.value,
                         credit_if_unused=cu.value, vendor=vendor.value or "", quote_ref=quote_ref.value or "",
                         quote_amount=to_decimal(quote_amt.value), internal_notes=internal.value or "",
@@ -1224,6 +1356,15 @@ class Editor:
                         .bind_visibility_from(state, "dirty")
                 ui.space()
                 ui.button("Close" if self.locked else "Cancel", on_click=close).props("flat")
+                if not self.locked and self.is_cw:
+                    def as_template() -> None:
+                        updated = save()
+                        if updated is not None:
+                            self.save_as_template(updated)
+                    ui.button("Save as template", icon="bookmark_add", on_click=as_template) \
+                        .props("flat no-caps").tooltip("Save the line, then add it to the catalog (Shop-built pieces) "
+                                                       "with its build sheet, to reuse in other proposals") \
+                        .bind_visibility_from(basis, "value", lambda v: v == "built")
                 if not self.locked:
                     ui.button("Save & close", icon="done", on_click=save).props("flat")
                     ui.button("Save", icon="save", on_click=save_stay)
@@ -1239,6 +1380,28 @@ class Editor:
             if isinstance(el, ValueElement):
                 el.on_value_change(mark_dirty)
         dlg.open()
+
+    def save_as_template(self, ln: Line) -> None:
+        """Add a Built line to the catalog (Shop-built pieces, 3100) with a copy of its build sheet."""
+        from ..models import CatalogItem
+        if ln.build is None or ln.build.empty:
+            ui.notify("Fill in the build sheet first.", type="warning")
+            return
+        cat = self.cat
+        codes = {i.code for i in cat.items}
+        code = next(c for c in range(3101, 3200) if c not in codes)
+        item = CatalogItem(code=code, section=3100 if cat.section(3100) else ln.section, title=ln.title,
+                           description=ln.notes or ln.general_description, unit=ln.unit,
+                           price_source=PriceSource.BUILT, build=ln.build.model_copy(deep=True))
+        cat.items.append(item)
+        cat.items.sort(key=lambda i: i.code)
+        self.st.save_catalog()
+        ln.code = code
+        if item.description != ln.general_description:   # the line now reads its description from the item
+            ln.general_description, ln.notes, ln.print_general = item.description, "", True
+        self.save()
+        ui.notify(f"Saved as catalog item {code} {ln.title}. Add it to other proposals with Add from catalog.",
+                  type="positive")
 
     # ------------------------------------------------------------ variables
     def variables_tab(self) -> None:
@@ -1435,6 +1598,10 @@ class Editor:
         for a, b in self.results.conflicts:
             out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined",
                         ("tab", "alternates")))
+        if self.rev.taxable and not self.rev.tax_county:
+            out.append(("warn", "Sales tax is on but no delivery county is picked (Terms & options)", ("tab", "terms")))
+        if self.is_cw and not self.rev.taxable:
+            out.append(("info", "No sales tax on this proposal (Terms & options)", ("tab", "terms")))
         from ..crm import insurance_warnings
         from ..proposal import WON_STATUSES
         from .crm_pages import project_contractor_ids
@@ -1459,8 +1626,17 @@ class Editor:
             if not ln.is_percent and not ln.not_included and not ln.owner_furnished and ln.section in self.rev.sections:
                 if lr.qty == 0:
                     out.append(("warn", f"{ln.id} {ln.title}: quantity is 0", ("line", ln.id)))
-                elif ln.unit_price is None and not ln.price_var:
+                elif ln.unit_price is None and not ln.price_var and not ln.is_built:
                     out.append(("warn", f"{ln.id} {ln.title}: no unit price", ("line", ln.id)))
+            if ln.is_built and ln.build is not None:
+                stale = [m.name for m in ln.build.materials if m.stale]
+                unpriced = [m.name for m in ln.build.materials if not m.unit_cost]
+                if stale:
+                    out.append(("warn", f"{ln.id} {ln.title}: build sheet lumber priced for another thickness "
+                                        f"({', '.join(stale)}); open the build sheet and Pull prices", ("line", ln.id)))
+                if unpriced:
+                    out.append(("warn", f"{ln.id} {ln.title}: build sheet material with no cost ({', '.join(unpriced)})",
+                                ("line", ln.id)))
             miss = undefined_references(ln.notes, v)
             if miss:
                 out.append(("error", f"{ln.id}: undefined variable(s) {', '.join(sorted(miss))} in notes",
@@ -1567,7 +1743,8 @@ class Editor:
             if b is not None:
                 self._block_dialog(b, b.heading)
         elif kind == "tab":
-            self.tabs.set_value({"variables": self.t_vars, "alternates": self.t_alts}.get(ref, self.t_lines))
+            self.tabs.set_value({"variables": self.t_vars, "alternates": self.t_alts,
+                                 "terms": self.t_terms}.get(ref, self.t_lines))
         elif kind == "section":
             self.tabs.set_value(self.t_lines)
             self._filter(int(ref))
@@ -1713,6 +1890,40 @@ class Editor:
         dlg.open()
 
     # ------------------------------------------------------------ terms & options
+    def pricing_card(self) -> None:
+        """Rush fee and sales tax for this revision (Convenient Woodworking)."""
+        rev, s = self.rev, self.settings
+        with ui.card().classes("w-full mt-2"):
+            ui.label("Rush fee and sales tax").classes("font-semibold")
+            with ui.row().classes("items-end gap-6"):
+                rush = ui.number("Rush fee (% of subtotal; 0 = none)", value=float(rev.rush_pct * 100),
+                                 format="%.0f").props('dense suffix="%"').classes("w-56")
+                taxable = ui.switch("Charge sales tax", value=rev.taxable).props("dense")
+                counties = {c.name: f"{c.name} ({c.rate * 100:.2f}%)" for c in s.tax_counties}
+                county = ui.select(keep_current(counties, rev.tax_county or None), value=rev.tax_county or None,
+                                   label="Delivery county").props("dense").classes("w-56")
+                ui.label("Counties and rates: Settings > Proposals (Convenient Woodworking).") \
+                    .classes("text-xs text-gray-500")
+
+            def apply(_=None) -> None:
+                try:
+                    rev.rush_pct = (to_decimal(rush.value) or Decimal(0)) / 100
+                except ValueError as e:
+                    ui.notify(str(e), type="warning")
+                    return
+                rev.taxable = bool(taxable.value)
+                rev.tax_county = county.value or ""
+                rate = s.tax_rate(rev.tax_county)
+                if rate is not None:
+                    rev.tax_rate = rate       # snapshot: a later rate change does not alter this revision
+                county.set_enabled(rev.taxable and not self.locked)
+                self.save(refresh_grid=False)
+            for el in (rush, taxable, county):
+                el.on_value_change(apply)
+                if self.locked:
+                    el.disable()
+            county.set_enabled(rev.taxable and not self.locked)
+
     @ui.refreshable_method
     def terms_panel(self) -> None:
         rev, lib = self.rev, self.library
@@ -1726,6 +1937,8 @@ class Editor:
                 if self.locked:
                     sw1.disable()
                     sw2.disable()
+        if self.is_cw:
+            self.pricing_card()
         ui.label("Terms and text in this proposal. Edits here change only this revision; the Terms library "
                  "(Catalog > Terms library) is untouched.").classes("text-xs text-gray-500 mt-3")
         headings = list(lib.headings) + sorted({b.heading for b in rev.blocks} - set(lib.headings))
@@ -1972,12 +2185,19 @@ class Editor:
             from .crm_pages import CustomerPicker
             picker = CustomerPicker(p.customer_id, p.site_address_id)
             name = ui.input("Project", value=p.project_name).props("dense").classes("w-full")
+            with ui.row().classes("w-full gap-3 no-wrap"):
+                attn = ui.input("Attn (contact at a company client)", value=p.attention,
+                                placeholder="blank = the customer's first contact").props("dense").classes("grow")
+                po = ui.input("PO number", value=p.po_number).props("dense").classes("w-40")
             d = date_input("Proposal date", rev.proposal_date, readonly=self.locked)
 
             def save() -> None:
                 try:
                     if not picker.apply(p):
                         return
+                    if (attn.value or "").strip():
+                        p.attention = attn.value.strip()
+                    p.po_number = (po.value or "").strip()
                     p.project_name = name.value or p.project_name
                     if not self.locked:
                         rev.proposal_date = parse_date(d.value) or rev.proposal_date

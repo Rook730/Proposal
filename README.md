@@ -41,6 +41,7 @@ Push a version tag (`git tag v1.0.1 && git push origin v1.0.1`). The GitHub Acti
 ## Using it
 
 - **Companies**: every project belongs to Kept Spec Advisors or Convenient Woodworking (picked at New project, never changed). The catalog is shared and each section says which company uses it; Settings and the Terms library have a Company switch.
+- **Convenient Woodworking**: New piece (sections panel) for each table, cabinet or box; lines priced Built open a build sheet (materials from Catalog > Price references, hours by phase, overhead, profit, rounding). Save as template reuses a piece. Rush fee and sales tax county are under Terms & options; the deposit rule and tax counties under Settings > Proposals.
 - **Projects**: New project starts blank (Kept Spec: percent items only) or as a copy of an existing project of the same company. "Import from Excel" converts a proposal sheet from the old workbook (e.g. "26005 Proposal").
 - **Editor**: tick sections on the left (order arrows set print order), add lines from the catalog, edit title, performer, unit, qty and price in the grid, double-click an ID, notes or cost cell for the full line form.
 - **Line form**: detail notes with {variables}, quantity bound to a variable or computed from a takeoff and stock lengths, price from a rate, allowance tier, fixed value or variable, flags, internal fields, and "Pull update" when the catalog changed.

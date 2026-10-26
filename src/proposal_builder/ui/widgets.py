@@ -22,6 +22,7 @@ NAV_CATALOG = [
     ("Price ranges", "/allowances", "straighten"),
     ("Units", "/units", "square_foot"),
     ("Stock lengths", "/stock", "carpenter"),
+    ("Price references", "/prices", "forest"),
     ("Terms library", "/boilerplate", "article"),
 ]
 

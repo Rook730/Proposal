@@ -1,4 +1,4 @@
-// Kept Spec proposal layout. Data comes from data.json written by render/document.py.
+// Proposal layout for both companies. Data comes from data.json written by render/document.py.
 // Pagination rules (spec 11):
 //  - section title + column header never sit alone at a page bottom (table header orphan control)
 //  - the first two lines travel with the header; a line never splits; the last line travels with the totals
@@ -166,8 +166,10 @@
 #v(2pt)
 #grid(columns: (0.75in, 1fr), row-gutter: 5pt,
   [Client:], d.client.name,
+  ..if d.client.at("attention", default: "") != "" { ([Attn:], d.client.attention) } else { () },
   [Address:], d.client.address,
   [Project:], d.client.project,
+  ..if d.client.at("po", default: "") != "" { ([PO \#:], d.client.po) } else { () },
 )
 #v(14pt)
 #for (i, b) in d.intro.enumerate() {
@@ -286,14 +288,17 @@
   }
   #v(6pt)
   #sig-row[Client Signature]
-  #v(8pt)
-  #sig-row(d.company.name)
+  #if d.at("company_signature", default: true) {
+    v(8pt)
+    sig-row(d.company.name)
+  }
 ]
 
 // ------------------------------------------------------------------ boilerplate groups
 
-#for g in d.groups {
-  pagebreak(weak: true)
+#for (i, g) in d.groups.enumerate() {
+  // Kept Spec starts each group on a new page; compact documents (Convenient Woodworking) run them on
+  if i == 0 or not d.at("compact_terms", default: false) { pagebreak(weak: true) }
   section-heading(g.heading)
   line(length: 100%, stroke: 0.8pt + ink)
   if g.payments.len() > 0 {

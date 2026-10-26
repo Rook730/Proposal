@@ -1,6 +1,6 @@
 # Convenient Woodworking profile: requirements draft
 
-Version 0.2 | 2026-10-25 | Owner: Nick
+Version 0.3 | 2026-10-25 | Owner: Nick (stages 1 and 2 built in 1.8.0)
 Source: intake answers (claude/proposal-builder-cw-intake.md) and follow-ups F1 to F18. Open items are in section 16. Summary in docs/requirements.md section 16.
 
 ## 1. Purpose and scope
@@ -70,7 +70,7 @@ Add Convenient Woodworking (CW) proposals to Proposal Builder as a second compan
 | Profit | separate percent; 10% placeholder until set |
 | Rush | per proposal, 20 to 50% |
 | Rounding | unit price rounded up to the next $5 |
-| Delivery | free within 1 hour of 224 Rutledge Rd (project checkbox); beyond, round-trip miles beyond the zone x $0.725 (IRS 2026 rate) plus drive time beyond the zone at $35/hr; crating as a line item |
+| Delivery | free within 1 hour of 224 Rutledge Rd (as built: a $0 Delivery line; no project checkbox needed); beyond, round-trip miles beyond the zone x $0.725 (IRS 2026 rate) plus drive time beyond the zone at $35/hr; crating as a line item |
 | Storage of client property | $/SF of footprint per month, starting 15 days after notice of completion; printed in terms |
 
 No machine-rate, consumables or material-markup tables: these are inside overhead.
@@ -194,13 +194,13 @@ Not printed: Prepared by, valid-until date, slogan, cash discount (none offered)
 
 ## 15. Stages
 
-1. **Profile plumbing (built 2026-10-25, not released):**
+1. **Profile plumbing (released in 1.8.0):**
    - `Project.profile` and the CW profile folder.
    - Section tags.
    - Company column and filter.
    - Rename to Proposal Builder.
    - KS behavior unchanged.
-2. **CW proposals (needed for the box job):**
+2. **CW proposals (built 2026-10-25, released in 1.8.0):**
    - CW settings and identity.
    - Price reference tables, build sheets and pricing policy.
    - Piece sections.

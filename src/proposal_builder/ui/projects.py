@@ -85,7 +85,8 @@ def new_project_dialog() -> None:
                                variables=[v.model_copy() for v in src.variables],
                                blocks=[b.model_copy() for b in src.blocks], next_seq=dict(src.next_seq))
             else:
-                rev = Revision(blocks=default_blocks(st.boilerplate_for(profile).blocks))
+                rev = Revision(blocks=default_blocks(st.boilerplate_for(profile).blocks),
+                               taxable=st.settings_for(profile).new_projects_taxable)
                 for it in st.catalog.items_for(profile):
                     if it.active and it.price_source is PriceSource.PERCENT:
                         rev.add_line(line_from_item(it, st.catalog, rev.new_line_id(it.section)))

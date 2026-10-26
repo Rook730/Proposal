@@ -482,14 +482,27 @@ A toggle shows fields that never print:
 
 **1.7.2:** Alternates: a switch per pair to stop offering two alternates together (drops the combination from totals, the printed proposal, income by option and the license check; Finalize rejects selecting both).
 
+**1.8.0: Convenient Woodworking.** Company profiles (section 16), rename to Proposal Builder, build sheets and price references, pieces, rush fee and sales tax, deposit rule, Convenient Woodworking PDF and starter terms, company customers with Attn: and PO number, CW income and change order pricing. Details in docs/PENDING.md (items 43 to 61).
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.
 
-**Stage 1 (built, not released)**
+**Stage 1 (1.8.0)**
 - Every project has a company (`Project.profile`, "ks" or "cw"), picked at New project with no default and never changed. Projects saved before this are Kept Spec.
 - Shared: catalog (each section is tagged KS, CW or both), units, customers, contractors, suppliers, numbering (one YYNNN sequence), stick goods waste, Lists, performers, spelling dictionary, app settings, updater, build.
 - Per company: company identity and logo, payment percentages, validity, license warning, quote texts, global variables, change order roles, terms library.
 - Files: Kept Spec settings and terms stay at the data folder root, so no file moves and an older copy of the app still opens the folder. Other companies use profiles/<key>/. Shared values are read from the root settings.json; a profile's settings file keeps a stale copy that is replaced on load.
 - The editor, change orders page, PDFs, income and the projects list use the project's company. Settings and Terms library have a Company switch; Sections and Catalog items show the company.
 - The app is named Proposal Builder (window, exe, %APPDATA%\ProposalBuilder, copied once from %APPDATA%\KeptSpecProposal).
+
+**Stage 2 (1.8.0)**
+- Price basis Built: the unit price comes from the line's build sheet (`buildsheet.py`): cost = setup + qty x (materials + outsourced + hours x shop rate); line price = cost x (1 + overhead % + profit %), flat; unit price rounded up to the rounding step. The sheet stores its own policy and unit costs (snapshot rule); Pull prices refreshes from Catalog > Price references.
+- Lumber parts: finished T x W x L per unit; board feet at the nominal thickness from the rough thickness map, times the yield factor (low / medium / high).
+- Pieces: sections created in a revision (`Revision.pieces`, numbers from 9000), printed first.
+- Revision fields: rush_pct (fraction of the subtotal), taxable, tax_county, tax_rate (snapshot). Total = subtotal + percent items + rush + tax; each alternate and combination recomputes all three. Tax is on the whole proposal.
+- Payment rule "deposit" (Convenient Woodworking): deposit_pct, or deposit_pct_small when the Total Price is under deposit_threshold; balance at delivery or completion of installation.
+- Delivery is priced with catalog lines (3000 section): local delivery at no charge, mileage and drive time beyond the one-hour area as rate lines. The spec's project checkbox for the free zone was not needed.
+- PDF: client signature only, CW totals block, deposit/balance table, terms groups without a page break each, Attn: and PO # in the client block.
+- Income (CW): line totals less build sheet materials and outsourced work, plus the rush fee; tax and others' lines pass through. Change orders: cost change x (1 + CW overhead + profit) + sales tax.
+- One-time catalog additions (`cw_catalog.py`, marker in Catalog.migrations) so deleted entries stay deleted.

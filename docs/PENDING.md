@@ -92,9 +92,11 @@ UX review items (numbers from docs/ux-review.md):
 
 42. [x] Alternates tab > Combinations: a switch per pair of alternates, "Offer Alt 1 + Alt 2 together" (on by default). Off: the combination drops out of the totals strip, the proposal's Total Price lines, Income by option and the license check, and Finalize won't accept both. Pairs that remove the same base line show as "cannot be combined" as before.
 
-## Next release
+## Released in 1.8.0 (2026-10-25)
 
-Company profiles, stage 1 of the Convenient Woodworking work (spec: docs/cw-requirements.md). Kept Spec behavior is unchanged.
+Convenient Woodworking proposals, stages 1 and 2 (spec: docs/cw-requirements.md). Kept Spec proposals are unchanged.
+
+Stage 1: company profiles and rename
 
 43. [x] Company profiles: every project belongs to Kept Spec Advisors or Convenient Woodworking. New project asks which company (no default, cannot be changed later); Start from lists only that company's projects. Projects saved before this version are Kept Spec.
 44. [x] Settings and Terms library have a Company switch. Company, Proposals (payment, validity, license warning), Sub quotes and Variables are per company; numbering (one sequence for both), stick goods waste, Lists, performers, the spelling dictionary and App and data are shared.
@@ -103,3 +105,22 @@ Company profiles, stage 1 of the Convenient Woodworking work (spec: docs/cw-requ
 47. [x] Editor, change orders page, PDFs, income and the projects list use the project's company settings and terms. The editor header shows the company. Convenient Woodworking starts with its identity (Convenient Enterprises LLC dba Convenient Woodworking, 224 Rutledge Rd, Nick@ConvenientWoodworking.com), the textmark logo in dark gold #A87B20 and black, and a starter terms library (cover letter, about, How to read, signature). Payment terms, tax and the CW layout come in stage 2.
 48. [x] PDF logos can be SVG (kept as vector in the PDF). Consecutive intro blocks print as separate paragraphs.
 49. [x] Renamed to Proposal Builder: window title, top bar, exe ("Proposal Builder.exe"), folder zip, updater User-Agent. The settings folder moves from %APPDATA%\KeptSpecProposal to %APPDATA%\ProposalBuilder (copied once; the old one is left). The in-app updater still finds the renamed exe; an existing install keeps its own file name.
+
+Stage 2: Convenient Woodworking proposals
+
+50. [x] Build sheets: a line priced Built gets its unit price from an internal build sheet (never printed): materials (lumber parts at finished size become board feet at nominal thickness x yield, sheet goods, dimensional, hardware, finish SF x coats, outsourced, typed rows), labor hours by phase, setup rows counted once per line, cost x (1 + overhead + profit), unit price rounded up to $5. The sheet keeps its own copy of the policy and of every unit cost; Pull prices refreshes them. Summary shows cost, overhead, profit, line total, per-shop-hour figure and the price for 1.
+51. [x] Price references (Catalog > Price references): lumber ($/BF by species and nominal), sheet goods, dimensional, hardware, finishes ($/SF per coat from container price and coverage) and outsourced services, each with supplier, price date and notes. Seeded from Costing.xlsx (pressure-treated prices that look swapped are noted), plus Ringsend 1/2" prefinished maple at $118.
+52. [x] Settings > Proposals (Convenient Woodworking): shop rate $75, overhead 15%, profit 10% (placeholder), round up to $5, yield low/medium/high 1.25/1.5/1.8, rough thickness map, labor phases; deposit rule (60%, or 25% under $500; balance at delivery or completion of installation); sales tax counties (Buncombe, Haywood and Madison 7.00%, Henderson 6.75%) and "new proposals charge sales tax".
+53. [x] Pieces: New piece in the sections panel creates a section for one piece (table, cabinet, box) in this proposal; pieces print first, then Delivery & Installation. Add from catalog puts items into the piece being viewed.
+54. [x] Rush fee and sales tax per revision (Terms & options): rush % of the subtotal and the delivery county; the rate is copied into the revision. Totals, every alternate and change orders include them; the totals strip shows Rush, Sales tax and Deposit/balance.
+55. [x] Catalog additions (applied once to existing catalogs): units BF, SHT, PC, SET, MI; rates cw_shop $75/HR, cw_drive $35/HR, cw_mileage $0.725/MI; sections 3000 Delivery & Installation (Delivery, Mileage beyond the local area, Drive time beyond the local area, Installation, Crating) and 3100 Shop-built pieces with template 3101 Square box 12 x 12 x 10 (the Borg Warner box: 10 at $305, placeholder hardware prices).
+56. [x] Save as template (line form, Built lines): adds the line to Shop-built pieces with a copy of its build sheet. Catalog items priced Built have a template build sheet button.
+57. [x] Convenient Woodworking PDF: client signature only; totals Subtotal, Rush fee, Sales tax (county, rate), Total Price, then the same for each alternate; Payment Schedule table with deposit and balance; terms groups run on without a page break each; Attn: and PO # in the client block.
+58. [x] Starter terms library for Convenient Woodworking (draft for Nick to edit): How to read (pieces, fixed prices, hourly lines, rush and tax, $0 lines, alternates), Payment Schedule (deposit, balance, payment methods and the 3% PayPal/Venmo fee), Payment Terms & Cancellation (materials + hours + 15%, no returns, changes after acceptance), Terms & Conditions (lead time, rush, delivery and installation, crating and freight, natural variation, wood movement and care, warranty, contracting parties, validity).
+59. [x] Customers can be a Company: proposals print the company with Attn: its first contact (editable in Project info, with a PO number).
+60. [x] Income for Convenient Woodworking projects: line totals less build sheet materials and outsourced work, plus the rush fee; tax passes through. Change orders on Convenient Woodworking contracts: cost change x (1 + overhead + profit) plus sales tax.
+61. [x] Issues: sales tax on with no county, no-tax note, Built line with an empty build sheet, build sheet lumber priced for another thickness, materials with no cost. Woodworking words added to the spelling list.
+
+## Next release
+
+Stage 3 (docs/cw-requirements.md section 15): restoration items, image appendix, client property and storage, veneer, 6 alternates, placeholder hard block.

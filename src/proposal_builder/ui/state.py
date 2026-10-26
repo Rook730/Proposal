@@ -33,6 +33,9 @@ class AppState:
         self.boilerplate = self.store.load_boilerplate()
         from ..migrations import migrate_library
         cat_changed, bp_changed = migrate_library(self.catalog, self.boilerplate)
+        from .. import cw_catalog
+        if cw_catalog.apply(self.catalog):       # 1.8.0: Convenient Woodworking sections, items, prices (once)
+            cat_changed = True
         if cat_changed:
             self.store.save_catalog(self.catalog)
         if bp_changed:

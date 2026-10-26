@@ -1,4 +1,4 @@
-"""Kept Spec income per project (internal; never printed).
+"""Income per project (internal; never printed). Convenient Woodworking proposals: cw_estimate_report.
 
 Income is what Convenient Enterprises keeps, before its own business expenses:
 - lines performed by Kept Spec Advisors or Convenient Woodworking (whole line)
@@ -84,7 +84,39 @@ def scenario_income(rev: Revision, results: Results, scenario: Scenario, setting
     return estimate_report(rev, results, scenario, settings).estimate_total
 
 
+def cw_estimate_report(rev: Revision, results: Results, scenario: Scenario, settings: Settings) -> IncomeReport:
+    """Convenient Woodworking proposals: every line is your work except materials and outsourced work on build
+    sheets and lines performed by others (subs, owner); the rush fee is income; sales tax passes through."""
+    included = set(scenario.line_ids)
+    others = {p.name for p in settings.performers if p.name and not p.income}
+    lines, mats, outs = [], ZERO, ZERO
+    for ln in rev.lines:
+        if ln.id not in included or ln.is_percent or ln.owner_furnished or ln.performer in others:
+            continue
+        lr = results.lines[ln.id]
+        keep = lr.cost
+        if lr.build is not None:
+            m, o = lr.build.materials, lr.build.outsourced
+            mats, outs = mats + m, outs + o
+            keep -= m + o
+        lines.append(IncomeLine(ln.id, ln.title, keep))
+    note = (f"Line totals less build sheet materials ${mats:,.2f} and outsourced work ${outs:,.2f}"
+            if mats or outs else "")
+    groups = [IncomeGroup(f"{ENTITY_NAME[CW]} work", sum((x.estimate for x in lines), ZERO), lines=lines,
+                          entity=CW, note=note)]
+    if scenario.rush:
+        groups.append(IncomeGroup("Rush fee", scenario.rush, entity=CW))
+    for ln in rev.lines:
+        if ln.id in scenario.percent_items:
+            groups.append(IncomeGroup(ln.title, scenario.percent_items[ln.id], entity=CW))
+    total = sum((g.estimate for g in groups if g.estimate is not None), ZERO)
+    return IncomeReport(groups=groups, estimate_total=total, actual_total=None,
+                        contract_price=scenario.pre_tax, final_price=None)
+
+
 def estimate_report(rev: Revision, results: Results, scenario: Scenario, settings: Settings) -> IncomeReport:
+    if settings.pricing is not None:
+        return cw_estimate_report(rev, results, scenario, settings)
     included = set(scenario.line_ids)
     groups: list[IncomeGroup] = []
     for ent in (KS, CW):
@@ -125,7 +157,7 @@ def contract_report(ledger: Ledger, settings: Settings) -> IncomeReport:
     recon = {lr.line.id: lr for lr in ledger.lines}
     missing = 0
     own_all = set(settings.income_performers())
-    for g in rep.groups[:2]:
+    for g in [g for g in rep.groups[:2] if g.lines or not g.estimate]:     # the line groups
         for x in g.lines:
             lr = recon.get(x.line_id)
             if lr is None:

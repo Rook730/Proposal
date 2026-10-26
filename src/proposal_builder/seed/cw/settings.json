@@ -102,5 +102,79 @@
   "contingency_code": 0,
   "co_management_code": 0,
   "co_management_rate_key": "",
-  "recommended_by": "Convenient Woodworking - Nick Matney"
+  "recommended_by": "Convenient Woodworking - Nick Matney",
+  "payment_rule": "deposit",
+  "deposit_threshold": "500",
+  "deposit_pct_small": "0.25",
+  "pricing": {
+    "shop_rate": "75",
+    "overhead_pct": "0.15",
+    "profit_pct": "0.10",
+    "rounding": "5",
+    "yield_low": "1.25",
+    "yield_medium": "1.5",
+    "yield_high": "1.8",
+    "rough_map": [
+      {
+        "finished": "0.75",
+        "nominal": "4/4",
+        "nominal_in": "1"
+      },
+      {
+        "finished": "1",
+        "nominal": "5/4",
+        "nominal_in": "1.25"
+      },
+      {
+        "finished": "1.25",
+        "nominal": "6/4",
+        "nominal_in": "1.5"
+      },
+      {
+        "finished": "1.75",
+        "nominal": "8/4",
+        "nominal_in": "2"
+      },
+      {
+        "finished": "2.75",
+        "nominal": "12/4",
+        "nominal_in": "3"
+      },
+      {
+        "finished": "3.75",
+        "nominal": "16/4",
+        "nominal_in": "4"
+      }
+    ],
+    "phases": [
+      "Design",
+      "Milling",
+      "Joinery and machining",
+      "Assembly",
+      "Sanding",
+      "Finishing",
+      "Hardware and fitting",
+      "Crating",
+      "Delivery and install"
+    ]
+  },
+  "tax_counties": [
+    {
+      "name": "Buncombe",
+      "rate": "0.07"
+    },
+    {
+      "name": "Haywood",
+      "rate": "0.07"
+    },
+    {
+      "name": "Henderson",
+      "rate": "0.0675"
+    },
+    {
+      "name": "Madison",
+      "rate": "0.07"
+    }
+  ],
+  "new_projects_taxable": true
 }

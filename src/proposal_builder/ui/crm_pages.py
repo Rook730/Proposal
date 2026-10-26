@@ -91,7 +91,10 @@ def customer_dialog(cust: Customer | None, on_saved, preset_name: str = "") -> N
             source = ui.select(keep_current({x: x for x in st.settings.lists.lead_sources}, work.source),
                                value=work.source or None, label="How they found you", with_input=True,
                                new_value_mode="add-unique").props("dense clearable")
-            active = ui.checkbox("Active", value=work.active)
+            with ui.column().classes("gap-0"):
+                company = ui.checkbox("Company", value=work.is_company) \
+                    .tooltip("A business: proposals print the company name with Attn: the first contact")
+                active = ui.checkbox("Active", value=work.active)
         ui.label("Contacts (the first one is the primary contact)").classes("font-semibold text-sm mt-2")
         EditableGrid(lambda: work.contacts,
                      [Col("name", "Name", flex=1),
@@ -122,6 +125,7 @@ def customer_dialog(cust: Customer | None, on_saved, preset_name: str = "") -> N
                 ui.notify("Enter the customer's name.", type="warning")
                 return
             work.source, work.notes, work.active = source.value or "", notes.value or "", active.value
+            work.is_company = bool(company.value)
             work.mailing_address_id = mailing.value or None
             other = st.customers.find(work.name)
             if other is not None and other.id != work.id:
@@ -494,6 +498,7 @@ class CustomerPicker:
             return False
         a = c.address(self.addr.value)
         project.customer_id, project.client_name = c.id, c.name
+        project.attention = (c.primary.name if c.primary else "") if c.is_company else ""
         project.site_address_id = a.id if a else None
         project.site_address = a.address if a else ""
         return True

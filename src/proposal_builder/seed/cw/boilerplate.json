@@ -4,7 +4,10 @@
     "Intro",
     "How to read this proposal",
     "Totals",
-    "Signature"
+    "Signature",
+    "Payment Schedule",
+    "Payment Terms & Cancellation",
+    "Terms & Conditions"
   ],
   "blocks": [
     {
@@ -24,10 +27,26 @@
       "order": 20
     },
     {
+      "id": "thanks",
+      "heading": "Signature",
+      "title": "",
+      "body": "Thanks again for choosing Convenient Woodworking. We are looking forward to building this for you.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "acknowledgement",
+      "heading": "Signature",
+      "title": "",
+      "body": "I confirm that my action here, whether digital or analog, represents my signature and is legally binding.",
+      "default_on": true,
+      "order": 20
+    },
+    {
       "id": "sections",
       "heading": "How to read this proposal",
       "title": "Sections and line items",
-      "body": "Each piece is its own section, ending with a section total. Each line has a title, a description, a unit, a quantity, a unit price and a cost. Cost is quantity times unit price. Unit definitions are listed below.",
+      "body": "Each piece is its own section, ending with a section total. Delivery and installation follow in their own section. Each line has a title, a description, a unit, a quantity, a unit price and a cost. Cost is quantity times unit price. Unit definitions are listed below.",
       "default_on": true,
       "order": 10
     },
@@ -46,6 +65,22 @@
       "body": "Prices are fixed. Materials, shop time and finishing are included in each piece's price.",
       "default_on": true,
       "order": 30
+    },
+    {
+      "id": "hourly",
+      "heading": "How to read this proposal",
+      "title": "Hourly lines",
+      "body": "Installation and drive time are estimated in hours and billed at actual hours at the rates shown.",
+      "default_on": true,
+      "order": 35
+    },
+    {
+      "id": "rush-tax",
+      "heading": "How to read this proposal",
+      "title": "Rush fee and sales tax",
+      "body": "A rush fee, when one applies, is a percentage of the subtotal. Sales tax applies to the whole proposal at the rate for the delivery county. Both are shown in the totals.",
+      "default_on": true,
+      "order": 38
     },
     {
       "id": "zero-lines",
@@ -72,20 +107,124 @@
       "order": 60
     },
     {
-      "id": "thanks",
-      "heading": "Signature",
-      "title": "",
-      "body": "Thanks again for choosing Convenient Woodworking. We are looking forward to building this for you.",
+      "id": "deposit",
+      "heading": "Payment Schedule",
+      "title": "Deposit",
+      "body": "A deposit is due at signing to reserve shop time and order materials: {deposit_pct} of the Total Price, or {deposit_pct_small} when the Total Price is under {deposit_threshold}. Production starts when the deposit is received. The deposit is applied to the cost of the work.",
       "default_on": true,
       "order": 10
     },
     {
-      "id": "acknowledgement",
-      "heading": "Signature",
-      "title": "",
-      "body": "I confirm that my action here, whether digital or analog, represents my signature and is legally binding.",
+      "id": "balance",
+      "heading": "Payment Schedule",
+      "title": "Balance",
+      "body": "The balance is due when the work is ready for delivery or pickup, or when installation is complete.",
       "default_on": true,
       "order": 20
+    },
+    {
+      "id": "methods",
+      "heading": "Payment Schedule",
+      "title": "Payment methods",
+      "body": "We accept check and wire transfer. Payments by PayPal or Venmo carry a 3% processing fee, added to the invoice. Invoices are due within 5 business days of issuance.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "cancellation",
+      "heading": "Payment Terms & Cancellation",
+      "title": "Cancellation",
+      "body": "If you cancel after signing, you owe for materials purchased and hours worked at {shop_rate} per hour, plus 15% of those amounts. The deposit is applied to that amount. Any deposit beyond it is refunded; any amount beyond the deposit is invoiced. Wood that has been cut cannot be returned to the supplier.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "returns",
+      "heading": "Payment Terms & Cancellation",
+      "title": "Returns",
+      "body": "Custom work is made to order and cannot be returned.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "changes",
+      "heading": "Payment Terms & Cancellation",
+      "title": "Changes after acceptance",
+      "body": "Your acceptance of this proposal is the design signoff. Changes requested after acceptance are priced and approved in writing by change order before the work changes, and may move the schedule.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "lead-time",
+      "heading": "Terms & Conditions",
+      "title": "Lead time",
+      "body": "Custom work typically takes 10 to 12 weeks from receipt of the deposit. The schedule is confirmed when the deposit is received.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "rush",
+      "heading": "Terms & Conditions",
+      "title": "Rush and hard deadlines",
+      "body": "If you need the work by a specific date, tell us before signing. Expedited production carries a rush fee, shown in the totals when it applies.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "delivery",
+      "heading": "Terms & Conditions",
+      "title": "Delivery and installation",
+      "body": "Delivery within one hour of our shop in Fletcher is included at no charge. Beyond that, round-trip miles and drive time beyond the one-hour area are billed as listed. Installation is billed hourly at the rate shown. You provide clear access to the delivery and installation area.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "crating",
+      "heading": "Terms & Conditions",
+      "title": "Crating and freight",
+      "body": "Pieces shipped by freight are crated for transport; crating and freight are listed when they apply. Damage in shipment must be reported within 24 hours of delivery, with photographs of the piece and the packaging as received.",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "variation",
+      "heading": "Terms & Conditions",
+      "title": "Natural variation of wood",
+      "body": "Wood is a natural material. Color, grain, figure and character marks such as mineral streaks, pin knots and the difference between heartwood and sapwood vary from board to board and from samples or photos. These are characteristics of the material, not defects.",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "care",
+      "heading": "Terms & Conditions",
+      "title": "Wood movement and care",
+      "body": "Solid wood expands and contracts with changes in humidity, and its color changes with exposure to light. Keep pieces away from direct heat and standing water, and clean with a damp cloth. Chemical cleaners, polishes and coatings applied after delivery can damage the finish and void the warranty.",
+      "default_on": true,
+      "order": 60
+    },
+    {
+      "id": "warranty",
+      "heading": "Terms & Conditions",
+      "title": "Warranty",
+      "body": "Our work is warranted to the original purchaser against defects in materials and workmanship for one (1) year from delivery. We repair or replace defective work at no charge. The warranty does not cover natural variation or movement of wood, misuse, accidents, environmental conditions, damage after delivery, alterations by others, or cleaners, chemical treatments or coatings applied to the piece.",
+      "default_on": true,
+      "order": 70
+    },
+    {
+      "id": "contracting",
+      "heading": "Terms & Conditions",
+      "title": "Contracting parties",
+      "body": "This agreement is between the Client and Convenient Enterprises LLC, doing business as Convenient Woodworking. All invoices are issued by, and payments made to, Convenient Woodworking.",
+      "default_on": true,
+      "order": 80
+    },
+    {
+      "id": "validity",
+      "heading": "Terms & Conditions",
+      "title": "Proposal validity",
+      "body": "Pricing in this proposal is valid for {validity_days} days from the Proposal Date.",
+      "default_on": true,
+      "order": 90
     }
   ]
 }

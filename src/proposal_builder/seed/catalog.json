@@ -40,6 +40,26 @@
     {
       "code": "WK",
       "description": "Weekly"
+    },
+    {
+      "code": "BF",
+      "description": "Board foot"
+    },
+    {
+      "code": "SHT",
+      "description": "Sheet"
+    },
+    {
+      "code": "PC",
+      "description": "Piece"
+    },
+    {
+      "code": "SET",
+      "description": "Set"
+    },
+    {
+      "code": "MI",
+      "description": "Mile"
     }
   ],
   "rates": [
@@ -90,6 +110,24 @@
       "name": "Fixtures installation labor",
       "unit": "HR",
       "rate": "45"
+    },
+    {
+      "key": "cw_shop",
+      "name": "Convenient Woodworking shop rate",
+      "unit": "HR",
+      "rate": "75"
+    },
+    {
+      "key": "cw_drive",
+      "name": "Drive time beyond the local delivery area",
+      "unit": "HR",
+      "rate": "35"
+    },
+    {
+      "key": "cw_mileage",
+      "name": "Mileage beyond the local delivery area (IRS 2026 rate)",
+      "unit": "MI",
+      "rate": "0.725"
     }
   ],
   "sections": [
@@ -176,6 +214,18 @@
       "name": "Company Overhead & Profit",
       "key": "Overhead",
       "profile": "ks"
+    },
+    {
+      "number": 3000,
+      "name": "Delivery & Installation",
+      "key": "CWDelivery",
+      "profile": "cw"
+    },
+    {
+      "number": 3100,
+      "name": "Shop-built pieces",
+      "key": "CWPieces",
+      "profile": "cw"
     }
   ],
   "items": [
@@ -198,7 +248,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 110,
@@ -219,7 +270,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 120,
@@ -240,7 +292,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 130,
@@ -261,7 +314,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 140,
@@ -282,7 +336,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 150,
@@ -303,7 +358,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 160,
@@ -324,7 +380,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 170,
@@ -345,7 +402,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 180,
@@ -366,7 +424,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 190,
@@ -387,7 +446,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 191,
@@ -408,7 +468,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 195,
@@ -429,7 +490,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 196,
@@ -450,7 +512,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 201,
@@ -471,7 +534,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 210,
@@ -492,7 +556,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 220,
@@ -513,7 +578,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 230,
@@ -534,7 +600,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 240,
@@ -555,7 +622,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 250,
@@ -576,7 +644,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 301,
@@ -597,7 +666,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 310,
@@ -618,7 +688,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 320,
@@ -639,7 +710,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 330,
@@ -660,7 +732,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 340,
@@ -681,7 +754,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 401,
@@ -702,7 +776,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 410,
@@ -723,7 +798,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 420,
@@ -744,7 +820,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 430,
@@ -765,7 +842,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 440,
@@ -786,7 +864,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 450,
@@ -807,7 +886,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 501,
@@ -828,7 +908,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 510,
@@ -849,7 +930,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 520,
@@ -870,7 +952,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 530,
@@ -891,7 +974,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 531,
@@ -912,7 +996,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 601,
@@ -933,7 +1018,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 611,
@@ -954,7 +1040,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 615,
@@ -975,7 +1062,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 616,
@@ -996,7 +1084,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 617,
@@ -1019,7 +1108,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 621,
@@ -1040,7 +1130,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 625,
@@ -1061,7 +1152,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 626,
@@ -1082,7 +1174,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 627,
@@ -1109,7 +1202,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 631,
@@ -1130,7 +1224,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 635,
@@ -1151,7 +1246,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 636,
@@ -1172,7 +1268,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 637,
@@ -1193,7 +1290,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 641,
@@ -1214,7 +1312,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 645,
@@ -1235,7 +1334,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 701,
@@ -1256,7 +1356,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 710,
@@ -1277,7 +1378,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 801,
@@ -1298,7 +1400,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 810,
@@ -1319,7 +1422,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 820,
@@ -1340,7 +1444,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 830,
@@ -1361,7 +1466,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 840,
@@ -1382,7 +1488,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 850,
@@ -1403,7 +1510,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 851,
@@ -1424,7 +1532,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 852,
@@ -1445,7 +1554,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 860,
@@ -1466,7 +1576,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 861,
@@ -1487,7 +1598,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 901,
@@ -1508,7 +1620,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 910,
@@ -1529,7 +1642,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 920,
@@ -1550,7 +1664,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 930,
@@ -1571,7 +1686,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 931,
@@ -1592,7 +1708,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 940,
@@ -1618,7 +1735,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 941,
@@ -1639,7 +1757,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 950,
@@ -1660,7 +1779,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1001,
@@ -1681,7 +1801,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1010,
@@ -1709,7 +1830,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1020,
@@ -1730,7 +1852,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1030,
@@ -1751,7 +1874,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1040,
@@ -1772,7 +1896,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1101,
@@ -1793,7 +1918,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1110,
@@ -1818,7 +1944,8 @@
       "owner_furnished": false,
       "credit_if_unused": true,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1120,
@@ -1839,7 +1966,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1121,
@@ -1867,7 +1995,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1130,
@@ -1888,7 +2017,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1140,
@@ -1909,7 +2039,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1141,
@@ -1935,7 +2066,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1142,
@@ -1962,7 +2094,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1143,
@@ -1995,7 +2128,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1144,
@@ -2021,7 +2155,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1150,
@@ -2042,7 +2177,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1160,
@@ -2065,7 +2201,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1170,
@@ -2086,7 +2223,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1171,
@@ -2112,7 +2250,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1180,
@@ -2133,7 +2272,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1210,
@@ -2154,7 +2294,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1220,
@@ -2175,7 +2316,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1230,
@@ -2196,7 +2338,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1240,
@@ -2217,7 +2360,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1310,
@@ -2238,7 +2382,8 @@
       "owner_furnished": false,
       "credit_if_unused": true,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1320,
@@ -2259,7 +2404,8 @@
       "owner_furnished": false,
       "credit_if_unused": true,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1330,
@@ -2280,7 +2426,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1410,
@@ -2301,7 +2448,8 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
     },
     {
       "code": 1420,
@@ -2322,7 +2470,311 @@
       "owner_furnished": false,
       "credit_if_unused": false,
       "internal_notes": "",
-      "active": true
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 3010,
+      "section": 3000,
+      "group": "",
+      "title": "Delivery",
+      "description": "Delivery within one hour of our shop in Fletcher. No charge.",
+      "unit": "LS",
+      "price_source": "fixed",
+      "price": "0",
+      "rate_key": null,
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 3020,
+      "section": 3000,
+      "group": "",
+      "title": "Mileage beyond the local area",
+      "description": "Round-trip miles beyond one hour of our shop.",
+      "unit": "MI",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "cw_mileage",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 3030,
+      "section": 3000,
+      "group": "",
+      "title": "Drive time beyond the local area",
+      "description": "Round-trip drive time beyond one hour of our shop.",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "cw_drive",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 3040,
+      "section": 3000,
+      "group": "",
+      "title": "Installation",
+      "description": "Installation on site, billed hourly.",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "cw_shop",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 3050,
+      "section": 3000,
+      "group": "",
+      "title": "Crating",
+      "description": "Crating for freight shipment.",
+      "unit": "EA",
+      "price_source": "fixed",
+      "price": null,
+      "rate_key": null,
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 3101,
+      "section": 3100,
+      "group": "",
+      "title": "Square box 12 x 12 x 10",
+      "description": "Square box, 12\" x 12\" x 10\" outside. 1/2\" prefinished maple plywood, fastener joinery. Hinged lid on a piano hinge, 2 latches, 2 handles. Part number engraved on the bottom.",
+      "unit": "EA",
+      "price_source": "built",
+      "price": null,
+      "rate_key": null,
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": {
+        "materials": [
+          {
+            "kind": "sheet",
+            "ref": "prefinished-maple-c2-1-2",
+            "name": "Prefinished maple plywood, C2 1/2\"",
+            "setup": false,
+            "pieces": null,
+            "thickness": null,
+            "width": null,
+            "length": null,
+            "yield_tier": "medium",
+            "nominal": "",
+            "priced_as": "",
+            "qty": "0.3",
+            "unit": "SHT",
+            "coats": null,
+            "unit_cost": "118",
+            "notes": "3 sheets per 10 boxes (12\" strips for lids, bottoms and sides; ~11.6\" strips for ends)"
+          },
+          {
+            "kind": "hardware",
+            "ref": "mcm-1647a34",
+            "name": "Handle (McMaster-Carr 1647A34)",
+            "setup": false,
+            "pieces": null,
+            "thickness": null,
+            "width": null,
+            "length": null,
+            "yield_tier": "medium",
+            "nominal": "",
+            "priced_as": "",
+            "qty": "2",
+            "unit": "EA",
+            "coats": null,
+            "unit_cost": "8",
+            "notes": ""
+          },
+          {
+            "kind": "hardware",
+            "ref": "mcm-1766a2",
+            "name": "Latch (McMaster-Carr 1766A2)",
+            "setup": false,
+            "pieces": null,
+            "thickness": null,
+            "width": null,
+            "length": null,
+            "yield_tier": "medium",
+            "nominal": "",
+            "priced_as": "",
+            "qty": "2",
+            "unit": "EA",
+            "coats": null,
+            "unit_cost": "10",
+            "notes": ""
+          },
+          {
+            "kind": "hardware",
+            "ref": "mcm-1608a42",
+            "name": "Piano hinge, 12\" length (McMaster-Carr 1608A42)",
+            "setup": false,
+            "pieces": null,
+            "thickness": null,
+            "width": null,
+            "length": null,
+            "yield_tier": "medium",
+            "nominal": "",
+            "priced_as": "",
+            "qty": "1",
+            "unit": "EA",
+            "coats": null,
+            "unit_cost": "15",
+            "notes": ""
+          }
+        ],
+        "labor": [
+          {
+            "phase": "Design",
+            "hours": "1",
+            "setup": true,
+            "notes": "Repeat of 25017; mostly reuse"
+          },
+          {
+            "phase": "Joinery and machining",
+            "hours": "1.5",
+            "setup": true,
+            "notes": "Engraving file, jigs"
+          },
+          {
+            "phase": "Milling",
+            "hours": "0.5",
+            "setup": true,
+            "notes": "Sheet layout"
+          },
+          {
+            "phase": "Milling",
+            "hours": "0.3",
+            "setup": false,
+            "notes": "Sheet breakdown and cutting"
+          },
+          {
+            "phase": "Assembly",
+            "hours": "0.5",
+            "setup": false,
+            "notes": "Fastener joinery"
+          },
+          {
+            "phase": "Sanding",
+            "hours": "0.25",
+            "setup": false,
+            "notes": "Edges"
+          },
+          {
+            "phase": "Hardware and fitting",
+            "hours": "0.4",
+            "setup": false,
+            "notes": "Hinge, latches, handles"
+          },
+          {
+            "phase": "Joinery and machining",
+            "hours": "0.15",
+            "setup": false,
+            "notes": "Part number engraving"
+          },
+          {
+            "phase": "Crating",
+            "hours": "0.15",
+            "setup": false,
+            "notes": "QC and packing"
+          }
+        ],
+        "shop_rate": "75",
+        "overhead_pct": "0.15",
+        "profit_pct": "0.10",
+        "rounding": "5",
+        "yield_low": "1.25",
+        "yield_medium": "1.5",
+        "yield_high": "1.8",
+        "rough_map": [
+          {
+            "finished": "0.75",
+            "nominal": "4/4",
+            "nominal_in": "1"
+          },
+          {
+            "finished": "1",
+            "nominal": "5/4",
+            "nominal_in": "1.25"
+          },
+          {
+            "finished": "1.25",
+            "nominal": "6/4",
+            "nominal_in": "1.5"
+          },
+          {
+            "finished": "1.75",
+            "nominal": "8/4",
+            "nominal_in": "2"
+          },
+          {
+            "finished": "2.75",
+            "nominal": "12/4",
+            "nominal_in": "3"
+          },
+          {
+            "finished": "3.75",
+            "nominal": "16/4",
+            "nominal_in": "4"
+          }
+        ],
+        "notes": "Hours and hardware prices are first estimates (26006); adjust after the job."
+      }
     }
   ],
   "allowances": [
@@ -2825,5 +3277,970 @@
         "20"
       ]
     }
+  ],
+  "prices": {
+    "lumber": [
+      {
+        "id": "ash-4-4",
+        "species": "Ash",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "5",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "ash-8-4",
+        "species": "Ash",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "6",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "ash-16-4",
+        "species": "Ash",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "8.5",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "aromatic-red-cedar-4-4",
+        "species": "Aromatic red cedar",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "3.9",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cherry-4-4",
+        "species": "Cherry",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "6",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cherry-8-4",
+        "species": "Cherry",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "7.5",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cherry-16-4",
+        "species": "Cherry",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "9",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cypress-4-4",
+        "species": "Cypress",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "5",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cypress-8-4",
+        "species": "Cypress",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "6",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cypress-16-4",
+        "species": "Cypress",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "8",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "maple-figured-4-4",
+        "species": "Maple, figured",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "7",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "maple-figured-8-4",
+        "species": "Maple, figured",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "8",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "maple-figured-16-4",
+        "species": "Maple, figured",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "12",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "maple-hard-soft-4-4",
+        "species": "Maple, hard/soft",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "5.25",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "maple-hard-soft-8-4",
+        "species": "Maple, hard/soft",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "6",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "maple-hard-soft-16-4",
+        "species": "Maple, hard/soft",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "7",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "poplar-4-4",
+        "species": "Poplar",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "4",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "poplar-8-4",
+        "species": "Poplar",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "5",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "poplar-16-4",
+        "species": "Poplar",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "6",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "oak-red-4-4",
+        "species": "Oak, red",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "4",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "oak-red-8-4",
+        "species": "Oak, red",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "5",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "oak-red-16-4",
+        "species": "Oak, red",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "6",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "oak-white-4-4",
+        "species": "Oak, white",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "7",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "oak-white-8-4",
+        "species": "Oak, white",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "8",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "oak-white-16-4",
+        "species": "Oak, white",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "10",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "walnut-4-4",
+        "species": "Walnut",
+        "thickness": "4/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "9",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "walnut-8-4",
+        "species": "Walnut",
+        "thickness": "8/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "10",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "walnut-16-4",
+        "species": "Walnut",
+        "thickness": "16/4",
+        "grade": "",
+        "surfacing": "Rough",
+        "price": "12",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      }
+    ],
+    "sheets": [
+      {
+        "id": "baltic-birch-1-8",
+        "product": "Baltic birch",
+        "thickness": "1/8\"",
+        "width_in": "60",
+        "length_in": "60",
+        "price": "50",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "baltic-birch-1-4",
+        "product": "Baltic birch",
+        "thickness": "1/4\"",
+        "width_in": "60",
+        "length_in": "60",
+        "price": "60",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "baltic-birch-1-2",
+        "product": "Baltic birch",
+        "thickness": "1/2\"",
+        "width_in": "60",
+        "length_in": "60",
+        "price": "70",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "baltic-birch-3-4",
+        "product": "Baltic birch",
+        "thickness": "3/4\"",
+        "width_in": "60",
+        "length_in": "60",
+        "price": "80",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cabinet-grade-plywood-1-4",
+        "product": "Cabinet grade plywood",
+        "thickness": "1/4\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "30",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cabinet-grade-plywood-1-2",
+        "product": "Cabinet grade plywood",
+        "thickness": "1/2\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "60",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "cabinet-grade-plywood-3-4",
+        "product": "Cabinet grade plywood",
+        "thickness": "3/4\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "70",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "mdf-1-8",
+        "product": "MDF",
+        "thickness": "1/8\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "15",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "mdf-1-4",
+        "product": "MDF",
+        "thickness": "1/4\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "30",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "mdf-1-2",
+        "product": "MDF",
+        "thickness": "1/2\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "50",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "mdf-3-4",
+        "product": "MDF",
+        "thickness": "3/4\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "60",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "prefinished-maple-c2-1-2",
+        "product": "Prefinished maple plywood, C2",
+        "thickness": "1/2\"",
+        "width_in": "48",
+        "length_in": "96",
+        "price": "118",
+        "supplier": "Ringsend",
+        "date": "2026-10-25",
+        "notes": "List price"
+      }
+    ],
+    "dimensional": [
+      {
+        "id": "furring-strip-1x2-8",
+        "material": "Furring strip",
+        "size": "1x2",
+        "length_ft": "8",
+        "price": "1.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "furring-strip-1x3-8",
+        "material": "Furring strip",
+        "size": "1x3",
+        "length_ft": "8",
+        "price": "2.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "furring-strip-1x4-8",
+        "material": "Furring strip",
+        "size": "1x4",
+        "length_ft": "8",
+        "price": "3.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "furring-strip-2x2-8",
+        "material": "Furring strip",
+        "size": "2x2",
+        "length_ft": "8",
+        "price": "3.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "whitewood-2x4-7-71875",
+        "material": "Whitewood",
+        "size": "2x4",
+        "length_ft": "7.71875",
+        "price": "6.48",
+        "supplier": "",
+        "date": null,
+        "notes": "92-5/8\" stud; From Costing.xlsx"
+      },
+      {
+        "id": "whitewood-2x4-8",
+        "material": "Whitewood",
+        "size": "2x4",
+        "length_ft": "8",
+        "price": "5.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "whitewood-2x4-10",
+        "material": "Whitewood",
+        "size": "2x4",
+        "length_ft": "10",
+        "price": "11.53",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "spf-2x6-8",
+        "material": "SPF",
+        "size": "2x6",
+        "length_ft": "8",
+        "price": "11.53",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "spf-2x6-10",
+        "material": "SPF",
+        "size": "2x6",
+        "length_ft": "10",
+        "price": "15.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "spf-2x6-12",
+        "material": "SPF",
+        "size": "2x6",
+        "length_ft": "12",
+        "price": "19.44",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "spf-2x6-16",
+        "material": "SPF",
+        "size": "2x6",
+        "length_ft": "16",
+        "price": "30.28",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x8-8",
+        "material": "Southern yellow pine",
+        "size": "2x8",
+        "length_ft": "8",
+        "price": "11.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x8-10",
+        "material": "Southern yellow pine",
+        "size": "2x8",
+        "length_ft": "10",
+        "price": "15.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x8-12",
+        "material": "Southern yellow pine",
+        "size": "2x8",
+        "length_ft": "12",
+        "price": "19.62",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x8-16",
+        "material": "Southern yellow pine",
+        "size": "2x8",
+        "length_ft": "16",
+        "price": "33.95",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x10-8",
+        "material": "Southern yellow pine",
+        "size": "2x10",
+        "length_ft": "8",
+        "price": "14.53",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x10-10",
+        "material": "Southern yellow pine",
+        "size": "2x10",
+        "length_ft": "10",
+        "price": "17.83",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x10-12",
+        "material": "Southern yellow pine",
+        "size": "2x10",
+        "length_ft": "12",
+        "price": "21.44",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x10-16",
+        "material": "Southern yellow pine",
+        "size": "2x10",
+        "length_ft": "16",
+        "price": "42.63",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x12-8",
+        "material": "Southern yellow pine",
+        "size": "2x12",
+        "length_ft": "8",
+        "price": "16.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x12-10",
+        "material": "Southern yellow pine",
+        "size": "2x12",
+        "length_ft": "10",
+        "price": "22.52",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x12-12",
+        "material": "Southern yellow pine",
+        "size": "2x12",
+        "length_ft": "12",
+        "price": "25.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-2x12-16",
+        "material": "Southern yellow pine",
+        "size": "2x12",
+        "length_ft": "16",
+        "price": "53.56",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "southern-yellow-pine-4x4-8",
+        "material": "Southern yellow pine",
+        "size": "4x4",
+        "length_ft": "8",
+        "price": "9.25",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-4x4-8",
+        "material": "Pressure treated #2",
+        "size": "4x4",
+        "length_ft": "8",
+        "price": "11.48",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-4x4-10",
+        "material": "Pressure treated #2",
+        "size": "4x4",
+        "length_ft": "10",
+        "price": "17.58",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-4x4-12",
+        "material": "Pressure treated #2",
+        "size": "4x4",
+        "length_ft": "12",
+        "price": "19.88",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-4x4-16",
+        "material": "Pressure treated #2",
+        "size": "4x4",
+        "length_ft": "16",
+        "price": "27.48",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x4-8",
+        "material": "Pressure treated #2",
+        "size": "2x4",
+        "length_ft": "8",
+        "price": "7.78",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x4-10",
+        "material": "Pressure treated #2",
+        "size": "2x4",
+        "length_ft": "10",
+        "price": "12.88",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x4-12",
+        "material": "Pressure treated #2",
+        "size": "2x4",
+        "length_ft": "12",
+        "price": "14.88",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x4-16",
+        "material": "Pressure treated #2",
+        "size": "2x4",
+        "length_ft": "16",
+        "price": "19.88",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x6-8",
+        "material": "Pressure treated #2",
+        "size": "2x6",
+        "length_ft": "8",
+        "price": "11.94",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x6-10",
+        "material": "Pressure treated #2",
+        "size": "2x6",
+        "length_ft": "10",
+        "price": "9.29",
+        "supplier": "",
+        "date": null,
+        "notes": "Check: lower than the 8 ft price; From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x6-12",
+        "material": "Pressure treated #2",
+        "size": "2x6",
+        "length_ft": "12",
+        "price": "11.57",
+        "supplier": "",
+        "date": null,
+        "notes": "Check: lower than the 8 ft price; From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x6-16",
+        "material": "Pressure treated #2",
+        "size": "2x6",
+        "length_ft": "16",
+        "price": "14.42",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x8-8",
+        "material": "Pressure treated #2",
+        "size": "2x8",
+        "length_ft": "8",
+        "price": "14.98",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x8-10",
+        "material": "Pressure treated #2",
+        "size": "2x8",
+        "length_ft": "10",
+        "price": "19.88",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x8-12",
+        "material": "Pressure treated #2",
+        "size": "2x8",
+        "length_ft": "12",
+        "price": "23.38",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x8-16",
+        "material": "Pressure treated #2",
+        "size": "2x8",
+        "length_ft": "16",
+        "price": "22.02",
+        "supplier": "",
+        "date": null,
+        "notes": "Check: lower than the 12 ft price; From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x10-8",
+        "material": "Pressure treated #2",
+        "size": "2x10",
+        "length_ft": "8",
+        "price": "14.82",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x10-10",
+        "material": "Pressure treated #2",
+        "size": "2x10",
+        "length_ft": "10",
+        "price": "18.70",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x10-12",
+        "material": "Pressure treated #2",
+        "size": "2x10",
+        "length_ft": "12",
+        "price": "22.02",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x10-16",
+        "material": "Pressure treated #2",
+        "size": "2x10",
+        "length_ft": "16",
+        "price": "28.96",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x12-8",
+        "material": "Pressure treated #2",
+        "size": "2x12",
+        "length_ft": "8",
+        "price": "22.28",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x12-10",
+        "material": "Pressure treated #2",
+        "size": "2x12",
+        "length_ft": "10",
+        "price": "28.28",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x12-12",
+        "material": "Pressure treated #2",
+        "size": "2x12",
+        "length_ft": "12",
+        "price": "33.28",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      },
+      {
+        "id": "pressure-treated-2-2x12-16",
+        "material": "Pressure treated #2",
+        "size": "2x12",
+        "length_ft": "16",
+        "price": "44.38",
+        "supplier": "",
+        "date": null,
+        "notes": "From Costing.xlsx"
+      }
+    ],
+    "hardware": [
+      {
+        "id": "mcm-1647a34",
+        "name": "Handle",
+        "part_number": "1647A34",
+        "supplier": "McMaster-Carr",
+        "unit": "EA",
+        "price": "8",
+        "date": null,
+        "notes": "Placeholder price (McMaster price not checked); confirm"
+      },
+      {
+        "id": "mcm-1766a2",
+        "name": "Latch",
+        "part_number": "1766A2",
+        "supplier": "McMaster-Carr",
+        "unit": "EA",
+        "price": "10",
+        "date": null,
+        "notes": "Placeholder price (McMaster price not checked); confirm"
+      },
+      {
+        "id": "mcm-1608a42",
+        "name": "Piano hinge, 12\" length",
+        "part_number": "1608A42",
+        "supplier": "McMaster-Carr",
+        "unit": "EA",
+        "price": "15",
+        "date": null,
+        "notes": "Placeholder price (McMaster price not checked); confirm"
+      }
+    ],
+    "finishes": [],
+    "outsourced": []
+  },
+  "migrations": [
+    "cw-1.8.0"
   ]
 }

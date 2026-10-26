@@ -41,8 +41,9 @@ def test_seed_catalog_has_no_integrity_problems(catalog):
 
 def test_seed_catalog_scope(catalog):
     codes = {i.code for i in catalog.items}
-    assert len(catalog.sections) == 14
-    assert max(codes) < 2000, "lamp restoration items must be dropped"
+    assert len(catalog.sections_for("ks")) == 14
+    assert max(c for c in codes if c < 3000) < 2000, "lamp restoration items must be dropped"
+    assert {s.number for s in catalog.sections_for("cw")} == {3000, 3100}
     assert {1121, 1141, 1142, 1143, 1144, 1171} <= codes, "new allowance items"
     assert len(codes) == len(catalog.items), "codes are unique"
     assert any(u.code == "PR" for u in catalog.units)

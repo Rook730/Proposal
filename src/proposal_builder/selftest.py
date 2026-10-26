@@ -53,8 +53,15 @@ def run_self_test() -> tuple[bool, str]:
             # Convenient Woodworking: its own settings, terms and SVG logo
             cw_settings, cw_bp = ds.load_settings("cw"), ds.load_boilerplate("cw")
             cw_project = Project(number="99998", client_name="Self Test", project_name="Box", profile="cw")
-            cw_rev = Revision(sections=[1100], blocks=default_blocks(cw_bp.blocks))
-            cw_rev.add_line(Line(id=cw_rev.new_line_id(1100), section=1100, title="Box", unit_price=Decimal(305)))
+            cw_rev = Revision(blocks=default_blocks(cw_bp.blocks), taxable=True, tax_county="Buncombe",
+                              tax_rate=cw_settings.tax_rate("Buncombe"))
+            piece = cw_rev.add_piece("Square box")
+            box = line_from_item(catalog.item(3101), catalog, cw_rev.new_line_id(piece.number))
+            box.section, box.qty = piece.number, Decimal(10)
+            cw_rev.add_line(box)
+            cw_res = calculate(cw_rev, cw_settings, catalog.stock_classes, cw_project)
+            assert cw_res.base.total == Decimal("3263.50"), cw_res.base.total
+            lines.append(f"cw build sheet total {cw_res.base.total}")
             cw_pdf = compile_document(build_document(cw_project, cw_rev, cw_settings, catalog, cw_bp),
                                       ds.path(cw_settings.company.logo_path))
             assert cw_pdf[:4] == b"%PDF", "CW proposal PDF"

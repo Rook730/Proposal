@@ -40,13 +40,15 @@ def _with_performer(item, settings=None) -> str:
 def change_order_document(project: Project, contract: Contract, co: ChangeOrder, pricing: COPricing,
                           settings: Settings) -> dict:
     rows = [("Cost change", m(pricing.cost_delta), ""),
-            (f"Overhead and profit ({fmt_pct(contract.markup_pct)})", m(pricing.markup), ""),
-            ("Change order price", m(pricing.price), "bold")]
+            (f"Overhead and profit ({fmt_pct(contract.markup_pct)})", m(pricing.markup), "")]
+    if pricing.tax:
+        rows.append((f"Sales tax ({fmt_pct(contract.tax_rate)})", m(pricing.tax), ""))
+    rows.append(("Change order price", m(pricing.price), "bold"))
     if co.funding is COFunding.CONTINGENCY:
         rows.append(("Covered by contingency", m(-pricing.from_contingency), ""))
         rows.append(("Contingency remaining after this change order", m(pricing.contingency_after), ""))
     if co.funding is COFunding.ABSORBED:
-        rows.append(("Absorbed by Kept Spec", m(-pricing.price), ""))
+        rows.append((f"Absorbed by {settings.company.dba if settings.pricing else 'Kept Spec'}", m(-pricing.price), ""))
     if pricing.mgmt_hours:
         hrs = f"{pricing.mgmt_hours.normalize():f}"
         rows.append((f"Change management: {hrs} HR at ${contract.mgmt_rate:,.2f}", m(pricing.mgmt_cost), ""))

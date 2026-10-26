@@ -90,8 +90,19 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
             .props("dense autogrow").classes("w-full")
         with ui.row().classes("items-center gap-3 mt-1"):
             ui.label("Basis").classes("font-semibold text-sm")
-            source = ui.toggle({p.value: basis_label(p).capitalize() for p in PriceSource},
+            sec_obj = cat.section(f["section"])
+            cw_item = (sec_obj is not None and sec_obj.used_by("cw")) or f["price_source"] == PriceSource.BUILT.value
+            source = ui.toggle({p.value: basis_label(p).capitalize() for p in PriceSource
+                                if p is not PriceSource.BUILT or cw_item},
                                value=f["price_source"]).props("dense no-caps")
+            build_holder = {"build": src.build.model_copy(deep=True) if src.build else None}
+
+            def open_build() -> None:
+                from .build_ui import build_dialog
+                build_dialog(build_holder["build"], Decimal(1), cat, st.settings_for("cw").pricing,
+                             lambda b: build_holder.update(build=b), title=title.value or "template")
+            build_btn = ui.button("Build sheet (template)", icon="construction", on_click=open_build) \
+                .props("dense outline no-caps")
         with ui.grid(columns=4).classes("w-full gap-x-4"):
             price_val = f["price"]
             if price_val is not None and f["price_source"] == PriceSource.PERCENT.value:
@@ -114,6 +125,9 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
             rate.set_visibility(b == "rate")
             tier.set_visibility(b == "allowance")
             allow.set_visibility(b == "allowance")
+            build_btn.set_visibility(b == "built")
+            if b == "built":
+                price.set_visibility(False)
         source.on_value_change(refresh_source)
         refresh_source()
         with ui.grid(columns=4).classes("w-full gap-x-4"):
@@ -151,6 +165,7 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                     performer=performer.value or "", stock_class=stock.value or None,
                     is_allowance=isa.value, not_included=ni.value, owner_furnished=of.value,
                     credit_if_unused=cu.value, internal_notes=notes.value or "", active=active.value,
+                    build=build_holder["build"] if ps is PriceSource.BUILT else None,
                 )
                 if not new.title:
                     raise ValueError("title is required")
@@ -325,6 +340,75 @@ def stock_page() -> None:
                                     lengths_ft=[Decimal(8)]), height="40vh")
 
 
+# ---------------------------------------------------------------- price references (Convenient Woodworking)
+
+
+@ui.page("/prices")
+def prices_page() -> None:
+    layout("Price references")
+    st = get_state()
+    from ..crm import new_id
+    from ..models import (DimensionalPrice, FinishPrice, HardwarePrice, LumberPrice, OutsourcedPrice, SheetPrice)
+    pr = st.catalog.prices
+    page_title("Price references", "Material and service prices the build sheets start from (Convenient "
+               "Woodworking). Each build sheet keeps its own copy; open a build sheet and use Pull prices to refresh "
+               "it. Keep the date current so you can see what is stale.")
+    with ui.tabs().props("dense inline-label align=left no-caps").classes("w-full border-b") as tabs:
+        t_lum = ui.tab("Lumber", icon="forest")
+        t_sht = ui.tab("Sheet goods", icon="layers")
+        t_dim = ui.tab("Dimensional", icon="straighten")
+        t_hw = ui.tab("Hardware", icon="hardware")
+        t_fin = ui.tab("Finishes", icon="format_paint")
+        t_out = ui.tab("Outsourced", icon="handshake")
+    sup = [Col("supplier", "Supplier", width=150), Col("date", "Price date", "date", width=120),
+           Col("notes", "Notes", flex=1)]
+    with ui.tab_panels(tabs, value=t_lum).classes("w-full"):
+        with ui.tab_panel(t_lum):
+            ui.label("Rough lumber, $ per board foot at nominal thickness (4/4, 8/4 ...). Build sheets find the "
+                     "price by species and the nominal their parts need.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: pr.lumber,
+                         [Col("species", "Species", width=180), Col("thickness", "Nominal", width=115),
+                          Col("grade", "Grade", width=100), Col("surfacing", "Surfacing", width=125),
+                          Col("price", "$/BF", "money", width=100), *sup],
+                         st.save_catalog, lambda: LumberPrice(id=new_id(), species="", thickness="4/4"),
+                         height="62vh")
+        with ui.tab_panel(t_sht):
+            EditableGrid(lambda: pr.sheets,
+                         [Col("product", "Product", width=230), Col("thickness", "Thickness", width=95),
+                          Col("width_in", "W (in)", "number", width=85), Col("length_in", "L (in)", "number", width=85),
+                          Col("price", "$/sheet", "money", width=105), *sup],
+                         st.save_catalog, lambda: SheetPrice(id=new_id(), product=""), height="62vh")
+        with ui.tab_panel(t_dim):
+            EditableGrid(lambda: pr.dimensional,
+                         [Col("material", "Material", width=190), Col("size", "Size", width=80),
+                          Col("length_ft", "Length (ft)", "number", width=105),
+                          Col("price", "$/stick", "money", width=100), *sup],
+                         st.save_catalog, lambda: DimensionalPrice(id=new_id(), material=""), height="62vh")
+        with ui.tab_panel(t_hw):
+            EditableGrid(lambda: pr.hardware,
+                         [Col("name", "Name", width=200), Col("part_number", "Part #", width=110),
+                          Col("unit", "Unit", width=70), Col("price", "Price", "money", width=100), *sup],
+                         st.save_catalog, lambda: HardwarePrice(id=new_id(), name=""), height="62vh",
+                         empty="No hardware yet. Use Add row.")
+        with ui.tab_panel(t_fin):
+            ui.label("Build sheets use container price / coverage = $ per SF per coat.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: pr.finishes,
+                         [Col("product", "Product", width=220), Col("kind", "Type", width=110),
+                          Col("container", "Container", width=95), Col("container_price", "Price", "money", width=95),
+                          Col("coverage_sf", "Covers SF", "number", width=95),
+                          Col("per_sf_coat", "$/SF/coat", "number", width=100, editable=False),
+                          Col("coats", "Coats", "number", width=75), Col("cure_days", "Cure days", "number", width=95),
+                          *sup],
+                         st.save_catalog, lambda: FinishPrice(id=new_id(), product=""), height="62vh",
+                         empty="No finishes yet. Use Add row.")
+        with ui.tab_panel(t_out):
+            EditableGrid(lambda: pr.outsourced,
+                         [Col("service", "Service", width=220), Col("basis", "Per", width=80),
+                          Col("price", "Price", "money", width=100), *sup],
+                         st.save_catalog, lambda: OutsourcedPrice(id=new_id(), service=""), height="62vh",
+                         empty="No outsourced services yet (spray finishing, CNC, glass, upholstery, metal).")
+
+
 # ---------------------------------------------------------------- boilerplate
 
 
@@ -487,20 +571,85 @@ def settings_page(profile: str = KS) -> None:
                                           lambda _: f"Next number: {base.next_proposal_number()} "
                                                     "(one sequence for both companies)") \
                     .classes("text-xs text-gray-500")
+                cw = s.payment_rule == "deposit"
                 with ui.grid(columns=2).classes("w-full gap-x-4"):
-                    ui.number("Deposit", value=float(s.deposit_pct * 100)).props('dense suffix="%"') \
+                    ui.number("Deposit (at or over the threshold)" if cw else "Deposit",
+                              value=float(s.deposit_pct * 100)).props('dense suffix="%"') \
                         .on_value_change(bind(s, "deposit_pct", pct))
-                    ui.number("Retainage", value=float(s.retainage_pct * 100)).props('dense suffix="%"') \
-                        .on_value_change(bind(s, "retainage_pct", pct))
+                    if cw:
+                        ui.number("Deposit under the threshold", value=float(s.deposit_pct_small * 100)) \
+                            .props('dense suffix="%"').on_value_change(bind(s, "deposit_pct_small", pct))
+                        ui.number("Deposit threshold (Total Price)", value=float(s.deposit_threshold), format="%.0f") \
+                            .props('dense prefix="$"').on_value_change(
+                                bind(s, "deposit_threshold", lambda x: Decimal(str(x or 0))))
+                    else:
+                        ui.number("Retainage", value=float(s.retainage_pct * 100)).props('dense suffix="%"') \
+                            .on_value_change(bind(s, "retainage_pct", pct))
                     ui.number("Stick goods waste (shared)", value=float(base.default_waste_pct * 100)) \
                         .props('dense suffix="%"').on_value_change(bind(base, "default_waste_pct", pct))
                     ui.number("Proposal validity", value=s.validity_days, format="%d").props('dense suffix="days"') \
                         .on_value_change(bind(s, "validity_days", int))
-                    ui.number("License threshold warning", value=float(s.license_threshold), format="%.0f") \
-                        .props('dense prefix="$"').classes("col-span-2") \
-                        .on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
-                ui.label("Issues tab and change orders warn when a total including owner-supplied items reaches "
-                         "this amount. 0 turns the warning off.").classes("text-xs text-gray-500")
+                    if not cw:
+                        ui.number("License threshold warning", value=float(s.license_threshold), format="%.0f") \
+                            .props('dense prefix="$"').classes("col-span-2") \
+                            .on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
+                if cw:
+                    ui.label("Deposit due at signing; the balance is due at delivery or when installation is "
+                             "complete.").classes("text-xs text-gray-500")
+                else:
+                    ui.label("Issues tab and change orders warn when a total including owner-supplied items reaches "
+                             "this amount. 0 turns the warning off.").classes("text-xs text-gray-500")
+            if s.pricing is not None:
+                pol = s.pricing
+                with ui.row().classes("items-start gap-4 mt-3"):
+                    with ui.card().classes("w-[560px]"):
+                        ui.label("Build sheet pricing").classes("font-semibold")
+                        ui.label("New build sheets copy these; a saved proposal keeps its own.") \
+                            .classes("text-xs text-gray-500")
+                        with ui.grid(columns=2).classes("w-full gap-x-4"):
+                            ui.number("Shop rate", value=float(pol.shop_rate)).props('dense prefix="$" suffix="/hr"') \
+                                .on_value_change(bind(pol, "shop_rate", lambda x: Decimal(str(x or 0))))
+                            ui.number("Round unit prices up to", value=float(pol.rounding)).props('dense prefix="$"') \
+                                .on_value_change(bind(pol, "rounding", lambda x: Decimal(str(x or 0))))
+                            ui.number("Overhead", value=float(pol.overhead_pct * 100)).props('dense suffix="%"') \
+                                .on_value_change(bind(pol, "overhead_pct", pct))
+                            ui.number("Profit", value=float(pol.profit_pct * 100)).props('dense suffix="%"') \
+                                .on_value_change(bind(pol, "profit_pct", pct))
+                        ui.label("Overhead covers machines, consumables, tooling and material handling.") \
+                            .classes("text-xs text-gray-500")
+                        with ui.grid(columns=3).classes("w-full gap-x-4"):
+                            for label, attr in (("Yield low", "yield_low"), ("Yield medium", "yield_medium"),
+                                                ("Yield high", "yield_high")):
+                                ui.number(label, value=float(getattr(pol, attr)), format="%.2f").props("dense") \
+                                    .on_value_change(bind(pol, attr, lambda x: Decimal(str(x or 1))))
+                        ui.label("Yield multiplies net board feet for waste and defects.").classes("text-xs text-gray-500")
+                        ui.input_chips("Labor phases", value=list(pol.phases),
+                                       on_change=lambda e: (setattr(pol, "phases", [str(x).strip() for x in e.value or []
+                                                                                    if str(x).strip()]),
+                                                            st.save_settings(profile))).props("dense").classes("w-full")
+                    with ui.card().classes("w-[460px]"):
+                        ui.label("Rough thickness").classes("font-semibold")
+                        ui.label("Finished thickness (in) up to which each nominal is used.").classes("text-xs text-gray-500")
+                        from ..buildsheet import RoughThickness
+                        EditableGrid(lambda: pol.rough_map,
+                                     [Col("finished", "Finished up to (in)", "number", width=150),
+                                      Col("nominal", "Nominal", width=100),
+                                      Col("nominal_in", "Nominal (in)", "number", width=120)],
+                                     lambda: st.save_settings(profile),
+                                     lambda: RoughThickness(finished=Decimal(1), nominal="5/4", nominal_in=Decimal("1.25")),
+                                     height="30vh")
+                with ui.card().classes("w-[560px] mt-3"):
+                    ui.label("Sales tax").classes("font-semibold")
+                    ui.switch("New proposals charge sales tax", value=s.new_projects_taxable,
+                              on_change=bind(s, "new_projects_taxable", bool)).props("dense")
+                    ui.label("Combined state and local rate per county. A proposal keeps the rate it was given.") \
+                        .classes("text-xs text-gray-500")
+                    from ..models import TaxCounty
+                    EditableGrid(lambda: s.tax_counties,
+                                 [Col("name", "County", flex=1), Col("rate", "Rate (fraction, 0.07 = 7%)", "number",
+                                                                     width=200)],
+                                 lambda: st.save_settings(profile),
+                                 lambda: TaxCounty(name="", rate=Decimal("0.07")), height="26vh")
 
         with ui.tab_panel(t_quotes):
             with ui.card().classes("w-[720px]"):

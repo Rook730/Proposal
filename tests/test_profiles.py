@@ -103,7 +103,8 @@ def test_seed_sections_are_kept_spec():
     from importlib import resources
     cat = Catalog.model_validate_json((resources.files("proposal_builder") / "seed" / "catalog.json")
                                       .read_text(encoding="utf-8"))
-    assert all(s.profile == KS for s in cat.sections)
+    assert all(s.profile == KS for s in cat.sections if s.number < 2000)
+    assert {s.number: s.profile for s in cat.sections if s.number >= 2000} == {3000: CW, 3100: CW}
 
 
 def test_config_moves_from_old_app_folder(tmp_path: Path, monkeypatch):
@@ -118,11 +119,11 @@ def test_config_moves_from_old_app_folder(tmp_path: Path, monkeypatch):
 
 
 def _cw_project(st: AppState) -> tuple[Project, Revision]:
-    st.catalog.sections.append(Section(number=3000, name="Square box", key="Box", profile=CW))
     p = Project(number="26006", project_name="Boxes", client_name="Borg Warner Turbo", profile=CW)
-    rev = Revision(sections=[3000], blocks=default_blocks(st.boilerplate_for(CW).blocks))
-    rev.add_line(Line(id="30.01", section=3000, title="Square box", unit="EA", qty=Decimal(10),
-                      unit_price=Decimal(305)))
+    rev = Revision(blocks=default_blocks(st.boilerplate_for(CW).blocks))
+    piece = rev.add_piece("Square box")
+    rev.add_line(Line(id=rev.new_line_id(piece.number), section=piece.number, title="Square box", unit="EA",
+                      qty=Decimal(10), unit_price=Decimal(305)))
     ProjectStore(st.store).create(p, rev)
     return p, rev
 
@@ -160,6 +161,6 @@ def test_editor_and_closeout_open_with_project_profile(tmp_path: Path):
     ed = Editor(p.number)
     assert ed.settings.company.dba == "Convenient Woodworking"
     assert ed.library is st.boilerplate_for(CW)
-    assert [s.number for s in ed.sections] == [3000]
+    assert [s.number for s in ed.sections] == [3000, 3100]
     assert ed.results.base.total == Decimal("3050.00")
     assert Closeout(p.number).settings.company.dba == "Convenient Woodworking"
