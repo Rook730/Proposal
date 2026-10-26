@@ -143,4 +143,4 @@ Open values: profit percent (10% placeholder), real McMaster prices for the squa
 
 ## Next release
 
-(nothing yet)
+72. [x] Fix: Move up / Move down looked like they did nothing after a column header was clicked: the lines grid sorted by that column (IDs as text, so 10.01 before 2.01) instead of showing print order. Header sorting is off in the lines grid; it always shows print order.

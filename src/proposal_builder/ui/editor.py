@@ -586,7 +586,8 @@ class Editor:
             "rowSelection": {"mode": "singleRow", "checkboxes": False, "enableClickSelection": True},
             "rowHeight": 32, "headerHeight": 36,
             "stopEditingWhenCellsLoseFocus": True,
-            "defaultColDef": {"resizable": True},
+            # no header sorting: the grid always shows print order, which Move up / Move down change
+            "defaultColDef": {"resizable": True, "sortable": False},
             "rowClassRules": {"pb-pct": "data.pct", **{f"pb-alt{n}": f"data.alt === {n}" for n in ALT_COLORS},
                               "pb-out": "data.excluded", "pb-last": "data.last"},
             # stable row identity: refreshing rowData updates rows in place, so scroll and selection stay put

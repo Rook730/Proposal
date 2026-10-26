@@ -29,3 +29,18 @@ def test_no_unawaited_async_calls_in_lambdas():
                         and c.func.attr in async_methods):
                     problems.append(f"{f.name}:{lam.lineno} self.{c.func.attr}()")
     assert problems == []
+
+
+def test_lines_grid_shows_print_order(tmp_path):
+    """Header sorting would hide Move up / Move down (and sorts IDs as text: 10.01 before 2.01)."""
+    import json
+    from proposal_builder.proposal import Project, Revision
+    from proposal_builder.store import ProjectStore
+    from proposal_builder.ui import state as state_mod
+    from proposal_builder.ui.editor import Editor
+    st = state_mod.set_data_dir(tmp_path / "data")
+    data = json.loads((Path(__file__).parent / "fixtures" / "26005_anon.json").read_text(encoding="utf-8"))
+    ProjectStore(st.store).create(Project.model_validate(data["project"]), Revision.model_validate(data["revision"]))
+    opts = Editor("26005")._grid_options()
+    assert opts["defaultColDef"]["sortable"] is False
+    assert not any(c.get("sortable") or c.get("sort") for c in opts["columnDefs"])
