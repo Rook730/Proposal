@@ -134,9 +134,13 @@ Convenient Woodworking, stage 3 (docs/cw-requirements.md section 15).
 68. [x] Placeholders (TBD, XX, ??, [ ]) and printed lines with no unit price are errors and block Issue for both companies: the Issue dialog lists them and the Issue button is disabled. A line included at no charge needs $0.
 69. [x] Pillow added (image scaling); the self-test scales and prints an image so the Windows build checks it.
 
-## Next release
+## Released in 1.9.1 (2026-10-26)
 
 70. [x] Fix: deleting or adding a labor row in a build sheet did not show until "Use this build sheet" (the grid's save callback returned a refresh handle, which crashed the redraw). Grids now ignore non-list save results.
 71. [x] Fix: Export PDF in the Preview window did nothing (since 1.7; the export was never started). The Export PDF item in the editor's menu was not affected. A test now checks that no button hides an async call this way.
 
 Open values: profit percent (10% placeholder), real McMaster prices for the square box template, actual hours (stage 4, calibration).
+
+## Next release
+
+(nothing yet)

@@ -487,6 +487,9 @@ A toggle shows fields that never print:
 
 **1.9.0: Convenient Woodworking stage 3.** Restoration items, appendix images, client property and storage terms, veneer, up to 6 alternates, placeholders and unpriced lines block Issue. Details in docs/PENDING.md (items 62 to 69).
 
+
+**1.9.1:** Fixes: build sheet labor rows redraw after delete or add; Export PDF in the Preview window works.
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.
