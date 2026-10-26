@@ -29,7 +29,7 @@ Add Convenient Woodworking (CW) proposals to Proposal Builder as a second compan
 - **Per profile:** settings (company identity, payment rules, pricing policy, defaults), terms library, How to read text, rates, PDF template.
 - **Projects list:** both companies, with a Company column and filter.
 - **App name:** "Proposal Builder" in the window title, exe name and `%APPDATA%` folder. The settings folder is migrated once on first start. The data folder is unchanged.
-- **Data layout:** Kept Spec files stay at the data folder root (`settings.json`, `boilerplate.json`), so nothing is moved and an older copy of the app still opens the folder. `profiles/cw/` holds the CW `settings.json`, `boilerplate.json` and `logo.svg`, created on first start. Shared values are read from the root `settings.json`. (Changed during stage 1 from moving KS files into `profiles/ks/`.)
+- **Data layout:** Kept Spec files stay at the data folder root (`settings.json`, `boilerplate.json`), so nothing is moved. Versions before 1.8.0 cannot read the folder once 1.8.0 or later has saved to it (unknown fields are rejected); update every computer that uses it. `profiles/cw/` holds the CW `settings.json`, `boilerplate.json` and `logo.svg`, created on first start. Shared values are read from the root `settings.json`. (Changed during stage 1 from moving KS files into `profiles/ks/`.)
 
 ## 3. CW identity
 

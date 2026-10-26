@@ -495,7 +495,7 @@ Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project manageme
 - Every project has a company (`Project.profile`, "ks" or "cw"), picked at New project with no default and never changed. Projects saved before this are Kept Spec.
 - Shared: catalog (each section is tagged KS, CW or both), units, customers, contractors, suppliers, numbering (one YYNNN sequence), stick goods waste, Lists, performers, spelling dictionary, app settings, updater, build.
 - Per company: company identity and logo, payment percentages, validity, license warning, quote texts, global variables, change order roles, terms library.
-- Files: Kept Spec settings and terms stay at the data folder root, so no file moves and an older copy of the app still opens the folder. Other companies use profiles/<key>/. Shared values are read from the root settings.json; a profile's settings file keeps a stale copy that is replaced on load.
+- Files: Kept Spec settings and terms stay at the data folder root, so no file moves. Versions before 1.8.0 cannot read the folder once a newer version has saved to it (unknown fields are rejected); every computer using the folder must be updated. Other companies use profiles/<key>/. Shared values are read from the root settings.json; a profile's settings file keeps a stale copy that is replaced on load.
 - The editor, change orders page, PDFs, income and the projects list use the project's company. Settings and Terms library have a Company switch; Sections and Catalog items show the company.
 - The app is named Proposal Builder (window, exe, %APPDATA%\ProposalBuilder, copied once from %APPDATA%\KeptSpecProposal).
 
