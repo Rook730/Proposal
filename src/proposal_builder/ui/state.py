@@ -6,16 +6,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ..crm import ContractorBook, CustomerBook, SupplierBook, add_from_sub_names, link_projects
-from ..models import Boilerplate, Catalog, Settings
-from ..store import DataStore, ProjectStore, resolve_data_dir
+from ..models import KS, PROFILES, Boilerplate, Catalog, Settings
+from ..store import DataStore, ProjectStore, resolve_data_dir, share_settings
 
 
 @dataclass
 class AppState:
     store: DataStore
-    settings: Settings = field(init=False)
+    settings: Settings = field(init=False)          # Kept Spec settings + the shared ones
     catalog: Catalog = field(init=False)
-    boilerplate: Boilerplate = field(init=False)
+    boilerplate: Boilerplate = field(init=False)    # Kept Spec terms library
+    profile_settings: dict[str, Settings] = field(init=False)      # other profiles
+    profile_boilerplate: dict[str, Boilerplate] = field(init=False)
     customers: CustomerBook = field(init=False)
     contractors: ContractorBook = field(init=False)
     suppliers: SupplierBook = field(init=False)
@@ -35,6 +37,11 @@ class AppState:
             self.store.save_catalog(self.catalog)
         if bp_changed:
             self.store.save_boilerplate(self.boilerplate)
+        self.profile_settings, self.profile_boilerplate = {}, {}
+        for key in PROFILES:
+            if key != KS:
+                self.profile_settings[key] = self.store.load_settings(key)
+                self.profile_boilerplate[key] = self.store.load_boilerplate(key)
         self.customers = self.store.load_book("customers.json", CustomerBook)
         self.contractors = self.store.load_book("contractors.json", ContractorBook)
         self.suppliers = self.store.load_book("suppliers.json", SupplierBook)
@@ -87,11 +94,26 @@ class AppState:
         self.store.save_catalog(self.catalog)
         return self.catalog.validate_refs()
 
-    def save_settings(self) -> None:
-        self.store.save_settings(self.settings)
+    # -- per profile
+    def settings_for(self, profile: str = KS) -> Settings:
+        """The profile's settings; shared values (numbering, lists, performers...) are the Kept Spec ones."""
+        if profile == KS or profile not in self.profile_settings:
+            return self.settings
+        return share_settings(self.profile_settings[profile], self.settings)
 
-    def save_boilerplate(self) -> None:
-        self.store.save_boilerplate(self.boilerplate)
+    def boilerplate_for(self, profile: str = KS) -> Boilerplate:
+        if profile == KS or profile not in self.profile_boilerplate:
+            return self.boilerplate
+        return self.profile_boilerplate[profile]
+
+    def save_settings(self, profile: str = KS) -> None:
+        """Save a profile's settings. Shared values always save with the Kept Spec file."""
+        self.store.save_settings(self.settings)
+        if profile != KS and profile in self.profile_settings:
+            self.store.save_settings(self.settings_for(profile), profile)
+
+    def save_boilerplate(self, profile: str = KS) -> None:
+        self.store.save_boilerplate(self.boilerplate_for(profile), profile)
 
 
 _state: AppState | None = None

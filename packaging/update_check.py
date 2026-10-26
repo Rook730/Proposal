@@ -4,7 +4,7 @@ Copies the built one-file exe into a scratch folder, serves a second copy over H
 `<exe> --apply-update <url>`. That process must rename itself to .old, put the download in its
 place and start it with --self-test; the relaunched copy writes selftest.log.
 
-    python packaging/update_check.py "dist/KeptSpec Proposal Builder.exe"
+    python packaging/update_check.py "dist/Proposal Builder.exe"
 """
 
 from __future__ import annotations

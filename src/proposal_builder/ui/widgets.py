@@ -97,7 +97,7 @@ def layout(title: str, drawer: bool = True) -> None:
     ui.add_css(THEME_CSS)
     ui.add_head_html(CONTEXT_MENU_JS)
     with ui.header().classes("items-center py-2 px-4").style(f"background:{BRAND}"):
-        ui.label("Kept Spec Proposal Builder").classes("text-lg font-semibold")
+        ui.label("Proposal Builder").classes("text-lg font-semibold")
         ui.space()
         _saved_indicator()
         ui.label(title).classes("text-sm opacity-80")

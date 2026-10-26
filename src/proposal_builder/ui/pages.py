@@ -23,6 +23,7 @@ from ..models import (
     Unit,
     Variable,
 )
+from ..models import KS, PROFILES, SECTION_PROFILES
 from .state import get_state, set_data_dir
 from .widgets import keep_current, Col, EditableGrid, filter_box, layout, no_rows, page_title, to_decimal, toolbar, warn
 
@@ -47,6 +48,7 @@ def _item_rows() -> list[dict]:
     st = get_state()
     cat = st.catalog
     sections = {s.number: s.name for s in cat.sections}
+    owners = {s.number: SECTION_PROFILES.get(s.profile, s.profile) for s in cat.sections}
     rows = []
     for i in sorted(cat.items, key=lambda x: x.code):
         price = cat.unit_price(i)
@@ -60,6 +62,7 @@ def _item_rows() -> list[dict]:
                                          ("credit", i.credit_if_unused), ("inactive", not i.active)] if on)
         rows.append({
             "code": i.code, "section": f"{i.section} {sections.get(i.section, '?')}",
+            "company": owners.get(i.section, ""),
             "group": i.group, "title": i.title, "unit": i.unit, "source": basis_label(i.price_source).capitalize(),
             "price": shown, "performer": i.performer, "flags": flags,
             "description": i.description,
@@ -201,6 +204,7 @@ def items_page() -> None:
         "columnDefs": [
             {"field": "code", "headerName": "Code", "width": 80, "sort": "asc"},
             {"field": "section", "headerName": "Section", "width": 200, "filter": True},
+            {"field": "company", "headerName": "Company", "width": 120, "filter": True},
             {"field": "group", "headerName": "Group", "width": 100},
             {"field": "title", "headerName": "Title", "width": 230},
             {"field": "unit", "headerName": "Unit", "width": 70},
@@ -226,7 +230,8 @@ def items_page() -> None:
 def sections_page() -> None:
     layout("Sections")
     st = get_state()
-    page_title("Sections", "Sections print in number order. Changing a number does not move its items.")
+    page_title("Sections", "Sections print in number order. Changing a number does not move its items. Company "
+               "sets which proposals offer the section.")
 
     def new() -> Section:
         n = max((s.number for s in st.catalog.sections), default=0) + 100
@@ -238,7 +243,8 @@ def sections_page() -> None:
 
     EditableGrid(lambda: st.catalog.sections,
                  [Col("number", "Number", "number", width=110), Col("name", "Name", flex=2),
-                  Col("key", "Key", flex=1)], save, new)
+                  Col("key", "Key", flex=1),
+                  Col("profile", "Company", "lookup", width=150, lookup=dict(SECTION_PROFILES))], save, new)
 
 
 @ui.page("/rates")
@@ -322,9 +328,9 @@ def stock_page() -> None:
 # ---------------------------------------------------------------- boilerplate
 
 
-def block_dialog(block: BoilerplateBlock | None, heading: str, on_saved) -> None:
+def block_dialog(block: BoilerplateBlock | None, heading: str, on_saved, profile: str = KS) -> None:
     st = get_state()
-    bp = st.boilerplate
+    bp = st.boilerplate_for(profile)
     is_new = block is None
     with ui.dialog() as dlg, ui.card().classes("w-[900px] max-w-full"):
         ui.label(f"{heading}: {'new block' if is_new else block.title or block.id}").classes("text-lg font-semibold")
@@ -349,7 +355,7 @@ def block_dialog(block: BoilerplateBlock | None, heading: str, on_saved) -> None
                                                   body=body.value or "", default_on=on.value, order=order))
             else:
                 block.title, block.body, block.default_on = title.value or "", body.value or "", on.value
-            st.save_boilerplate()
+            st.save_boilerplate(profile)
             dlg.close()
             on_saved()
 
@@ -360,41 +366,48 @@ def block_dialog(block: BoilerplateBlock | None, heading: str, on_saved) -> None
 
 
 @ui.page("/boilerplate")
-def boilerplate_page() -> None:
+def boilerplate_page(profile: str = KS) -> None:
     layout("Terms library")
     st = get_state()
-    page_title("Terms library", "Text and terms for proposals. Each proposal starts with the blocks that are on by "
-               "default and can toggle or edit them (Terms & options) without changing this library.")
+    page_title("Terms library", "Text and terms for proposals, one library per company. Each proposal starts with "
+               "the blocks that are on by default and can toggle or edit them (Terms & options) without changing "
+               "this library.")
+    profile = profile_switch("/boilerplate", profile)
+    lib = st.boilerplate_for(profile)
+
+    def save() -> None:
+        st.save_boilerplate(profile)
 
     @ui.refreshable
     def body() -> None:
-        bp = st.boilerplate
+        bp = lib
         for heading in bp.headings:
             blocks = bp.by_heading(heading)
             with ui.expansion(f"{heading} ({len(blocks)})", value=False).classes("w-full border rounded mb-2"):
                 for b in blocks:
                     with ui.row().classes("w-full items-start no-wrap gap-3 py-1 border-b"):
                         ui.switch(value=b.default_on,
-                                  on_change=lambda e, b=b: (setattr(b, "default_on", e.value), st.save_boilerplate()))
+                                  on_change=lambda e, b=b: (setattr(b, "default_on", e.value), save()))
                         with ui.column().classes("flex-1 gap-0"):
                             ui.label(b.title or f"[{b.id}]").classes("font-semibold")
                             ui.label(b.body[:220] + ("..." if len(b.body) > 220 else "")) \
                                 .classes("text-xs text-gray-600 whitespace-pre-line")
                         ui.button(icon="arrow_upward", on_click=lambda b=b: move(b, -1)).props("flat dense round")
                         ui.button(icon="arrow_downward", on_click=lambda b=b: move(b, 1)).props("flat dense round")
-                        ui.button(icon="edit", on_click=lambda b=b, h=heading: block_dialog(b, h, body.refresh)) \
+                        ui.button(icon="edit",
+                                  on_click=lambda b=b, h=heading: block_dialog(b, h, body.refresh, profile)) \
                             .props("flat dense round")
                         ui.button(icon="delete", on_click=lambda b=b: remove(b)).props("flat dense round color=negative")
                 ui.button("Add block", icon="add",
-                          on_click=lambda h=heading: block_dialog(None, h, body.refresh)).props("flat dense")
+                          on_click=lambda h=heading: block_dialog(None, h, body.refresh, profile)).props("flat dense")
 
     def move(b: BoilerplateBlock, d: int) -> None:
-        sib = st.boilerplate.by_heading(b.heading)
+        sib = lib.by_heading(b.heading)
         i = sib.index(b)
         j = i + d
         if 0 <= j < len(sib):
             sib[i].order, sib[j].order = sib[j].order, sib[i].order
-            st.save_boilerplate()
+            save()
             body.refresh()
 
     async def remove(b: BoilerplateBlock) -> None:
@@ -404,8 +417,8 @@ def boilerplate_page() -> None:
                 ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
                 ui.button("Delete", on_click=lambda: dlg.submit(True)).props("color=negative")
         if await dlg:
-            st.boilerplate.blocks.remove(b)
-            st.save_boilerplate()
+            lib.blocks.remove(b)
+            save()
             body.refresh()
 
     body()
@@ -414,11 +427,25 @@ def boilerplate_page() -> None:
 # ---------------------------------------------------------------- settings
 
 
+def profile_switch(path: str, profile: str) -> str:
+    """Company toggle for pages kept per company (Settings, Terms library). Returns the valid profile key."""
+    profile = profile if profile in PROFILES else KS
+    with ui.row().classes("items-center gap-3 mb-1"):
+        ui.label("Company").classes("text-sm font-semibold")
+        ui.toggle(dict(PROFILES), value=profile,
+                  on_change=lambda e: ui.navigate.to(f"{path}?profile={e.value}")).props("dense no-caps")
+    return profile
+
+
 @ui.page("/settings")
-def settings_page() -> None:
+def settings_page(profile: str = KS) -> None:
     layout("Settings")
     st = get_state()
-    s = st.settings
+    page_title("Settings", "Changes save as you type. Company, proposal terms, quotes and variables are kept per "
+               "company; numbering, lists and the app settings are shared.")
+    profile = profile_switch("/settings", profile)
+    s = st.settings_for(profile)     # this company's settings
+    base = st.settings               # shared values are always set on the Kept Spec file
     c = s.company
 
     def bind(obj, attr, conv=lambda v: v):
@@ -428,12 +455,10 @@ def settings_page() -> None:
             except (ValidationError, ValueError, TypeError) as err:
                 ui.notify(f"Not saved: {err}", type="negative")
                 return
-            st.save_settings()
+            st.save_settings(profile)
         return handler
 
     pct = lambda v: (to_decimal(v) or Decimal(0)) / 100  # noqa: E731
-
-    page_title("Settings", "Changes save as you type.")
     with ui.tabs().props("dense inline-label align=left no-caps").classes("w-full border-b") as tabs:
         t_company = ui.tab("Company", icon="business")
         t_prop = ui.tab("Proposals", icon="description")
@@ -454,19 +479,21 @@ def settings_page() -> None:
         with ui.tab_panel(t_prop):
             with ui.card().classes("w-[560px]"):
                 with ui.grid(columns=2).classes("w-full gap-x-4"):
-                    ui.number("Proposal year (YY)", value=s.proposal_year, format="%d").props("dense") \
-                        .on_value_change(bind(s, "proposal_year", int))
-                    ui.number("Next proposal sequence", value=s.next_proposal_seq, format="%d").props("dense") \
-                        .on_value_change(bind(s, "next_proposal_seq", int))
-                ui.label().bind_text_from(s, "next_proposal_seq", lambda _: f"Next number: {s.next_proposal_number()}") \
+                    ui.number("Proposal year (YY)", value=base.proposal_year, format="%d").props("dense") \
+                        .on_value_change(bind(base, "proposal_year", int))
+                    ui.number("Next proposal sequence", value=base.next_proposal_seq, format="%d").props("dense") \
+                        .on_value_change(bind(base, "next_proposal_seq", int))
+                ui.label().bind_text_from(base, "next_proposal_seq",
+                                          lambda _: f"Next number: {base.next_proposal_number()} "
+                                                    "(one sequence for both companies)") \
                     .classes("text-xs text-gray-500")
                 with ui.grid(columns=2).classes("w-full gap-x-4"):
                     ui.number("Deposit", value=float(s.deposit_pct * 100)).props('dense suffix="%"') \
                         .on_value_change(bind(s, "deposit_pct", pct))
                     ui.number("Retainage", value=float(s.retainage_pct * 100)).props('dense suffix="%"') \
                         .on_value_change(bind(s, "retainage_pct", pct))
-                    ui.number("Stick goods waste", value=float(s.default_waste_pct * 100)).props('dense suffix="%"') \
-                        .on_value_change(bind(s, "default_waste_pct", pct))
+                    ui.number("Stick goods waste (shared)", value=float(base.default_waste_pct * 100)) \
+                        .props('dense suffix="%"').on_value_change(bind(base, "default_waste_pct", pct))
                     ui.number("Proposal validity", value=s.validity_days, format="%d").props('dense suffix="days"') \
                         .on_value_change(bind(s, "validity_days", int))
                     ui.number("License threshold warning", value=float(s.license_threshold), format="%.0f") \
@@ -484,18 +511,19 @@ def settings_page() -> None:
                     .props("dense autogrow").classes("w-full mt-2").on_value_change(bind(s, "comparison_note"))
 
         with ui.tab_panel(t_lists):
-            ui.label("Dropdown choices used across the app. Type and press Enter to add; click the x to remove. "
-                     "Removing a choice does not change records that already use it.").classes("text-xs text-gray-500")
+            ui.label("Dropdown choices used across the app, shared by both companies. Type and press Enter to add; "
+                     "click the x to remove. Removing a choice does not change records that already use it.") \
+                .classes("text-xs text-gray-500")
             with ui.card().classes("w-full max-w-[1100px]"):
                 ui.label("Performers").classes("font-semibold text-sm")
                 ui.label("Printed note goes at the start of a line's description. Income puts the line in the Kept "
                          "Spec (KS) or Convenient Woodworking (CW) column of the Income tab; blank means pass-through. "
                          "Renaming a performer updates catalog items; saved proposals keep the name they were written "
                          "with.").classes("text-xs text-gray-500")
-                prev = [x.name for x in s.performers]
+                prev = [x.name for x in base.performers]
 
                 def save_performers():
-                    now = [x.name for x in s.performers]
+                    now = [x.name for x in base.performers]
                     if len(now) == len(prev):
                         for old, new in zip(prev, now):
                             if old != new and old not in now:
@@ -516,12 +544,12 @@ def settings_page() -> None:
                     st.save_settings()
 
                 from ..models import PerformerDef
-                EditableGrid(lambda: s.performers,
+                EditableGrid(lambda: base.performers,
                              [Col("name", "Performer", width=230), Col("note", "Printed note", flex=1),
                               Col("income", "Income", "select", ["", "KS", "CW"], width=100)],
                              save_performers, lambda: PerformerDef(name="New performer"), height="26vh")
 
-                lists = s.lists
+                lists = base.lists
                 with ui.grid(columns=2).classes("w-full gap-x-6 gap-y-2 mt-2"):
                     for attr, label in (("co_actions", "Change order actions"), ("contact_roles", "Contact roles"),
                                         ("lead_sources", "How they found you"), ("trades", "Contractor trades"),
@@ -532,8 +560,8 @@ def settings_page() -> None:
                                                                     st.save_settings())) \
                             .props("dense").classes("w-full")
                 ui.input_chips("Spelling dictionary (words the spelling check accepts)",
-                               value=list(s.spelling_words),
-                               on_change=lambda e: (setattr(s, "spelling_words",
+                               value=list(base.spelling_words),
+                               on_change=lambda e: (setattr(base, "spelling_words",
                                                             sorted({str(x).strip() for x in (e.value or [])
                                                                     if str(x).strip()}, key=str.lower)),
                                                     st.save_settings())) \
@@ -545,7 +573,7 @@ def settings_page() -> None:
             EditableGrid(lambda: s.global_variables,
                          [Col("name", "Name", width=200), Col("value", "Value", flex=1), Col("unit", "Unit", width=100),
                           Col("description", "Description", flex=2)],
-                         lambda: st.save_settings(),
+                         lambda: st.save_settings(profile),
                          lambda: Variable(name=f"var{len(s.global_variables) + 1}", value=""), height="50vh",
                          empty="No global variables. Use Add row; proposals can also have their own.")
 
@@ -554,10 +582,10 @@ def settings_page() -> None:
                 ui.label("Appearance").classes("font-semibold")
 
                 def set_dark(e) -> None:
-                    s.dark_mode = bool(e.value)
+                    base.dark_mode = bool(e.value)
                     st.save_settings()
                     ui.navigate.reload()
-                ui.switch("Dark mode", value=s.dark_mode, on_change=set_dark).props("dense")
+                ui.switch("Dark mode", value=base.dark_mode, on_change=set_dark).props("dense")
                 ui.separator().classes("my-2")
                 ui.label("Data folder").classes("font-semibold")
                 ui.label(str(st.store.root)).classes("text-xs break-all")

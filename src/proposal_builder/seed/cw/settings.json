@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "company": {
+    "legal_name": "Convenient Enterprises LLC",
+    "dba": "Convenient Woodworking",
+    "address": "224 Rutledge Rd Fletcher, NC 28732",
+    "phone": "423.218.6067",
+    "email": "Nick@ConvenientWoodworking.com",
+    "logo_path": "profiles/cw/logo.svg"
+  },
+  "proposal_year": 26,
+  "next_proposal_seq": 6,
+  "default_waste_pct": "0.10",
+  "deposit_pct": "0.60",
+  "retainage_pct": "0",
+  "validity_days": 30,
+  "dark_mode": false,
+  "performers": [
+    {
+      "name": "Kept Spec Advisors",
+      "note": "",
+      "income": "KS"
+    },
+    {
+      "name": "Convenient Woodworking",
+      "note": "Performed by Convenient Woodworking.",
+      "income": "CW"
+    },
+    {
+      "name": "Licensed Sub",
+      "note": "Performed by a licensed subcontractor.",
+      "income": ""
+    },
+    {
+      "name": "Client (owner-furnished)",
+      "note": "Owner-furnished.",
+      "income": ""
+    }
+  ],
+  "lists": {
+    "co_actions": [
+      "Add",
+      "Delete",
+      "Modify"
+    ],
+    "contact_roles": [
+      "Owner",
+      "Spouse",
+      "Property manager",
+      "Tenant",
+      "Designer",
+      "Realtor"
+    ],
+    "lead_sources": [
+      "Referral",
+      "Website",
+      "Repeat client",
+      "Google",
+      "Social media",
+      "Sign / yard sign"
+    ],
+    "trades": [
+      "Electrical",
+      "Plumbing",
+      "HVAC",
+      "Gas",
+      "Drywall",
+      "Painting",
+      "Flooring",
+      "Tile",
+      "Framing",
+      "Insulation",
+      "Countertops",
+      "Glass",
+      "Finish carpentry",
+      "Roofing"
+    ],
+    "quote_scopes": [
+      "Electrical",
+      "Plumbing",
+      "HVAC",
+      "Painting",
+      "Flooring",
+      "Tile",
+      "Drywall",
+      "Countertops"
+    ],
+    "address_labels": [
+      "Home",
+      "Site",
+      "Mailing",
+      "Rental",
+      "Office"
+    ]
+  },
+  "license_threshold": "0",
+  "rfq_note": "Please quote the work below for the project listed. Include materials, labor and lead time, and list exclusions and assumptions. Send your quote to {company_email}.",
+  "comparison_note": "Quotes are the suppliers' prices for the work listed.",
+  "global_variables": [],
+  "spelling_words": [],
+  "co_markup_codes": [],
+  "contingency_code": 0,
+  "co_management_code": 0,
+  "co_management_rate_key": "",
+  "recommended_by": "Convenient Woodworking - Nick Matney"
+}

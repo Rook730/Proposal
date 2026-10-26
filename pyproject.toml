@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "proposal-builder"
 version = "1.7.2"
-description = "Proposal builder for Kept Spec Advisors"
+description = "Proposal Builder for Kept Spec Advisors and Convenient Woodworking"
 requires-python = ">=3.12"
 dependencies = [
     "nicegui>=3.0,<4",
@@ -26,7 +26,7 @@ proposal-builder = "proposal_builder.__main__:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-proposal_builder = ["seed/*.json", "seed/*.png", "render/templates/*.typ", "render/fonts/*", "assets/*"]
+proposal_builder = ["seed/*.json", "seed/*.png", "seed/*/*", "render/templates/*.typ", "render/fonts/*", "assets/*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

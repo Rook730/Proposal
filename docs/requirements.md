@@ -58,9 +58,10 @@ Replace the Excel proposal workflow (Proposal_Template4.xlsx) with a standalone 
 Storage layout (proposed):
 ```
 <Proton Drive>/KeptSpec Proposals/
-  settings.json          company info, defaults, global variables, rates
-  catalog.json           sections, items, allowance ranges, units, stock sizes
-  boilerplate.json       clause library
+  settings.json          Kept Spec company info, defaults, global variables; shared settings (section 16)
+  catalog.json           sections, items, allowance ranges, units, stock sizes (shared by both companies)
+  boilerplate.json       Kept Spec clause library
+  profiles/cw/           Convenient Woodworking settings.json, boilerplate.json, logo.svg
   projects/26005_Client_Kitchen/
     project.json         client, address, status
     rev_1.0.json         issued revisions are locked
@@ -102,7 +103,7 @@ Rates derived from the current catalog and 26005:
 | Fixtures labor | 45 | 1150 (catalog) |
 
 ### 4.4 Sections (categories)
-Each section has a number (100, 200 ... 1400), a name, a print order and a short key. Sections can be added, renamed and reordered. A proposal includes an ordered subset of sections, set per proposal.
+Each section has a number (100, 200 ... 1400), a name, a print order, a short key and a company (KS, CW, or both; section 16). Sections can be added, renamed and reordered. A proposal includes an ordered subset of sections, set per proposal, from its company's sections.
 
 ### 4.5 Catalog items
 - **Code:** unique in the catalog.
@@ -480,3 +481,15 @@ A toggle shows fields that never print:
 **1.7.1:** Issues tab: double-click an issue or use its button to open where it is fixed (line form, terms block, Variables or Alternates tab, section, Project info, customer or contractor).
 
 **1.7.2:** Alternates: a switch per pair to stop offering two alternates together (drops the combination from totals, the printed proposal, income by option and the license check; Finalize rejects selecting both).
+
+## 16. Company profiles (Convenient Woodworking)
+
+Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.
+
+**Stage 1 (built, not released)**
+- Every project has a company (`Project.profile`, "ks" or "cw"), picked at New project with no default and never changed. Projects saved before this are Kept Spec.
+- Shared: catalog (each section is tagged KS, CW or both), units, customers, contractors, suppliers, numbering (one YYNNN sequence), stick goods waste, Lists, performers, spelling dictionary, app settings, updater, build.
+- Per company: company identity and logo, payment percentages, validity, license warning, quote texts, global variables, change order roles, terms library.
+- Files: Kept Spec settings and terms stay at the data folder root, so no file moves and an older copy of the app still opens the folder. Other companies use profiles/<key>/. Shared values are read from the root settings.json; a profile's settings file keeps a stale copy that is replaced on load.
+- The editor, change orders page, PDFs, income and the projects list use the project's company. Settings and Terms library have a Company switch; Sections and Catalog items show the company.
+- The app is named Proposal Builder (window, exe, %APPDATA%\ProposalBuilder, copied once from %APPDATA%\KeptSpecProposal).

@@ -170,13 +170,14 @@
   [Project:], d.client.project,
 )
 #v(14pt)
-#for b in d.intro {
+#for (i, b) in d.intro.enumerate() {
   if b.title == "" and b.body.starts-with("As a reminder") {
     v(6pt)
     line(length: 100%, stroke: 0.6pt + rule-c)
     text(9.5pt, style: "italic", md(b.body))
     line(length: 100%, stroke: 0.6pt + rule-c)
   } else {
+    if i > 0 { parbreak() }      // separate intro blocks (e.g. a cover letter and an about paragraph)
     text-block(b)
   }
 }

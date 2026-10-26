@@ -15,6 +15,7 @@ from typing import Iterable
 from pydantic import BaseModel, ConfigDict, Field
 
 from .models import (
+    KS,
     BoilerplateBlock,
     Catalog,
     CatalogItem,
@@ -321,6 +322,7 @@ def contract_revision(src: Revision, selected: list[int]) -> Revision:
 class Project(_Model):
     schema_version: int = SCHEMA_VERSION
     number: str                       # "26005"
+    profile: str = KS                 # company profile ("ks" or "cw"); set at creation, never changed
     client_name: str = ""
     site_address: str = ""
     project_name: str = ""

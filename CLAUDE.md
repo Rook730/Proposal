@@ -19,7 +19,8 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 
 ## Conventions
 - Catalog edits must never change saved proposals (snapshot rule, spec 4.9).
+- Two companies (spec section 16, docs/cw-requirements.md): a project's settings and terms come from `st.settings_for(project.profile)` / `st.boilerplate_for(project.profile)`, never `st.settings` directly (that is Kept Spec plus the shared values). Catalog lists offered in a project use `catalog.sections_for(profile)` / `items_for(profile)`.
 - User-facing text: no em dashes.
 - Tests: `python -m pytest -q`. Importer parity test needs PROPOSAL_XLSX=<path to workbook>.
-- Release: bump __version__ (src/proposal_builder/__init__.py) and pyproject version, then push a tag vX.Y.Z.
+- Release: see docs/HANDOFF.md (bump versions, push main, run build-windows.yml with release_tag).
 - Regenerate seed: `python -m proposal_builder.importer <workbook.xlsx> --out src/proposal_builder/seed`.

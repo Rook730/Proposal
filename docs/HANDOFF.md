@@ -1,12 +1,14 @@
 # Handoff: woodworking proposals (company profiles)
 
-Written 2026-10-25 at v1.7.2. For the session that adds Convenient Woodworking proposals to this app.
+Written 2026-10-25 at v1.7.2, updated after stage 1. For the sessions that add Convenient Woodworking proposals to this app.
 
 ## Decision
 
-Approach A: same app, a second **company profile**. Kept Spec Advisors (general contracting) and Convenient Woodworking (custom furniture) each get their own catalog, terms library, rates, numbering, branding and PDF layout. Customers, contractors, suppliers, the updater and the Windows build are shared. Nick picked this over a fork or a shared core package (2026-10-25).
+Approach A: same app, a second **company profile**. Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing) each have their own terms library, settings, branding and PDF identity. The catalog, customers, contractors, suppliers, numbering, updater and Windows build are shared. Nick picked this over a fork or a shared core package (2026-10-25).
 
-Not decided yet: what a woodworking proposal contains. Get a current woodworking proposal or spreadsheet from Nick before designing the data model; see Open questions.
+Intake with Nick (2026-10-25) is done: answers in the claude.ai Project (`claude/proposal-builder-cw-intake.md`), requirements in `docs/cw-requirements.md`, summary in `docs/requirements.md` section 16.
+
+**Status:** stage 1 (profile plumbing, rename to Proposal Builder) is built and in `docs/PENDING.md` (items 43 to 49), not released. Next is stage 2 (CW proposals: build sheets and price reference tables, piece sections, tax by county, deposit rule, CW PDF layout and terms library); see `docs/cw-requirements.md` section 15. Nick has a job waiting for stage 2: 10 square boxes for Borg Warner (a repeat of 25017), priced by hand in a spreadsheet for now.
 
 ## Read first
 
@@ -44,11 +46,11 @@ The in-app updater reads the latest GitHub release of `Rook730/Proposal` (public
 
 ## Where the single-company assumptions live
 
-These are the places a profile has to reach. Roughly in order of impact:
+These are the places a profile has to reach. Roughly in order of impact. Items 1 to 3 and 11 are handled in stage 1; the rest are stage 2.
 
 1. **One catalog, one terms library, one settings file**: `store.py` (`FILES`, `load_catalog`, `load_boilerplate`, `load_settings`), `ui/state.py` (`AppState` holds one of each).
 2. **Company identity**: `Settings.company` (legal name, DBA, address, phone, email, logo), `Settings.recommended_by`, PDF header in `render/templates/proposal.typ` and `common.typ`.
-3. **Numbering**: `Settings.proposal_year` / `next_proposal_seq` / `next_proposal_number()`; project folders are keyed by number (`store.ProjectStore.project_dir`), so two profiles must not hand out the same number (e.g. separate prefixes or one shared sequence).
+3. **Numbering**: `Settings.proposal_year` / `next_proposal_seq` / `next_proposal_number()`; project folders are keyed by number (`store.ProjectStore.project_dir`). Decided: one shared sequence (shared setting).
 4. **GC-specific catalog roles**: `Settings.co_markup_codes` (1410, 1420), `contingency_code` (1310), `co_management_code` (1320), `co_management_rate_key`; percent items and credit-if-unused in `importer.py`; change order pricing and the ledger in `closeout.py` assume these exist.
 5. **Payment terms**: `Settings.deposit_pct`, `retainage_pct`, `payment_schedule()` in `calc.py`, labels in `render/document.py` ("Construction progress payments").
 6. **License threshold warning**: `Settings.license_threshold`, Issues tab and change orders page. A GC concern; probably off for furniture.
@@ -58,22 +60,16 @@ These are the places a profile has to reach. Roughly in order of impact:
 10. **Seed and importer**: `seed/*.json` and `importer.py` come from the KS Excel workbook; a woodworking seed needs its own source.
 11. **Packaging names**: exe name, `APP_DIR_NAME`, `DEFAULT_DATA_DIR_NAME`, updater User-Agent. Can stay as they are (one app), or be renamed to a neutral name.
 
-## Suggested shape (to confirm with Nick)
+## As built (stage 1)
 
-- `profiles/<key>/` inside the data folder holding that profile's `settings.json`, `catalog.json`, `boilerplate.json`; shared files stay at the root. Migrate the current files into `profiles/ks/` on first start, keeping a backup.
-- `Project.profile` (default "ks" for existing projects). The editor, catalog pages, Terms library and Settings read the active project's or the selected profile's files.
-- A profile switch in the menu (or per page) for catalog, terms and settings; New project asks which profile.
-- One PDF template per profile (`proposal.typ` stays for KS; a woodworking template with its own header and sections), chosen by `Project.profile`.
-- GC-only features (change order management allowance, contingency, license threshold, retainage) become profile settings that can be off.
-- Income: map each profile to its entity so a woodworking project's income lands in the CW column and summary.
+- `models.py`: `KS`, `CW`, `PROFILES`, `Section.profile` ("ks", "cw", "both"), `Catalog.sections_for()` / `items_for()`, `SHARED_SETTINGS`.
+- `proposal.py`: `Project.profile` (default "ks").
+- `store.py`: `DataStore.profile_file()`; Kept Spec files at the root, others in `profiles/<key>/`; seed from `seed/cw/`; `load_settings(profile)` shares the root's shared fields (`share_settings`, same objects); backups of profile files named `profiles_cw_settings.<time>.json`; `%APPDATA%\ProposalBuilder` with a one-time copy from `KeptSpecProposal`.
+- `ui/state.py`: `settings_for(profile)`, `boilerplate_for(profile)`, `save_settings(profile)`, `save_boilerplate(profile)`. `st.settings` / `st.boilerplate` are Kept Spec.
+- Editor: `self.settings`, `self.library`, `self.sections` follow the project's profile. Closeout: `self.settings`. Projects list: Company column and filter; New project asks the company. Settings and Terms library: `?profile=` switch. Sections page: Company column.
+- `render/document.py`: logo keeps its extension (SVG works). `proposal.typ`: paragraph break between intro blocks.
+- Tests: `tests/test_profiles.py`. Self-test renders a CW proposal with the SVG logo.
 
 ## Open questions for Nick
 
-- A sample of a current woodworking proposal (or spreadsheet), to see line structure and pricing.
-- Pricing basis: line items like the GC proposal, or materials (species, board feet, sheet goods, hardware) plus shop hours and finishing, or a fixed price per piece?
-- Do woodworking jobs need revisions, alternates (e.g. species or finish options), change orders and a closeout ledger, or a simpler accept-and-invoice flow?
-- Drawings or renderings attached to the proposal?
-- Deposit and payment schedule for furniture (e.g. 50 percent to order materials, balance on delivery)?
-- Numbering: separate sequence or prefix (e.g. W26001), or one shared sequence?
-- Terms: lead time, wood movement and natural variation, finish care, delivery and installation, cancellation after materials are ordered.
-- Should a GC project be able to include a woodworking proposal (cabinets for a remodel), or stay separate?
+See `docs/cw-requirements.md` section 16: profit percent default, storage rate (proposed $2.00/SF of footprint per month, $25 minimum), box job inputs.

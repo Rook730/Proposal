@@ -14,7 +14,7 @@ from nicegui import run, ui
 from pydantic import ValidationError
 
 from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
-from ..models import Performer, PriceSource, Variable, basis_label
+from ..models import Performer, PriceSource, Variable, basis_label, profile_name
 from ..proposal import (
     Alternate,
     Line,
@@ -80,11 +80,26 @@ class Editor:
     def cat(self):
         return self.st.catalog
 
+    @property
+    def settings(self):
+        """The project's company settings (shared values such as lists and performers included)."""
+        return self.st.settings_for(self.project.profile)
+
+    @property
+    def library(self):
+        """The project's company terms library."""
+        return self.st.boilerplate_for(self.project.profile)
+
+    @property
+    def sections(self):
+        """Catalog sections the project's company uses."""
+        return self.cat.sections_for(self.project.profile)
+
     def _calc(self) -> Results:
-        return calculate(self.rev, self.st.settings, self.cat.stock_classes, self.project)
+        return calculate(self.rev, self.settings, self.cat.stock_classes, self.project)
 
     def variables(self) -> dict[str, str]:
-        return variable_map(self.project, self.rev, self.st.settings)
+        return variable_map(self.project, self.rev, self.settings)
 
     @property
     def locked(self) -> bool:
@@ -160,7 +175,7 @@ class Editor:
         return d
 
     def _logo_path(self):
-        lp = self.st.settings.company.logo_path
+        lp = self.settings.company.logo_path
         return self.st.store.path(lp) if lp else None
 
     @ui.refreshable_method
@@ -196,7 +211,7 @@ class Editor:
                     ui.notify("No contractor is assigned to any line yet.", type="warning")
                     return None, None
                 doc = rfq_document(self.project, self.rev, con, contractor_lines(self.rev, book, con.id),
-                                   st.settings, self.cat.stock_classes)
+                                   self.settings, self.cat.stock_classes)
                 name = re.sub(r"[^A-Za-z0-9_]+", "", f"{num}_RFQ_{con.company.replace(' ', '')}_V{self.rev.rev}") + ".pdf"
                 return doc, name
 
@@ -227,7 +242,7 @@ class Editor:
             .classes("text-xs text-gray-500")
         EditableGrid(lambda: log.quotes,
                      [Col("scope", "Scope", "select", list(dict.fromkeys(
-                         [*st.settings.lists.quote_scopes, *(q.scope for q in log.quotes if q.scope)])), width=150),
+                         [*self.settings.lists.quote_scopes, *(q.scope for q in log.quotes if q.scope)])), width=150),
                       Col("contractor_id", "Contractor", "lookup", width=190,
                           lookup={c.id: c.company for c in book.sorted()}),
                       Col("line_ids", "Lines", "strlist", width=120),
@@ -252,7 +267,7 @@ class Editor:
                 if not qs:
                     ui.notify("Pick a scope with logged quotes.", type="warning")
                     return None, None
-                doc = comparison_document(self.project, self.rev, cmp_sel.value, qs, book, st.settings)
+                doc = comparison_document(self.project, self.rev, cmp_sel.value, qs, book, self.settings)
                 name = re.sub(r"[^A-Za-z0-9_]+", "", f"{num}_QuoteComparison_{cmp_sel.value.replace(' ', '')}") + ".pdf"
                 return doc, name
 
@@ -276,7 +291,7 @@ class Editor:
     def income_panel(self) -> None:
         from ..closeout import accepted_revision, build_ledger, contract_context
         from ..income import contract_report, estimate_report
-        s, ps, num = self.st.settings, self.st.projects, self.project.number
+        s, ps, num = self.settings, self.st.projects, self.project.number
         ui.label("What Kept Spec keeps on this project, before your own business expenses. Counts lines performed "
                  "by Kept Spec Advisors or Convenient Woodworking, overhead, profit, change order management time, "
                  "and overhead and profit on change orders and line variance. Subcontractors, materials, "
@@ -372,7 +387,7 @@ class Editor:
                 .tooltip("Projects")
             with ui.column().classes("gap-0 min-w-0"):
                 ui.label(f"{p.number}  {p.project_name}").classes("text-lg font-semibold leading-tight truncate")
-                ui.label("  |  ".join(x for x in (p.client_name, p.site_address) if x)) \
+                ui.label("  |  ".join(x for x in (profile_name(p.profile), p.client_name, p.site_address) if x)) \
                     .classes("text-xs text-gray-600 truncate")
             ui.space()
             ui.select({r: f"Rev {r}" for r in self.revs}, value=self.rev.rev,
@@ -455,7 +470,7 @@ class Editor:
                 od = sc.owner_supplied - r.base.owner_supplied
                 fig(f"Alt {n}", money(sc.total), f"{'+' if d >= 0 else '-'}{money(abs(d))}"
                     + (f"; owner {'+' if od >= 0 else '-'}{money(abs(od))}" if od else ""), bg=f"pb-altbg{n}")
-            ps = payment_schedule(r.base.total, self.st.settings)
+            ps = payment_schedule(r.base.total, self.settings)
             fig("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
             errors, warns = self.issue_counts()
             if errors or warns:
@@ -516,7 +531,7 @@ class Editor:
     def _grid_options(self) -> dict:
         ed = not self.locked
         self._grid_filter_shown = self.section_filter
-        perf = self.st.settings.performer_names()
+        perf = self.settings.performer_names()
         units = [u.code for u in self.cat.units]
         return {
             "columnDefs": [
@@ -718,7 +733,7 @@ class Editor:
         ui.label("Read-only revision." if self.locked else "Checked sections print; order sets print order.") \
             .classes("text-xs text-gray-500")
         included = list(self.rev.sections)
-        others = [s.number for s in self.cat.sections if s.number not in included]
+        others = [s.number for s in self.sections if s.number not in included]
         for num in included + others:
             on = num in included
             n_lines = len(self.rev.section_lines(num))
@@ -766,7 +781,7 @@ class Editor:
     # ------------------------------------------------------------ add lines
     def catalog_picker(self, alternate: int | None = None) -> None:
         rows = []
-        for it in self.cat.items:
+        for it in self.cat.items_for(self.project.profile):
             if not it.active:
                 continue
             price = self.cat.unit_price(it)
@@ -822,7 +837,7 @@ class Editor:
 
     def custom_line(self, alternate: int | None = None, section: int | None = None) -> None:
         """Open a blank line form; the line is added only when it is saved."""
-        sec = section or self.section_filter or (self.rev.sections[0] if self.rev.sections else self.cat.sections[0].number)
+        sec = section or self.section_filter or (self.rev.sections[0] if self.rev.sections else self.sections[0].number)
         ln = Line(id=self.new_id(sec), section=sec, title="", alternate=alternate)
         self.line_dialog(ln, new=True)
 
@@ -883,17 +898,19 @@ class Editor:
             form = ui.column().classes("w-full gap-2 px-4 pb-2 overflow-y-auto").style("flex:1 1 auto")
             with form:
                 with ui.grid(columns=6).classes("w-full gap-x-3"):
+                    code_items = [i for i in self.cat.items_for(self.project.profile) if i.active or i.code == work.code]
+                    if work.code and not any(i.code == work.code for i in code_items) and cat.item(work.code):
+                        code_items.append(cat.item(work.code))     # keeps a line from another company's section
                     code_sel = ui.select({0: "- custom (no catalog item)",
-                                          **{i.code: f"{i.code} {i.title}" for i in sorted(cat.items, key=lambda i: i.code)
-                                             if i.active or i.code == work.code}},
+                                          **{i.code: f"{i.code} {i.title}" for i in sorted(code_items, key=lambda i: i.code)}},
                                          label="Catalog code", value=work.code or 0, with_input=True) \
                         .props("dense").classes("col-span-6")
                     title = ui.input("Title", value=work.title, placeholder="e.g. Install vanity").props("dense") \
                     .classes("col-span-3")
-                    section = ui.select(keep_current({s.number: f"{s.number} {s.name}" for s in cat.sections}, work.section),
+                    section = ui.select(keep_current({s.number: f"{s.number} {s.name}" for s in self.sections}, work.section),
                                         label="Section", value=work.section).props("dense").classes("col-span-2")
                     unit = ui.select(cat.unit_options(work.unit), label="Unit", value=work.unit).props("dense")
-                    performer = ui.select(keep_current({n: n or "-" for n in self.st.settings.performer_names()},
+                    performer = ui.select(keep_current({n: n or "-" for n in self.settings.performer_names()},
                                                        work.performer), label="Performer (prints)",
                                           value=work.performer).props("dense").classes("col-span-2")
                     from .crm_pages import contractor_dialog, vendor_names
@@ -1086,7 +1103,7 @@ class Editor:
                     sc = cat.stock_classes
                     cls = next((s for s in sc if s.key == stock.value), None)
                     if takeoff.value and cls:
-                        w = Decimal(str(waste.value)) / 100 if waste.value not in (None, "") else self.st.settings.default_waste_pct
+                        w = Decimal(str(waste.value)) / 100 if waste.value not in (None, "") else self.settings.default_waste_pct
                         res = stock_round(Decimal(str(takeoff.value)), w, cls.lengths_ft)
                         stock_lbl.set_text(f"need {res.need:.1f} LF: {res.describe()}")
                         if unit.value != "LF" and any(u.code == "LF" for u in cat.units):
@@ -1243,7 +1260,7 @@ class Editor:
         def builtin_tbl() -> None:
             own = {v.name for v in self.rev.variables}
             rows = [{"name": k, "value": v, "source": "proposal" if k in own else
-                     ("global" if any(g.name == k for g in self.st.settings.global_variables) else "built-in")}
+                     ("global" if any(g.name == k for g in self.settings.global_variables) else "built-in")}
                     for k, v in sorted(self.variables().items())]
             ui.label("All values in effect").classes("font-semibold mt-4")
             ui.table(columns=[{"name": "name", "label": "Name", "field": "name", "align": "left"},
@@ -1426,7 +1443,7 @@ class Editor:
             con = self.st.contractors.find(w.split(":")[0])
             out.append(("warn" if self.project.status in WON_STATUSES else "info", w,
                         ("contractor", con.id) if con else None))
-        limit = self.st.settings.license_threshold
+        limit = self.settings.license_threshold
         if limit:
             # owner-supplied items count toward the project cost here
             totals = [("Total incl. owner-supplied", self.results.base.total_incl_owner)]
@@ -1502,7 +1519,7 @@ class Editor:
         from .. import spelling
         if not spelling.available():
             return []
-        return spelling.check(self.project, self.rev, self.st.settings.spelling_words)
+        return spelling.check(self.project, self.rev, self.settings.spelling_words)
 
     @ui.refreshable_method
     def issues_panel(self) -> None:
@@ -1593,7 +1610,7 @@ class Editor:
         if self.locked:
             return
         from ..spelling import apply_fix
-        counts = apply_fix(self.project, self.rev, finding, new, self.cat, self.st.boilerplate)
+        counts = apply_fix(self.project, self.rev, finding, new, self.cat, self.library)
         if counts.get("project"):
             self.save_project()
         also = []
@@ -1601,7 +1618,7 @@ class Editor:
             self.st.save_catalog()
             also.append("catalog")
         if counts.get("library"):
-            self.st.save_boilerplate()
+            self.st.save_boilerplate(self.project.profile)
             also.append("terms library")
         n = sum(v for k, v in counts.items() if k not in ("catalog", "library"))
         self.save()
@@ -1609,7 +1626,7 @@ class Editor:
                                                                 if also else ""), type="positive")
 
     def add_to_dictionary(self, word: str) -> None:
-        words = self.st.settings.spelling_words
+        words = self.settings.spelling_words
         if word.lower() not in {w.lower() for w in words}:
             words.append(word)
             words.sort(key=str.lower)
@@ -1618,18 +1635,18 @@ class Editor:
 
     # ------------------------------------------------------------ PDF
     def _logo(self) -> Path | None:
-        lp = self.st.settings.company.logo_path
+        lp = self.settings.company.logo_path
         return self.st.store.path(lp) if lp else None
 
     def _diff(self):
         prev = previous_issued(self.st.projects, self.project.number, self.rev)
         if prev is None:
             return None
-        return revision_diff(prev, self.rev, self.st.settings, self.cat.stock_classes, self.project,
+        return revision_diff(prev, self.rev, self.settings, self.cat.stock_classes, self.project,
                              {s.number: s.name for s in self.cat.sections})
 
     def _document(self) -> dict:
-        return build_document(self.project, self.rev, self.st.settings, self.cat, self.st.boilerplate,
+        return build_document(self.project, self.rev, self.settings, self.cat, self.library,
                               self.results, diff=self._diff())
 
     async def preview(self) -> None:
@@ -1698,7 +1715,7 @@ class Editor:
     # ------------------------------------------------------------ terms & options
     @ui.refreshable_method
     def terms_panel(self) -> None:
-        rev, lib = self.rev, self.st.boilerplate
+        rev, lib = self.rev, self.library
         with ui.card().classes("w-full"):
             ui.label("Document options").classes("font-semibold")
             with ui.row().classes("gap-6"):
@@ -1783,7 +1800,7 @@ class Editor:
         self.terms_panel.refresh()
 
     def _block_add_library(self, block_id: str | None) -> None:
-        lb = next((b for b in self.st.boilerplate.blocks if b.id == block_id), None)
+        lb = next((b for b in self.library.blocks if b.id == block_id), None)
         if lb is None:
             return
         order = max((b.order for b in self.rev.blocks if b.heading == lb.heading), default=0) + 10
@@ -1793,7 +1810,7 @@ class Editor:
         self.terms_panel.refresh()
 
     def _block_dialog(self, b: ProposalBlock | None, heading: str) -> None:
-        lib = next((x for x in self.st.boilerplate.blocks if b is not None and x.id == b.id), None)
+        lib = next((x for x in self.library.blocks if b is not None and x.id == b.id), None)
         with self.host, ui.dialog() as dlg, ui.card().classes("w-[920px] max-w-full"):
             ui.label(f"{heading}: {b.title if b else 'new block'}").classes("text-lg font-semibold")
             title = ui.input("Sub-heading", value=b.title if b else "").props(
@@ -1905,7 +1922,7 @@ class Editor:
                     result.set_text(str(e))
                     result.classes(replace="text-sm font-semibold text-red-700")
                     return
-                total = calculate(preview, self.st.settings, self.cat.stock_classes, self.project).base.total
+                total = calculate(preview, self.settings, self.cat.stock_classes, self.project).base.total
                 result.set_text(f"Final total: {money(total)}")
                 result.classes(replace="text-sm font-semibold")
 

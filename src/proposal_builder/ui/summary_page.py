@@ -39,7 +39,7 @@ async def summary_page() -> None:
              "change order items. Share is of the Total Price for estimates and of the final cost for actuals. "
              "Internal only.")
 
-    rows_all = await run.io_bound(all_project_income, st.projects, st.settings, st.catalog)
+    rows_all = await run.io_bound(all_project_income, st.projects, st.settings, st.catalog, st.settings_for)
     state = {"start": date(date.today().year, 1, 1), "end": date(date.today().year, 12, 31),
              "statuses": [s.value for s in WON_STATUSES], "kind": "actual"}
 

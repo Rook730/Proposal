@@ -59,7 +59,7 @@ def release_from_json(data: dict) -> Release:
 
 def latest_release() -> Release:
     req = urllib.request.Request(API_LATEST, headers={"Accept": "application/vnd.github+json",
-                                                      "User-Agent": f"KeptSpecProposal/{__version__}"})
+                                                      "User-Agent": f"ProposalBuilder/{__version__}"})
     with urllib.request.urlopen(req, timeout=TIMEOUT) as r:  # noqa: S310  fixed https URL
         return release_from_json(json.load(r))
 
@@ -91,7 +91,7 @@ def cleanup_old(exe: Path | None = None) -> None:
 
 
 def download(url: str, dest: Path, expected_size: int | None = None, progress=None) -> None:
-    req = urllib.request.Request(url, headers={"User-Agent": f"KeptSpecProposal/{__version__}"})
+    req = urllib.request.Request(url, headers={"User-Agent": f"ProposalBuilder/{__version__}"})
     tmp = dest.with_name(dest.name + ".part")
     got = 0
     with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:  # noqa: S310

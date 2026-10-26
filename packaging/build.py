@@ -1,6 +1,6 @@
 """Build the standalone app with PyInstaller.
 
-    python packaging/build.py            # one-file executable (Windows: "KeptSpec Proposal Builder.exe")
+    python packaging/build.py            # one-file executable (Windows: "Proposal Builder.exe")
     python packaging/build.py --onedir   # folder build, faster start, zip it to share
 
 Run from the repo root with the project installed (pip install -e .[native] pyinstaller).
@@ -18,7 +18,7 @@ from pathlib import Path
 import nicegui
 
 ROOT = Path(__file__).resolve().parents[1]
-NAME = "KeptSpec Proposal Builder"
+NAME = "Proposal Builder"
 
 
 def main() -> int:

@@ -96,72 +96,86 @@
     {
       "number": 100,
       "name": "General Conditions",
-      "key": "GeneralConditions"
+      "key": "GeneralConditions",
+      "profile": "ks"
     },
     {
       "number": 200,
       "name": "Management/Supervision",
-      "key": "ManagementSupervision"
+      "key": "ManagementSupervision",
+      "profile": "ks"
     },
     {
       "number": 300,
       "name": "Site Protection",
-      "key": "SiteProtection"
+      "key": "SiteProtection",
+      "profile": "ks"
     },
     {
       "number": 400,
       "name": "Temporary Utilities",
-      "key": "TempUtilities"
+      "key": "TempUtilities",
+      "profile": "ks"
     },
     {
       "number": 500,
       "name": "Demolition",
-      "key": "Demo"
+      "key": "Demo",
+      "profile": "ks"
     },
     {
       "number": 600,
       "name": "Mechanical, Electrical, & Plumbing (MEP)",
-      "key": "MEP"
+      "key": "MEP",
+      "profile": "ks"
     },
     {
       "number": 700,
       "name": "Insulation",
-      "key": "Insulation"
+      "key": "Insulation",
+      "profile": "ks"
     },
     {
       "number": 800,
       "name": "Interior Construction",
-      "key": "IntConst"
+      "key": "IntConst",
+      "profile": "ks"
     },
     {
       "number": 900,
       "name": "Cabinetry, Casework, & Millwork",
-      "key": "Millwork"
+      "key": "Millwork",
+      "profile": "ks"
     },
     {
       "number": 1000,
       "name": "Floor Finishes",
-      "key": "Floor"
+      "key": "Floor",
+      "profile": "ks"
     },
     {
       "number": 1100,
       "name": "Interior Finishes, Fixtures & Hardware",
-      "key": "InteriorFinish"
+      "key": "InteriorFinish",
+      "profile": "ks"
     },
     {
       "number": 1200,
       "name": "Punchlist & Closeout",
-      "key": "Closeout"
+      "key": "Closeout",
+      "profile": "ks"
     },
     {
       "number": 1300,
       "name": "Miscellaneous",
-      "key": "Misc"
+      "key": "Misc",
+      "profile": "ks"
     },
     {
       "number": 1400,
       "name": "Company Overhead & Profit",
-      "key": "Overhead"
+      "key": "Overhead",
+      "profile": "ks"
     }
   ],
   "items": [

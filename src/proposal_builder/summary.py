@@ -76,11 +76,12 @@ def project_income(ps, project: Project, settings: Settings, catalog: Catalog) -
     return ProjectIncome(project, when, basis, res.base.total, rep, None)
 
 
-def all_project_income(ps, settings: Settings, catalog: Catalog) -> list[ProjectIncome]:
+def all_project_income(ps, settings: Settings, catalog: Catalog, settings_for=None) -> list[ProjectIncome]:
+    """settings_for(profile) gives each project its company's settings; without it every project uses settings."""
     out = []
     for p in ps.list_projects():
         try:
-            pi = project_income(ps, p, settings, catalog)
+            pi = project_income(ps, p, settings_for(p.profile) if settings_for else settings, catalog)
         except Exception:  # noqa: BLE001  one broken project must not hide the rest
             continue
         if pi is not None:

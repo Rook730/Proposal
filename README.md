@@ -1,6 +1,6 @@
 # Proposal
 
-Proposal builder for Kept Spec Advisors (Convenient Enterprises LLC). Standalone Windows app that replaces the Excel proposal workflow: catalog, proposals with revisions and alternates, change orders, and whole-project reconciliation, exported to PDF.
+Proposal Builder for Kept Spec Advisors and Convenient Woodworking (Convenient Enterprises LLC). Standalone Windows app that replaces the Excel proposal workflow: catalog, proposals with revisions and alternates, change orders, and whole-project reconciliation, exported to PDF.
 
 Requirements: [docs/requirements.md](docs/requirements.md)
 
@@ -17,18 +17,18 @@ Requirements: [docs/requirements.md](docs/requirements.md)
 
 ## Install on Windows
 
-1. Open the repo's **Releases** page and download `KeptSpec Proposal Builder.exe` from the latest release.
+1. Open the repo's **Releases** page and download `Proposal Builder.exe` from the latest release.
 2. Put it wherever you like (Desktop, or a folder such as `C:\Users\<you>\Apps`) and double-click it.
 3. Windows may say "Windows protected your PC" (the app is not code-signed): **More info**, then **Run anyway**.
-4. First run: Settings, Data folder, paste your Proton Drive folder path, click "Use this folder". The setting is kept in `%APPDATA%\KeptSpecProposal\config.json`, so updates keep it.
+4. First run: Settings, Data folder, paste your Proton Drive folder path, click "Use this folder". The setting is kept in `%APPDATA%\ProposalBuilder\config.json` (copied once from `%APPDATA%\KeptSpecProposal` when upgrading from an older version), so updates keep it.
 
-The first start takes 10 to 20 seconds while the single file unpacks. If that is too slow, or antivirus objects, use `KeptSpec-Proposal-Builder-folder.zip` from the same release: unzip it and run the `.exe` inside.
+The first start takes 10 to 20 seconds while the single file unpacks. If that is too slow, or antivirus objects, use `Proposal-Builder-folder.zip` from the same release: unzip it and run the `.exe` inside.
 
 **Update**: download the newer `.exe` and replace the old one. Data lives in your data folder, not next to the program.
 
 **Backups**: every save keeps the previous version in `backups/` inside the data folder. Settings, "Create full backup (.zip)" zips the whole data folder.
 
-**Check an install**: `"KeptSpec Proposal Builder.exe" --self-test` writes `selftest.log` next to the exe (data folder, calculation, PDF output).
+**Check an install**: `"Proposal Builder.exe" --self-test` writes `selftest.log` next to the exe (data folder, calculation, PDF output).
 
 ### Building a release
 
@@ -40,7 +40,8 @@ Push a version tag (`git tag v1.0.1 && git push origin v1.0.1`). The GitHub Acti
 
 ## Using it
 
-- **Projects**: New project starts blank (percent items only) or as a copy of an existing project. "Import from Excel" converts a proposal sheet from the old workbook (e.g. "26005 Proposal").
+- **Companies**: every project belongs to Kept Spec Advisors or Convenient Woodworking (picked at New project, never changed). The catalog is shared and each section says which company uses it; Settings and the Terms library have a Company switch.
+- **Projects**: New project starts blank (Kept Spec: percent items only) or as a copy of an existing project of the same company. "Import from Excel" converts a proposal sheet from the old workbook (e.g. "26005 Proposal").
 - **Editor**: tick sections on the left (order arrows set print order), add lines from the catalog, edit title, performer, unit, qty and price in the grid, double-click an ID, notes or cost cell for the full line form.
 - **Line form**: detail notes with {variables}, quantity bound to a variable or computed from a takeoff and stock lengths, price from a rate, allowance tier, fixed value or variable, flags, internal fields, and "Pull update" when the catalog changed.
 - **Variables** tab: per-proposal values; every {name} and bound field updates when a value changes.

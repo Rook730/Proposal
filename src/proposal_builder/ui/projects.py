@@ -11,28 +11,31 @@ from nicegui import ui
 
 from ..calc import calculate
 from ..calc import DOCUMENT_VARIABLES, SPECIAL_PLACEHOLDERS, referenced, variable_map
-from ..models import PriceSource, Variable
+from ..models import KS, PROFILE_SHORT, PROFILES, PriceSource, Variable
 from ..proposal import WON_STATUSES, Project, ProjectStatus, Revision, default_blocks, line_from_item
 from .state import get_state
 from .widgets import filter_box, layout, no_rows, page_title, toolbar
 
 
-def _project_rows(show_archived: bool = False) -> list[dict]:
+def _project_rows(show_archived: bool = False, company: str = "") -> list[dict]:
     st = get_state()
     rows = []
     for p in st.projects.list_projects():
         if p.archived_on and not show_archived:
+            continue
+        if company and p.profile != company:
             continue
         revs = st.projects.list_revisions(p.number)
         total, state = "", ""
         try:
             rev = st.projects.load_revision(p.number)
             state = rev.state.value
-            res = calculate(rev, st.settings, st.catalog.stock_classes, p)
+            res = calculate(rev, st.settings_for(p.profile), st.catalog.stock_classes, p)
             total = f"${res.base.total:,.2f}"
         except Exception:  # noqa: BLE001 - list must render even if one file is bad
             pass
-        rows.append({"number": p.number, "client": p.client_name, "project": p.project_name,
+        rows.append({"number": p.number, "company": PROFILE_SHORT.get(p.profile, p.profile),
+                     "client": p.client_name, "project": p.project_name,
                      "address": p.site_address,
                      "status": p.status.value + (" (archived)" if p.archived_on else ""),
                      "rev": f"{revs[-1]} {state}" if revs else "", "total": total})
@@ -42,25 +45,37 @@ def _project_rows(show_archived: bool = False) -> list[dict]:
 def new_project_dialog() -> None:
     st = get_state()
     s = st.settings
+    projects = st.projects.list_projects()
     with ui.dialog() as dlg, ui.card().classes("w-[520px]"):
         ui.label("New project").classes("text-lg font-semibold")
+        company = ui.toggle(dict(PROFILES), value=None).props("dense no-caps")
+        ui.label("Which company is this proposal from? It cannot be changed later.").classes("text-xs text-gray-500")
         number = ui.input("Proposal #", value=s.next_proposal_number()).props("dense")
         from .crm_pages import CustomerPicker
         picker = CustomerPicker()
         name = ui.input("Project (e.g. Kitchen Renovation)").props("dense").classes("w-full")
-        existing = {p.number: f"{p.number} {p.client_name} {p.project_name}" for p in st.projects.list_projects()}
-        start = ui.select({"": "Blank (percent items only)", **existing}, value="",
-                          label="Start from").props("dense").classes("w-full")
-        ui.label("Copying keeps sections, lines, variables and boilerplate choices from the latest revision "
+        start = ui.select({"": "Blank"}, value="", label="Start from").props("dense").classes("w-full")
+        ui.label("Copying keeps sections, lines, variables and terms choices from the latest revision "
                  "of that project. Prices stay as they were there; use Pull update on a line to refresh.") \
             .classes("text-xs text-gray-500")
 
+        def company_changed(_=None) -> None:
+            same = {p.number: f"{p.number} {p.client_name} {p.project_name}" for p in projects
+                    if p.profile == company.value}
+            blank = "Blank (percent items only)" if company.value == KS else "Blank"
+            start.set_options({"": blank, **same}, value="")
+        company.on_value_change(company_changed)
+
         def create() -> None:
             num = (number.value or "").strip()
+            if not company.value:
+                ui.notify("Pick the company first.", type="warning")
+                return
             if not num or not (name.value or "").strip():
                 ui.notify("Proposal # and project name are required.", type="warning")
                 return
-            p = Project(number=num, project_name=name.value.strip())
+            profile = company.value
+            p = Project(number=num, project_name=name.value.strip(), profile=profile)
             if not picker.apply(p):
                 return
             if start.value:
@@ -70,12 +85,12 @@ def new_project_dialog() -> None:
                                variables=[v.model_copy() for v in src.variables],
                                blocks=[b.model_copy() for b in src.blocks], next_seq=dict(src.next_seq))
             else:
-                rev = Revision(blocks=default_blocks(st.boilerplate.blocks))
-                for it in st.catalog.items:
+                rev = Revision(blocks=default_blocks(st.boilerplate_for(profile).blocks))
+                for it in st.catalog.items_for(profile):
                     if it.active and it.price_source is PriceSource.PERCENT:
                         rev.add_line(line_from_item(it, st.catalog, rev.new_line_id(it.section)))
             # every {placeholder} the chosen terms use gets a proposal variable to fill in
-            known = set(variable_map(p, rev, s)) | DOCUMENT_VARIABLES | SPECIAL_PLACEHOLDERS
+            known = set(variable_map(p, rev, st.settings_for(profile))) | DOCUMENT_VARIABLES | SPECIAL_PLACEHOLDERS
             needed = sorted({n for b in rev.blocks if b.on for n in referenced(b.body)} - known)
             rev.variables += [Variable(name=n, value="", description="Used in the terms; fill in for this proposal")
                               for n in needed]
@@ -150,7 +165,7 @@ def projects_page() -> None:
     st = get_state()
 
     def refresh() -> None:
-        grid.options["rowData"] = _project_rows(show.value)
+        grid.options["rowData"] = _project_rows(show.value, company.value or "")
         grid.update()
         arch_btn.disable()
         del_btn.disable()
@@ -220,6 +235,8 @@ def projects_page() -> None:
         ui.button("Import from Excel", icon="upload_file", on_click=lambda: import_dialog(refresh)) \
             .props("dense outline")
         filter_box(lambda: grid)
+        company = ui.select({"": "Both companies", **PROFILES}, value="", on_change=lambda _: refresh()) \
+            .props("dense options-dense").classes("w-56")
         show = ui.switch("Show archived", on_change=lambda _: refresh()).props("dense")
         ui.space()
         arch_btn = ui.button("Archive / restore", icon="inventory_2", on_click=archive).props("dense flat")
@@ -229,6 +246,7 @@ def projects_page() -> None:
     grid = ui.aggrid({
         "columnDefs": [
             {"field": "number", "headerName": "#", "width": 90, "sort": "desc"},
+            {"field": "company", "headerName": "Company", "width": 120},
             {"field": "client", "headerName": "Client", "width": 200},
             {"field": "project", "headerName": "Project", "width": 220},
             {"field": "address", "headerName": "Address", "flex": 1},

@@ -13,6 +13,18 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 SCHEMA_VERSION = 1
 
+# ---------------------------------------------------------------- company profiles
+# One app, two companies. Each project belongs to one profile for life. The catalog is shared; each
+# section says which profile(s) use it. Settings and the terms library are kept per profile.
+KS, CW = "ks", "cw"
+PROFILES: dict[str, str] = {KS: "Kept Spec Advisors", CW: "Convenient Woodworking"}
+PROFILE_SHORT: dict[str, str] = {KS: "KS", CW: "CW"}
+SECTION_PROFILES: dict[str, str] = {KS: "KS", CW: "CW", "both": "KS and CW"}
+
+
+def profile_name(key: str) -> str:
+    return PROFILES.get(key, key)
+
 
 class _Model(BaseModel):
     model_config = ConfigDict(validate_assignment=True, extra="forbid")
@@ -71,6 +83,10 @@ class Section(_Model):
     number: int                 # 100, 200 ... 1400
     name: str
     key: str                    # short identifier, e.g. "MEP"
+    profile: str = KS           # which company uses it: "ks", "cw" or "both"
+
+    def used_by(self, profile: str) -> bool:
+        return self.profile in (profile, "both")
 
     @property
     def index(self) -> int:     # 11 for section 1100; used in line IDs
@@ -160,6 +176,15 @@ class Catalog(_Model):
 
     def section(self, number: int) -> Section | None:
         return next((s for s in self.sections if s.number == number), None)
+
+    def sections_for(self, profile: str) -> list[Section]:
+        return [s for s in self.sections if s.used_by(profile)]
+
+    def items_for(self, profile: str) -> list[CatalogItem]:
+        """Items whose section the profile uses (an item in an unknown section shows for KS only)."""
+        nums = {s.number for s in self.sections_for(profile)}
+        known = {s.number for s in self.sections}
+        return [i for i in self.items if i.section in nums or (profile == KS and i.section not in known)]
 
     def unit_price(self, item: CatalogItem, tier: Tier | None = None) -> Decimal | None:
         """Resolved default unit price (fraction for percent items)."""
@@ -340,3 +365,10 @@ class Settings(_Model):
 
     def next_proposal_number(self) -> str:
         return f"{self.proposal_year:02d}{self.next_proposal_seq:03d}"
+
+
+# Settings both companies share. They live in the Kept Spec settings file (the data folder's
+# settings.json); another profile's settings file keeps a copy that is replaced on load, so
+# numbering, lists, performers and the spelling dictionary are always one set.
+SHARED_SETTINGS = ("proposal_year", "next_proposal_seq", "default_waste_pct", "dark_mode", "performers",
+                   "lists", "spelling_words")

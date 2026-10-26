@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "headings": [
+    "Intro",
+    "How to read this proposal",
+    "Totals",
+    "Signature"
+  ],
+  "blocks": [
+    {
+      "id": "cover-letter",
+      "heading": "Intro",
+      "title": "",
+      "body": "Hello,\n\nBelow is an itemized breakdown for the {project_name}. Each piece has its own section and price; delivery and installation follow in their own section.\n\n{project_overview}\n\nIf you have any questions or concerns about any items listed, do not hesitate to reach out to me, I'm here to help.\n\nLooking forward to hearing from you,\nNick",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "about",
+      "heading": "Intro",
+      "title": "",
+      "body": "All hand-built pieces are designed and made by Nick using sustainably sourced hardwoods. Each design is fitted to your style, space and use, so you receive a one-of-a-kind piece built to last.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "sections",
+      "heading": "How to read this proposal",
+      "title": "Sections and line items",
+      "body": "Each piece is its own section, ending with a section total. Each line has a title, a description, a unit, a quantity, a unit price and a cost. Cost is quantity times unit price. Unit definitions are listed below.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "units-table",
+      "heading": "How to read this proposal",
+      "title": "Unit definitions",
+      "body": "{units_table}",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "fixed-price",
+      "heading": "How to read this proposal",
+      "title": "Fixed prices",
+      "body": "Prices are fixed. Materials, shop time and finishing are included in each piece's price.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "zero-lines",
+      "heading": "How to read this proposal",
+      "title": "Not included and $0 lines",
+      "body": "A line marked Not included is work outside this proposal, listed so the scope is clear. A line with a $0 cost (shown as $ -) is included at no charge.",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "blue-lines",
+      "heading": "How to read this proposal",
+      "title": "Blue lines",
+      "body": "These are alternates, priced options such as a different species, finish or size. They are not included in the subtotal or Total Price. An Alternate Subtotal and Alternate Total Price, showing the project with the alternate substituted, follow the Total Price.",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "exclusions-note",
+      "heading": "How to read this proposal",
+      "title": "Terms",
+      "body": "Payment terms and other terms follow the signature page. Please review them with the line items. Anything not listed is not included.",
+      "default_on": true,
+      "order": 60
+    },
+    {
+      "id": "thanks",
+      "heading": "Signature",
+      "title": "",
+      "body": "Thanks again for choosing Convenient Woodworking. We are looking forward to building this for you.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "acknowledgement",
+      "heading": "Signature",
+      "title": "",
+      "body": "I confirm that my action here, whether digital or analog, represents my signature and is legally binding.",
+      "default_on": true,
+      "order": 20
+    }
+  ]
+}

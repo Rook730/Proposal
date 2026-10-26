@@ -1,7 +1,7 @@
 """End-to-end check used by the Windows build: data folder, catalog, calculation, PDF.
 
     python -m proposal_builder --self-test
-    "KeptSpec Proposal Builder.exe" --self-test   (writes selftest.log next to the exe)
+    "Proposal Builder.exe" --self-test   (writes selftest.log next to the exe)
 """
 
 from __future__ import annotations
@@ -50,6 +50,15 @@ def run_self_test() -> tuple[bool, str]:
                                    ds.path("logo.png"), template="ledger.typ")
             assert led[:4] == b"%PDF", "ledger PDF"
             lines.append(f"ledger pdf {len(led)} bytes")
+            # Convenient Woodworking: its own settings, terms and SVG logo
+            cw_settings, cw_bp = ds.load_settings("cw"), ds.load_boilerplate("cw")
+            cw_project = Project(number="99998", client_name="Self Test", project_name="Box", profile="cw")
+            cw_rev = Revision(sections=[1100], blocks=default_blocks(cw_bp.blocks))
+            cw_rev.add_line(Line(id=cw_rev.new_line_id(1100), section=1100, title="Box", unit_price=Decimal(305)))
+            cw_pdf = compile_document(build_document(cw_project, cw_rev, cw_settings, catalog, cw_bp),
+                                      ds.path(cw_settings.company.logo_path))
+            assert cw_pdf[:4] == b"%PDF", "CW proposal PDF"
+            lines.append(f"cw proposal pdf {len(cw_pdf)} bytes")
             from .spelling import check as spell_check
             from .spelling import suggestions
             rev.lines[-1].notes = "Install the cabinetery and recieve {project_name}"

@@ -110,7 +110,9 @@ def test_boilerplate_groups():
 def test_store_seed_and_roundtrip(tmp_path: Path):
     ds = DataStore(tmp_path / "data")
     assert not ds.is_initialized()
-    assert set(ds.initialize_from_seed()) == {"settings.json", "catalog.json", "boilerplate.json", "logo.png"}
+    assert set(ds.initialize_from_seed()) == {"settings.json", "catalog.json", "boilerplate.json", "logo.png",
+                                              "profiles/cw/settings.json", "profiles/cw/boilerplate.json",
+                                              "profiles/cw/logo.svg"}
     assert ds.is_initialized()
     assert ds.initialize_from_seed() == []          # never overwrites silently
 

@@ -51,13 +51,14 @@ class Closeout:
         self.st = get_state()
         ps = self.st.projects
         self.project = ps.load_project(number)
+        self.settings = self.st.settings_for(self.project.profile)
         revs = [ps.load_revision(number, r) for r in ps.list_revisions(number)]
         self.rev = accepted_revision(revs)
         self.log: ChangeOrderLog = ps.load_change_orders(number)
         self.recon: Reconciliation = ps.load_reconciliation(number)
         self.contract = None
         if self.rev is not None:
-            self.contract = contract_context(self.rev, self.st.settings, self.st.catalog.stock_classes, self.project)
+            self.contract = contract_context(self.rev, self.settings, self.st.catalog.stock_classes, self.project)
         self.ledger = self._ledger()
 
     # ------------------------------------------------------------ plumbing
@@ -76,7 +77,7 @@ class Closeout:
         self.ledger_panel.refresh()
 
     def _logo(self):
-        lp = self.st.settings.company.logo_path
+        lp = self.settings.company.logo_path
         return self.st.store.path(lp) if lp else None
 
     def _pdf_dir(self):
@@ -251,7 +252,7 @@ class Closeout:
     def new_co(self) -> None:
         """Open a blank change order; it is added to the log only when saved."""
         co = ChangeOrder(number=self.log.next_number(self.project.number),
-                         recommended_by=self.st.settings.recommended_by, items=[COItem()])
+                         recommended_by=self.settings.recommended_by, items=[COItem()])
         self.co_dialog(co, new=True)
 
     def co_dialog(self, co: ChangeOrder | None, new: bool = False) -> None:
@@ -302,10 +303,10 @@ class Closeout:
 
             EditableGrid(lambda: work.items,
                          [Col("description", "Description (condition)", flex=2),
-                          Col("action", "Action", "select", self.st.settings.lists.co_actions, width=100),
+                          Col("action", "Action", "select", self.settings.lists.co_actions, width=100),
                           Col("change", "Change", flex=2),
                           Col("line_ids", "Lines", "strlist", width=110),
-                          Col("performer", "Performer", "select", self.st.settings.performer_names(), width=170),
+                          Col("performer", "Performer", "select", self.settings.performer_names(), width=170),
                           Col("contractor_id", "Contractor", "lookup", width=170,
                               lookup={c.id: c.company for c in self.st.contractors.sorted()}),
                           Col("original_cost", "Original cost", "money", width=120),
@@ -371,7 +372,7 @@ class Closeout:
                 else:
                     tmp.orders[[o.number for o in tmp.orders].index(co.number)] = work
                 pr = price_change_orders(tmp, self.contract)[co.number]
-                return change_order_document(self.project, self.contract, work, pr, self.st.settings)
+                return change_order_document(self.project, self.contract, work, pr, self.settings)
 
             # footer: delete on the left, documents, then Cancel / Save and the next status step
             with ui.row().classes("w-full items-center gap-2"):
@@ -510,7 +511,7 @@ class Closeout:
         self.st.projects.save_reconciliation(self.project.number, self.recon)
 
     def _ledger_doc(self) -> dict:
-        return ledger_document(self.project, self.ledger, self.recon, self.st.settings)
+        return ledger_document(self.project, self.ledger, self.recon, self.settings)
 
 
 @ui.page("/project/{number}/closeout")

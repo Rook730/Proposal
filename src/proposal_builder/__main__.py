@@ -93,7 +93,7 @@ def main() -> None:
     app.on_startup(lambda: threading.Thread(target=updater.check, daemon=True).start())
 
     native = not args.browser and not args.no_show and sys.platform == "win32"
-    ui.run(title=f"Kept Spec Proposal Builder {__version__}", port=_free_port(args.port), reload=False,
+    ui.run(title=f"Proposal Builder {__version__}", port=_free_port(args.port), reload=False,
            native=native, window_size=(1400, 900) if native else None, show=not args.no_show,
            favicon=_icon(), show_welcome_message=False)
 

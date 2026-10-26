@@ -281,7 +281,10 @@ def compile_document(doc: dict, logo: Path | None, fmt: str = "pdf", ppi: int = 
                 (tmpd / t.name).write_text(t.read_text(encoding="utf-8"), encoding="utf-8")
         doc = dict(doc)
         if logo and logo.exists():
-            shutil.copyfile(logo, tmpd / "logo.png")
+            name = "logo" + (logo.suffix.lower() or ".png")      # Typst picks the format by extension
+            shutil.copyfile(logo, tmpd / name)
+            if doc["company"].get("logo"):
+                doc["company"] = {**doc["company"], "logo": name}
         else:
             doc["company"] = {**doc["company"], "logo": ""}
         (tmpd / "data.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
