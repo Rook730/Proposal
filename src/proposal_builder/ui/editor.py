@@ -737,10 +737,29 @@ class Editor:
 
     async def _move_selected(self, d: int) -> None:
         ln = await self._selected()
-        if ln:
-            self.rev.move_line(ln.id, d)
-            self.mark_edited(ln.id)
-            self.save()
+        if not ln:
+            return
+        if self.locked:
+            self.save()                     # explains that the revision is read-only
+            return
+        if not self.rev.move_line(ln.id, d):
+            # first or last in its section: lines print under their section heading, so the line cannot leave
+            # it. A section holding only this line moves as a whole instead.
+            name = self.section_name(ln.section)
+            where = "first" if d < 0 else "last"
+            if len(self.rev.section_lines(ln.section)) > 1:
+                ui.notify(f"{ln.id} is already {where} in {name}. To put it in another section, edit the line "
+                          "and change its section. The arrows in the Sections list reorder whole sections.")
+                return
+            if ln.section not in self.rev.sections:
+                ui.notify(f"{name} is not printed. Check it in the Sections list to place it.")
+                return
+            if not self.rev.move_section(ln.section, d):
+                ui.notify(f"{name} is already {where}.")
+                return
+            ui.notify(f"Moved section {name} {'up' if d < 0 else 'down'}.")
+        self.mark_edited(ln.id)
+        self.save()
 
     async def _delete_selected(self) -> None:
         ln = await self._selected()

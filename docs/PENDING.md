@@ -160,4 +160,5 @@ Build sheet audit (all findings fixed):
 
 ## Next release
 
-(nothing yet)
+83. [x] Move up / Move down on a line that is alone in its section (most CW pieces, delivery) now moves that section, so the line moves in the list and on the proposal (was a silent no-op). A line that is first or last in a section with other lines says so instead of doing nothing.
+84. [x] Adding a line in a new section, or a new piece, places that section by number without re-sorting the sections already there (was resetting any order set with the section arrows).

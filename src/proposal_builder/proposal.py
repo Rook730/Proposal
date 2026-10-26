@@ -224,9 +224,34 @@ class Revision(_Model):
             n += 100
         p = PieceSection(number=n, name=name)
         self.pieces.append(p)
-        self.sections.append(n)
-        self.sort_sections()
+        self.insert_section(n)
         return p
+
+    def _section_key(self, n: int) -> tuple[bool, int]:
+        return (n not in {p.number for p in self.pieces}, n)
+
+    def insert_section(self, n: int) -> None:
+        """Add a section where number order puts it, without re-sorting the sections already placed (the
+        user's print order stands)."""
+        if n in self.sections:
+            return
+        key = self._section_key(n)
+        idx = next((i for i, m in enumerate(self.sections) if self._section_key(m) > key), len(self.sections))
+        self.sections.insert(idx, n)
+
+    def move_section(self, n: int, direction: int) -> bool:
+        """Move a printed section one place, past any empty sections so the move shows in the line list."""
+        if n not in self.sections:
+            return False
+        i = self.sections.index(n)
+        j = i + direction
+        while 0 <= j < len(self.sections) and not self.section_lines(self.sections[j]):
+            j += direction
+        if not 0 <= j < len(self.sections):
+            return False
+        self.sections.pop(i)
+        self.sections.insert(j, n)
+        return True
 
     def sort_sections(self) -> None:
         """Number order, with the proposal's pieces first (delivery and other catalog sections follow)."""
@@ -269,9 +294,7 @@ class Revision(_Model):
 
     def add_line(self, line: Line, by_code: bool = False) -> Line:
         """Append to the section, or with by_code insert it in catalog-code order."""
-        if line.section not in self.sections:
-            self.sections.append(line.section)
-            self.sort_sections()
+        self.insert_section(line.section)
         existing = self.section_lines(line.section)
         if by_code and line.code is not None and existing:
             idx = next((i for i, e in enumerate(existing) if e.code is not None and e.code > line.code),
@@ -290,19 +313,20 @@ class Revision(_Model):
             if line_id in alt.removes:
                 alt.removes.remove(line_id)
 
-    def move_line(self, line_id: str, direction: int) -> None:
+    def move_line(self, line_id: str, direction: int) -> bool:
+        """Swap with the neighbouring line in its section. False when it is already first (or last)."""
         ln = self.line(line_id)
         if ln is None:
-            return
+            return False
         sib = self.section_lines(ln.section)
         i = sib.index(ln)
         j = i + direction
-        if 0 <= j < len(sib):
-            sib[i].order, sib[j].order = sib[j].order, sib[i].order
-            if sib[i].order == sib[j].order:
-                for n, s in enumerate(sib):
-                    s.order = (n + 1) * 10
-                sib[i].order, sib[j].order = sib[j].order, sib[i].order
+        if not 0 <= j < len(sib):
+            return False
+        for n, s in enumerate(sib):        # renumber first so equal orders cannot make the swap a no-op
+            s.order = (n + 1) * 10
+        sib[i].order, sib[j].order = sib[j].order, sib[i].order
+        return True
 
     def alternate(self, number: int) -> Alternate | None:
         return next((a for a in self.alternates if a.number == number), None)
