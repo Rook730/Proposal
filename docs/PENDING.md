@@ -121,6 +121,21 @@ Stage 2: Convenient Woodworking proposals
 60. [x] Income for Convenient Woodworking projects: line totals less build sheet materials and outsourced work, plus the rush fee; tax passes through. Change orders on Convenient Woodworking contracts: cost change x (1 + overhead + profit) plus sales tax.
 61. [x] Issues: sales tax on with no county, no-tax note, Built line with an empty build sheet, build sheet lumber priced for another thickness, materials with no cost. Woodworking words added to the spelling list.
 
+## Released in 1.9.0 (2026-10-26)
+
+Convenient Woodworking, stage 3 (docs/cw-requirements.md section 15).
+
+62. [x] Restoration items from the Items sheet (2000 to 2690) added to the catalog once, as Convenient Woodworking sections: Assessment & Documentation, Metalcraft, Woodcraft, Glasscraft, Electrical, Allowances. Prices from 26003 / 26004 where they had one; Fabricate and the Restore items with no price are left blank (price per job). 2620 White glove installation and 2630 Installation - exterior join 3000 Delivery & Installation; 2610 is covered by 3010 Delivery. Qty is the fixture count.
+63. [x] Appendix images (Terms & options): add PNG, JPG, GIF or SVG files; each gets a caption and the piece or section it shows, and can be reordered or removed. They print after the terms, two per row. Photos are scaled to 2000 px on the long side (camera rotation applied) and saved in the project's images folder, which the app never changes, so issued revisions keep their pictures. Both companies.
+64. [x] Client property (Project info, Convenient Woodworking): date received and condition when received (internal; {property_received} is available as a variable).
+65. [x] Storage of client property: Settings > Proposals (Convenient Woodworking) rate per SF per month ($2.00), minimum per month ($25), free days after notice (15). New terms block "Client property in our care" (Terms & Conditions) uses them; added once to existing Convenient Woodworking libraries.
+66. [x] Veneer: Price references > Veneer ($/SF by species and thickness); build sheet material kind Veneer, square feet from pieces x W x L x yield.
+67. [x] Up to 6 alternates (both companies), with three more colors on screen and in the PDF. Offer all together / Offer none together buttons; on Convenient Woodworking proposals a new alternate starts as one-or-the-other with the existing ones. Issues warns when more than 8 combinations would print. Alternates that replace the same line are an info note now, not a warning.
+68. [x] Placeholders (TBD, XX, ??, [ ]) and printed lines with no unit price are errors and block Issue for both companies: the Issue dialog lists them and the Issue button is disabled. A line included at no charge needs $0.
+69. [x] Pillow added (image scaling); the self-test scales and prints an image so the Windows build checks it.
+
 ## Next release
 
-Stage 3 (docs/cw-requirements.md section 15): restoration items, image appendix, client property and storage, veneer, 6 alternates, placeholder hard block.
+(nothing yet)
+
+Open values: profit percent (10% placeholder), real McMaster prices for the square box template, actual hours (stage 4, calibration).

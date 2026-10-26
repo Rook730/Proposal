@@ -127,7 +127,8 @@ def _sov(rev: Revision, res: Results, catalog: Catalog) -> dict:
 
 
 def build_document(project: Project, rev: Revision, settings: Settings, catalog: Catalog,
-                   boilerplate: Boilerplate, results: Results | None = None, diff=None) -> dict:
+                   boilerplate: Boilerplate, results: Results | None = None, diff=None,
+                   image_dir: Path | None = None) -> dict:
     res = results or calculate(rev, settings, catalog.stock_classes, project)
     v = variable_map(project, rev, settings)
     v.update(document_variables(res, settings))
@@ -190,8 +191,24 @@ def build_document(project: Project, rev: Revision, settings: Settings, catalog:
         totals = _ks_totals(rev, res, alt_nums)
     alt_descriptions = [{"n": a.number, "name": a.name, "text": md_to_typst(render(a.description, v))}
                         for a in sorted(rev.alternates, key=lambda a: a.number) if a.description or a.name]
-    return _finish(project, rev, settings, catalog, boilerplate, res, v, alt_nums, sections, totals,
-                   alt_descriptions, diff)
+    doc = _finish(project, rev, settings, catalog, boilerplate, res, v, alt_nums, sections, totals,
+                  alt_descriptions, diff)
+    doc["appendix"] = appendix(rev, catalog, image_dir)
+    return doc
+
+
+def appendix(rev: Revision, catalog: Catalog, image_dir: Path | None) -> list[dict]:
+    """Appendix images that exist on disk: {"src": absolute path, "caption", "piece"}. compile_document copies
+    them next to the template."""
+    if image_dir is None:
+        return []
+    out = []
+    for im in rev.images:
+        src = image_dir / im.file
+        if src.exists():
+            out.append({"src": str(src), "caption": escape(im.caption or ""),
+                        "piece": escape(rev.section_title(im.section, catalog)) if im.section else ""})
+    return out
 
 
 def _ks_totals(rev: Revision, res: Results, alt_nums: list[int]) -> list[dict]:
@@ -346,6 +363,15 @@ def compile_document(doc: dict, logo: Path | None, fmt: str = "pdf", ppi: int = 
                 doc["company"] = {**doc["company"], "logo": name}
         else:
             doc["company"] = {**doc["company"], "logo": ""}
+        pics = []
+        for n, item in enumerate(doc.get("appendix", [])):
+            src = Path(item.get("src", ""))
+            if src.exists():
+                name = f"appendix/{n:03d}{src.suffix.lower()}"
+                (tmpd / "appendix").mkdir(exist_ok=True)
+                shutil.copyfile(src, tmpd / name)
+                pics.append({**item, "src": name})
+        doc["appendix"] = pics
         (tmpd / "data.json").write_text(json.dumps(doc, indent=1), encoding="utf-8")
         fonts = tmpd / "fonts"
         fonts.mkdir()

@@ -225,6 +225,17 @@
       "body": "Pricing in this proposal is valid for {validity_days} days from the Proposal Date.",
       "default_on": true,
       "order": 90
+    },
+    {
+      "id": "client-property",
+      "heading": "Terms & Conditions",
+      "title": "Client property in our care",
+      "body": "Items you leave with us for restoration or repair are kept in our shop and handled with care. We note their condition when we receive them; we are not responsible for damage or defects that were already present or that the work uncovers. Items not picked up within {storage_grace_days} days of our notice that the work is complete are charged storage at {storage_rate} per square foot of floor space per month, with a minimum of {storage_min} per month. Please keep items of significant value insured under your own policy.",
+      "default_on": true,
+      "order": 45
     }
+  ],
+  "migrations": [
+    "cw-1.9.0"
   ]
 }

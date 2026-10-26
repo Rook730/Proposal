@@ -61,6 +61,10 @@ def builtin_variables(project: Project | None, rev: Revision | None, settings: S
                  site_address=project.site_address, project_name=project.project_name)
     if settings.pricing is not None:
         v["shop_rate"] = f"${settings.pricing.shop_rate:,.2f}"
+        v.update(storage_rate=f"${settings.storage_rate:,.2f}", storage_min=f"${settings.storage_min:,.2f}",
+                 storage_grace_days=str(settings.storage_grace_days))
+    if project and project.property_received:
+        v["property_received"] = project.property_received.strftime("%Y.%m.%d")
     if rev:
         v.update(revision=rev.rev, proposal_date=rev.proposal_date.strftime("%Y.%m.%d"))
         if rev.taxable:

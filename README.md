@@ -46,9 +46,9 @@ Push a version tag (`git tag v1.0.1 && git push origin v1.0.1`). The GitHub Acti
 - **Editor**: tick sections on the left (order arrows set print order), add lines from the catalog, edit title, performer, unit, qty and price in the grid, double-click an ID, notes or cost cell for the full line form.
 - **Line form**: detail notes with {variables}, quantity bound to a variable or computed from a takeoff and stock lengths, price from a rate, allowance tier, fixed value or variable, flags, internal fields, and "Pull update" when the catalog changed.
 - **Variables** tab: per-proposal values; every {name} and bound field updates when a value changes.
-- **Alternates** tab: up to 3; each removes base lines and/or adds lines assigned to it.
-- **Terms & options** tab: this proposal's copy of the boilerplate (toggle, edit, reorder, reset to library, add from library or custom), plus page options (Changes page, Schedule of Values page).
-- **Issues** tab: undefined variables, excluded lines, catalog changes, unused variables, zero quantities, missing prices.
+- **Alternates** tab: up to 6; each removes base lines and/or adds lines assigned to it.
+- **Terms & options** tab: appendix images (renderings, drawings, photos with captions), this proposal's copy of the boilerplate (toggle, edit, reorder, reset to library, add from library or custom), plus page options (Changes page, Schedule of Values page).
+- **Issues** tab: undefined variables, excluded lines, catalog changes, unused variables, zero quantities, missing prices. Placeholders (TBD, XX) and unpriced lines block Issue.
 - **Revisions**: Issue Rev locks the draft and saves its PDF. New revision copies it (1.0, 1.1, ...). Finalize creates 2.0 with the client's chosen alternates merged; issue it for signature, then Mark accepted. Older revisions open read-only from the Revision selector.
 - **Preview / Export PDF** (editor header): preview renders every page in the app; Export writes `projects/<project>/pdf/<number>_<client>_<project>_Proposal_V<rev>.pdf` and offers to open it.
   Boilerplate can also use `{total_price}`, `{subtotal}`, `{deposit_amount}`, `{progress_amount}` and `{retainage_amount}`.

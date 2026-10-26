@@ -11,7 +11,7 @@
 #let muted = luma(110)
 #let rule-c = luma(185)
 #let pct-fill = luma(228)
-#let alt-fill = (rgb("#DCE8F7"), rgb("#E3F1E8"), rgb("#F6ECDD"))
+#let alt-fill = (rgb("#DCE8F7"), rgb("#E3F1E8"), rgb("#F6ECDD"), rgb("#ECE4F6"), rgb("#F7E3E8"), rgb("#DFF1F1"))
 #let bar-fill = luma(150)
 
 #set document(title: d.proposal.number + " " + d.client.project + " Proposal", author: d.company.name)
@@ -29,7 +29,7 @@
 
 #let md(s) = if s == none or s == "" { [] } else { eval(s, mode: "markup") }
 
-#let altfill(n) = if n > 0 and n <= 3 { alt-fill.at(n - 1) } else if n < 0 { luma(235) } else { none }
+#let altfill(n) = if n > 0 and n <= alt-fill.len() { alt-fill.at(n - 1) } else if n < 0 { luma(235) } else { none }
 
 // accounting style money: "$" left, number right
 #let money(s, bold: false) = {
@@ -312,4 +312,24 @@
     ))
   }
   for b in g.blocks { text-block(b) }
+}
+
+// ------------------------------------------------------------------ appendix: images and drawings
+
+#if d.at("appendix", default: ()).len() > 0 {
+  pagebreak(weak: true)
+  section-heading[Appendix: Images and Drawings]
+  line(length: 100%, stroke: 0.8pt + ink)
+  v(4pt)
+  grid(
+    columns: (1fr, 1fr), column-gutter: 14pt, row-gutter: 16pt,
+    ..d.appendix.map(p => block(breakable: false, width: 100%)[
+      #align(center, image(p.src, width: 100%, height: 3.1in, fit: "contain"))
+      #v(3pt)
+      #align(center)[
+        #if p.piece != "" { text(8.5pt, weight: "bold", p.piece); if p.caption != "" { text(8.5pt)[: ] } }
+        #text(8.5pt, p.caption)
+      ]
+    ]),
+  )
 }

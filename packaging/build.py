@@ -38,6 +38,7 @@ def main() -> int:
         "--collect-submodules", "proposal_builder",
         "--collect-all", "typst",
         "--collect-data", "spellchecker",
+        "--hidden-import", "PIL.ImageOps",
         "--distpath", str(ROOT / "dist"),
         "--workpath", str(ROOT / "build"),
         "--specpath", str(ROOT / "build"),

@@ -386,6 +386,11 @@ class ProjectStore:
                 p.unlink(missing_ok=True)
         _atomic_write(path, text)
 
+    # -- appendix images
+    def image_dir(self, number: str) -> Path | None:
+        d = self.project_dir(number)
+        return d / "images" if d is not None else None
+
     # -- change orders and reconciliation (one file each per project)
     def load_change_orders(self, number: str):
         from .closeout import ChangeOrderLog

@@ -104,7 +104,8 @@ def test_seed_sections_are_kept_spec():
     cat = Catalog.model_validate_json((resources.files("proposal_builder") / "seed" / "catalog.json")
                                       .read_text(encoding="utf-8"))
     assert all(s.profile == KS for s in cat.sections if s.number < 2000)
-    assert {s.number: s.profile for s in cat.sections if s.number >= 2000} == {3000: CW, 3100: CW}
+    assert {s.profile for s in cat.sections if s.number >= 2000} == {CW}
+    assert [s.number for s in cat.sections if s.number >= 2000] == [2000, 2100, 2200, 2300, 2400, 2500, 3000, 3100]
 
 
 def test_config_moves_from_old_app_folder(tmp_path: Path, monkeypatch):
@@ -161,6 +162,6 @@ def test_editor_and_closeout_open_with_project_profile(tmp_path: Path):
     ed = Editor(p.number)
     assert ed.settings.company.dba == "Convenient Woodworking"
     assert ed.library is st.boilerplate_for(CW)
-    assert [s.number for s in ed.sections] == [3000, 3100]
+    assert [s.number for s in ed.sections] == [2000, 2100, 2200, 2300, 2400, 2500, 3000, 3100]
     assert ed.results.base.total == Decimal("3050.00")
     assert Closeout(p.number).settings.company.dba == "Convenient Woodworking"

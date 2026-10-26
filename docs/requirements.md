@@ -484,6 +484,9 @@ A toggle shows fields that never print:
 
 **1.8.0: Convenient Woodworking.** Company profiles (section 16), rename to Proposal Builder, build sheets and price references, pieces, rush fee and sales tax, deposit rule, Convenient Woodworking PDF and starter terms, company customers with Attn: and PO number, CW income and change order pricing. Details in docs/PENDING.md (items 43 to 61).
 
+
+**1.9.0: Convenient Woodworking stage 3.** Restoration items, appendix images, client property and storage terms, veneer, up to 6 alternates, placeholders and unpriced lines block Issue. Details in docs/PENDING.md (items 62 to 69).
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.
@@ -506,3 +509,10 @@ Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project manageme
 - PDF: client signature only, CW totals block, deposit/balance table, terms groups without a page break each, Attn: and PO # in the client block.
 - Income (CW): line totals less build sheet materials and outsourced work, plus the rush fee; tax and others' lines pass through. Change orders: cost change x (1 + CW overhead + profit) + sales tax.
 - One-time catalog additions (`cw_catalog.py`, marker in Catalog.migrations) so deleted entries stay deleted.
+
+**Stage 3 (1.9.0)**
+- Restoration sections 2000 to 2500 (CW), items with fixed EA prices; qty is the fixture count.
+- Revision.images: appendix pictures (file in projects/<folder>/images, caption, section); files are never changed or deleted by the app. Printed after the terms in a two-column grid.
+- Project.property_received / property_condition (internal). Settings.storage_rate / storage_min / storage_grace_days feed the "Client property in our care" terms block.
+- Veneer price references and build sheet rows (SF = pieces x W x L / 144 x yield).
+- Alternates: up to 6. Placeholders and unpriced printed lines block Issue (no override).

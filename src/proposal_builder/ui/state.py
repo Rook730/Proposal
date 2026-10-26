@@ -34,7 +34,7 @@ class AppState:
         from ..migrations import migrate_library
         cat_changed, bp_changed = migrate_library(self.catalog, self.boilerplate)
         from .. import cw_catalog
-        if cw_catalog.apply(self.catalog):       # 1.8.0: Convenient Woodworking sections, items, prices (once)
+        if cw_catalog.apply_all(self.catalog):   # Convenient Woodworking sections, items, prices (each once)
             cat_changed = True
         if cat_changed:
             self.store.save_catalog(self.catalog)
@@ -45,6 +45,8 @@ class AppState:
             if key != KS:
                 self.profile_settings[key] = self.store.load_settings(key)
                 self.profile_boilerplate[key] = self.store.load_boilerplate(key)
+                if key == "cw" and cw_catalog.apply_terms(self.profile_boilerplate[key]):
+                    self.store.save_boilerplate(self.profile_boilerplate[key], key)
         self.customers = self.store.load_book("customers.json", CustomerBook)
         self.contractors = self.store.load_book("contractors.json", ContractorBook)
         self.suppliers = self.store.load_book("suppliers.json", SupplierBook)

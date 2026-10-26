@@ -1,4 +1,5 @@
-"""Content checks for the Issues tab and the Issue dialog: leftover placeholders,
+"""Content checks for the Issues tab and the Issue dialog: leftover placeholders and unpriced lines (both block
+Issue),
 Allowance wording against the Allowance flag, lines added twice, and blank project info.
 Each returns (kind, message, target): kind "error", "warn" or "info"; target says where to fix it
 (("line", id), ("block", id), ("alternate", n), ("project", ""), ("customer", id), ("tab", name)) or None."""
@@ -28,12 +29,31 @@ def placeholders(project, rev) -> list[tuple]:
     for place, text in text_fields(project, rev):
         found = list(dict.fromkeys(m.group(0) for m in PLACEHOLDER.finditer(text)))
         if found:
-            out.append(("warn", f"{place.label}: placeholder {', '.join(found)} left in the text", _place_target(place)))
+            out.append(("error", f"{place.label}: placeholder {', '.join(found)} left in the text",
+                        _place_target(place)))
     for v in rev.variables:
         found = list(dict.fromkeys(m.group(0) for m in PLACEHOLDER.finditer(v.value or "")))
         if found:
-            out.append(("warn", f"Variable '{v.name}': placeholder {', '.join(found)} in its value", ("tab", "variables")))
+            out.append(("error", f"Variable '{v.name}': placeholder {', '.join(found)} in its value",
+                        ("tab", "variables")))
     return out
+
+
+def missing_prices(rev, results) -> list[tuple]:
+    """Printed lines with no price (a "TBD" line): they block Issue."""
+    out = []
+    for ln in rev.lines:
+        if not _printed(rev, ln) or ln.is_percent or ln.not_included or ln.owner_furnished:
+            continue
+        if ln.unit_price is None and not ln.price_var and not ln.is_built:
+            out.append(("error", f"{ln.id} {ln.title}: no unit price (enter a price, or $0 if included at no "
+                                 "charge)", ("line", ln.id)))
+    return out
+
+
+def blocking(project, rev, results) -> list[str]:
+    """Issues that stop a revision from being issued (no "Issue anyway"): placeholders and unpriced lines."""
+    return [m for _, m, _ in placeholders(project, rev) + missing_prices(rev, results)]
 
 
 def _place_target(place) -> tuple[str, str]:
@@ -93,5 +113,5 @@ def project_info(project, customers) -> list[tuple]:
 
 
 def content_checks(project, rev, results, customers=None) -> list[tuple]:
-    return (project_info(project, customers) + placeholders(project, rev)
+    return (project_info(project, customers) + placeholders(project, rev) + missing_prices(rev, results)
             + allowance_wording(rev) + duplicate_lines(rev))

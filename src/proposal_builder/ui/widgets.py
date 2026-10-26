@@ -57,6 +57,9 @@ THEME_CSS = """
     .pb-alt1, .pb-altbg1 { background: #DCE8F7 !important; }
     .pb-alt2, .pb-altbg2 { background: #E3F1E8 !important; }
     .pb-alt3, .pb-altbg3 { background: #F6ECDD !important; }
+    .pb-alt4, .pb-altbg4 { background: #ECE4F6 !important; }
+    .pb-alt5, .pb-altbg5 { background: #F7E3E8 !important; }
+    .pb-alt6, .pb-altbg6 { background: #DFF1F1 !important; }
     .pb-out { color: #9aa0a6; font-style: italic; }
     .pb-last { box-shadow: inset 4px 0 0 #E8A33D; }
     .pb-last .ag-cell { font-weight: 600; }
@@ -70,6 +73,9 @@ THEME_CSS = """
     .body--dark .pb-alt1, .body--dark .pb-altbg1 { background: #22344d !important; }
     .body--dark .pb-alt2, .body--dark .pb-altbg2 { background: #23392b !important; }
     .body--dark .pb-alt3, .body--dark .pb-altbg3 { background: #43361f !important; }
+    .body--dark .pb-alt4, .body--dark .pb-altbg4 { background: #33284a !important; }
+    .body--dark .pb-alt5, .body--dark .pb-altbg5 { background: #4a2832 !important; }
+    .body--dark .pb-alt6, .body--dark .pb-altbg6 { background: #1f4242 !important; }
     .body--dark .pb-out { color: #8a9099; }
     .body--dark .pb-warnbox { background: #3b2f1a; border-color: #8a6a2a; }
     .body--dark .pb-selected { background: #2a3442; }

@@ -8,7 +8,7 @@ Approach A: same app, a second **company profile**. Kept Spec Advisors (project 
 
 Intake with Nick (2026-10-25) is done: answers in the claude.ai Project (`claude/proposal-builder-cw-intake.md`), requirements in `docs/cw-requirements.md`, summary in `docs/requirements.md` section 16.
 
-**Status:** stages 1 and 2 are released in 1.8.0 (PENDING items 43 to 61). Next is stage 3 (`docs/cw-requirements.md` section 15): restoration items 2000 to 2690, image appendix, client property and storage charges, veneer table, 6 alternates, placeholder hard block. Open values: profit percent (10% placeholder), storage rate, real hardware prices for the square box template.
+**Status:** stages 1 to 3 are released (1.8.0 and 1.9.0; PENDING items 43 to 69). Stage 4 (actual hours by phase for calibration, wholesale) waits until the app is in use. Open values: profit percent (10% placeholder), real hardware prices for the square box template, storage defaults to confirm.
 
 ## Read first
 
@@ -60,7 +60,7 @@ These are the places a profile has to reach. Roughly in order of impact. Items 1
 10. **Seed and importer**: `seed/*.json` and `importer.py` come from the KS Excel workbook; a woodworking seed needs its own source.
 11. **Packaging names**: exe name, `APP_DIR_NAME`, `DEFAULT_DATA_DIR_NAME`, updater User-Agent. Can stay as they are (one app), or be renamed to a neutral name.
 
-## As built (stages 1 and 2)
+## As built (stages 1 to 3)
 
 - `models.py`: `KS`, `CW`, `PROFILES`, `Section.profile` ("ks", "cw", "both"), `Catalog.sections_for()` / `items_for()`, `SHARED_SETTINGS`.
 - `proposal.py`: `Project.profile` (default "ks").
@@ -69,7 +69,8 @@ These are the places a profile has to reach. Roughly in order of impact. Items 1
 - Editor: `self.settings`, `self.library`, `self.sections` follow the project's profile. Closeout: `self.settings`. Projects list: Company column and filter; New project asks the company. Settings and Terms library: `?profile=` switch. Sections page: Company column.
 - `render/document.py`: logo keeps its extension (SVG works). `proposal.typ`: paragraph break between intro blocks.
 - Stage 2: `buildsheet.py` (BuildSheet, PricingPolicy, rough thickness), `cw_catalog.py` (one-time catalog additions and the seed's CW content), `models.PriceReferences` on the catalog, `Settings.pricing` / `payment_rule` / `tax_counties`, `Revision.pieces` / `rush_pct` / `taxable` / `tax_rate`, `Project.attention` / `po_number`, `Customer.is_company`. Calc: Built lines, rush, tax, `deposit_pct()`. Income: `cw_estimate_report`. Closeout: CW markup and tax on change orders. UI: `ui/build_ui.py` (build sheet dialog), Price references page, CW settings, pricing card in Terms & options, pieces in the sections panel. PDF: `_cw_totals`, `company_signature`, `compact_terms`.
-- Tests: `tests/test_profiles.py`, `tests/test_cw_pricing.py`. Self-test prices the square box template (10 at $305, $3,263.50 with Buncombe tax) and renders a CW proposal with the SVG logo.
+- Stage 3: `cw_catalog.apply_restoration` / `apply_terms` (markers in Catalog.migrations and Boilerplate.migrations), `images.py` (Pillow scaling, store in projects/<folder>/images), `Revision.images`, appendix in `render/document.py` (`appendix()`, copied by `compile_document`) and `proposal.typ`, `preflight.blocking()` used by the Issue dialog, MAX_ALTERNATES = 6.
+- Tests: `tests/test_profiles.py`, `tests/test_cw_pricing.py`, `tests/test_stage3.py`. Self-test prices the square box template (10 at $305, $3,263.50 with Buncombe tax) and renders a CW proposal with the SVG logo.
 
 ## Open questions for Nick
 

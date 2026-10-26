@@ -61,6 +61,8 @@ def _ref_options(kind: str, prices: PriceReferences) -> dict[str, str]:
         return {x.id: f"{x.name} {x.part_number} ({x.supplier}) ${x.price}/{x.unit}" for x in prices.hardware}
     if kind == "finish":
         return {x.id: f"{x.product} ${x.per_sf_coat:.4f}/SF per coat" for x in prices.finishes}
+    if kind == "veneer":
+        return {x.id: f"{x.species} {x.thickness} ${x.price}/SF".replace("  ", " ") for x in prices.veneer}
     if kind == "outsourced":
         return {x.id: f"{x.service} ({x.supplier}) ${x.price}/{x.basis}" for x in prices.outsourced}
     return {}
@@ -89,17 +91,20 @@ def add_material_dialog(sheet: BuildSheet, catalog: Catalog, on_added: Callable[
         def kind_changed(_=None) -> None:
             k = kind.value
             ref.set_options(_ref_options(k, prices), value=None)
-            lumber = k == "lumber"
-            for el in (pieces, thick, width, length, ytier):
-                el.set_visibility(lumber)
-            qty.set_visibility(not lumber)
-            unit.set_visibility(not lumber)
+            lumber, veneer = k == "lumber", k == "veneer"
+            for el in (pieces, width, length, ytier):
+                el.set_visibility(lumber or veneer)
+            thick.set_visibility(lumber)
+            qty.set_visibility(not (lumber or veneer))
+            unit.set_visibility(not (lumber or veneer))
             coats.set_visibility(k == "finish")
             unit.set_value({"sheet": "SHT", "dimensional": "PC", "finish": "SF"}.get(k, "EA"))
             qty.props(f'label="{"Surface SF per unit" if k == "finish" else "Qty per unit"}"')
             hint.set_text({"lumber": "Board feet = pieces x nominal thickness x W x L / 144 x yield. The nominal "
                                      "comes from the finished thickness (3/4 from 4/4, 1-3/4 from 8/4).",
                            "sheet": "Sheets per unit; use a fraction when one sheet makes several pieces.",
+                           "veneer": "Square feet = pieces x W x L / 144 x yield. Add the substrate as its own "
+                                     "lumber or sheet goods row.",
                            "finish": "Cost = SF x coats x the product's price per SF per coat."}.get(k, ""))
         kind.on_value_change(kind_changed)
         kind_changed()
@@ -116,6 +121,12 @@ def add_material_dialog(sheet: BuildSheet, catalog: Catalog, on_added: Callable[
                     if None in (m.pieces, m.thickness, m.width, m.length):
                         raise ValueError("enter pieces, T, W and L")
                     m.name = m.name or "Lumber"
+                elif k == "veneer":
+                    m.pieces, m.width, m.length = to_decimal(pieces.value), to_decimal(width.value), to_decimal(length.value)
+                    m.yield_tier = ytier.value
+                    if None in (m.pieces, m.width, m.length):
+                        raise ValueError("enter pieces, W and L")
+                    m.name = m.name or "Veneer"
                 else:
                     m.qty = to_decimal(qty.value) or Decimal(1)
                     m.unit = unit.value or "EA"

@@ -41,9 +41,9 @@ from .pages import md_breaks
 from .state import get_state
 from .widgets import keep_current, BRAND, Col, EditableGrid, date_input, fmt_date, layout, no_rows, parse_date, to_decimal
 
-ALT_COLORS = {1: "#DCE8F7", 2: "#E3F1E8", 3: "#F6ECDD"}
+ALT_COLORS = {1: "#DCE8F7", 2: "#E3F1E8", 3: "#F6ECDD", 4: "#ECE4F6", 5: "#F7E3E8", 6: "#DFF1F1"}
 PCT_COLOR = "#E6E8EB"
-MAX_ALTERNATES = 3
+MAX_ALTERNATES = 6
 
 
 def money(v: Decimal | None) -> str:
@@ -587,8 +587,8 @@ class Editor:
             "rowHeight": 32, "headerHeight": 36,
             "stopEditingWhenCellsLoseFocus": True,
             "defaultColDef": {"resizable": True},
-            "rowClassRules": {"pb-pct": "data.pct", "pb-alt1": "data.alt === 1", "pb-alt2": "data.alt === 2",
-                              "pb-alt3": "data.alt === 3", "pb-out": "data.excluded", "pb-last": "data.last"},
+            "rowClassRules": {"pb-pct": "data.pct", **{f"pb-alt{n}": f"data.alt === {n}" for n in ALT_COLORS},
+                              "pb-out": "data.excluded", "pb-last": "data.last"},
             # stable row identity: refreshing rowData updates rows in place, so scroll and selection stay put
             ":getRowId": "p => p.data.id",
             "tooltipShowDelay": 400,
@@ -1505,6 +1505,19 @@ class Editor:
             def set_pair(a: int, b: int, offered: bool) -> None:
                 self.rev.set_separate(a, b, not offered)
                 self.save()
+
+            def set_all(offered: bool) -> None:
+                for a, b in itertools.combinations(nums, 2):
+                    if not self.rev.remove_same_line(a, b):
+                        self.rev.set_separate(a, b, not offered)
+                self.save()
+            if not self.locked:
+                with ui.row().classes("gap-2"):
+                    ui.button("Offer all together", on_click=lambda: set_all(True)).props("dense flat no-caps")
+                    ui.button("Offer none together", on_click=lambda: set_all(False)).props("dense flat no-caps") \
+                        .tooltip("Each alternate is a separate choice (species, finish, size)")
+            ui.label("Alternates that replace the same base line are never combined, so options for one piece are "
+                     "already one-or-the-other.").classes("text-xs text-gray-500")
             for a, b in itertools.combinations(nums, 2):
                 with ui.row().classes("items-center gap-2"):
                     if self.rev.remove_same_line(a, b):
@@ -1569,6 +1582,9 @@ class Editor:
         used = {a.number for a in self.rev.alternates}
         n = next(i for i in range(1, MAX_ALTERNATES + 1) if i not in used)
         self.rev.alternates.append(Alternate(number=n, name=""))
+        if self.is_cw:      # woodworking options (species, finish, size) are one-or-the-other by default
+            for other in used:
+                self.rev.set_separate(n, other, True)
         self.save()
 
     async def _remove_alt(self, alt: Alternate) -> None:
@@ -1596,7 +1612,11 @@ class Editor:
         if not any(ln.section in self.rev.sections and not ln.is_percent for ln in self.rev.lines):
             out.append(("error", "The proposal has no priced lines", ("tab", "lines")))
         for a, b in self.results.conflicts:
-            out.append(("warn", f"Alt {a} and Alt {b} remove the same line; they cannot be combined",
+            out.append(("info", f"Alt {a} and Alt {b} remove the same line; they are offered as one or the other",
+                        ("tab", "alternates")))
+        if len(self.results.combinations) > 8:
+            out.append(("warn", f"{len(self.results.combinations)} combinations of alternates will print as Total "
+                                "Price lines; turn off pairs the client would not choose together (Alternates tab)",
                         ("tab", "alternates")))
         if self.rev.taxable and not self.rev.tax_county:
             out.append(("warn", "Sales tax is on but no delivery county is picked (Terms & options)", ("tab", "terms")))
@@ -1626,8 +1646,6 @@ class Editor:
             if not ln.is_percent and not ln.not_included and not ln.owner_furnished and ln.section in self.rev.sections:
                 if lr.qty == 0:
                     out.append(("warn", f"{ln.id} {ln.title}: quantity is 0", ("line", ln.id)))
-                elif ln.unit_price is None and not ln.price_var and not ln.is_built:
-                    out.append(("warn", f"{ln.id} {ln.title}: no unit price", ("line", ln.id)))
             if ln.is_built and ln.build is not None:
                 stale = [m.name for m in ln.build.materials if m.stale]
                 unpriced = [m.name for m in ln.build.materials if not m.unit_cost]
@@ -1824,7 +1842,8 @@ class Editor:
 
     def _document(self) -> dict:
         return build_document(self.project, self.rev, self.settings, self.cat, self.library,
-                              self.results, diff=self._diff())
+                              self.results, diff=self._diff(),
+                              image_dir=self.st.projects.image_dir(self.project.number))
 
     async def preview(self) -> None:
         errors = [m for k, m, _ in self.issues() if k == "error"]
@@ -1890,6 +1909,84 @@ class Editor:
         dlg.open()
 
     # ------------------------------------------------------------ terms & options
+    def images_card(self) -> None:
+        """Appendix images: upload, caption, the piece or section shown, order. Prints after the terms."""
+        rev = self.rev
+        folder = self.st.projects.image_dir(self.project.number)
+        with ui.card().classes("w-full mt-2"):
+            @ui.refreshable
+            def grid() -> None:
+                with ui.row().classes("w-full items-center"):
+                    ui.label(f"Appendix images ({len(rev.images)})").classes("font-semibold")
+                    ui.label("Renderings, drawings and photos print in a grid after the terms, two per row. Photos "
+                             "are scaled down when added.").classes("text-xs text-gray-500")
+                opts = {0: "-", **self.section_options()}
+                with ui.row().classes("w-full gap-3 flex-wrap"):
+                    for i, im in enumerate(rev.images):
+                        with ui.card().classes("w-64 p-2 gap-1"):
+                            path = folder / im.file if folder else None
+                            if path is not None and path.exists():
+                                ui.image(path).classes("w-full h-36").props("fit=contain")
+                            else:
+                                ui.label(f"Missing file: {im.file}").classes("text-xs text-red-700")
+                            cap = ui.input("Caption", value=im.caption).props("dense").classes("w-full")
+                            sec = ui.select(keep_current(opts, im.section or 0), value=im.section or 0,
+                                            label="Shows").props("dense").classes("w-full")
+
+                            def set_cap(e, im=im) -> None:
+                                im.caption = e.value or ""
+                                self._save_quiet()
+
+                            def set_sec(e, im=im) -> None:
+                                im.section = int(e.value) or None
+                                self._save_quiet()
+                            cap.on_value_change(set_cap)
+                            sec.on_value_change(set_sec)
+                            if self.locked:
+                                cap.props("readonly")
+                                sec.disable()
+                            else:
+                                with ui.row().classes("w-full justify-end gap-0"):
+                                    ui.button(icon="arrow_back", on_click=lambda i=i: move(i, -1)) \
+                                        .props("flat dense round size=sm").tooltip("Earlier")
+                                    ui.button(icon="arrow_forward", on_click=lambda i=i: move(i, 1)) \
+                                        .props("flat dense round size=sm").tooltip("Later")
+                                    ui.button(icon="delete", on_click=lambda i=i: remove(i)) \
+                                        .props("flat dense round size=sm color=negative") \
+                                        .tooltip("Remove from this revision (the file stays in the project folder)")
+
+            def move(i: int, d: int) -> None:
+                j = i + d
+                if 0 <= j < len(rev.images):
+                    rev.images[i], rev.images[j] = rev.images[j], rev.images[i]
+                    self._save_quiet()
+                    grid.refresh()
+
+            def remove(i: int) -> None:
+                del rev.images[i]
+                self._save_quiet()
+                grid.refresh()
+
+            async def uploaded(e) -> None:
+                from ..images import add_image
+                from ..proposal import ProposalImage
+                try:
+                    data = await e.file.read()
+                    name = add_image(folder, data, e.file.name)
+                except (ValueError, OSError) as err:
+                    ui.notify(f"{e.file.name}: {err}", type="warning", multi_line=True)
+                    return
+                rev.images.append(ProposalImage(file=name, caption="",
+                                                section=self.section_filter if self.section_filter else None))
+                self._save_quiet()
+                grid.refresh()
+
+            grid()
+            if not self.locked and folder is not None:
+                ui.upload(label="Add images (PNG, JPG, GIF, SVG)", multiple=True, auto_upload=True,
+                          on_upload=uploaded).props('accept=".png,.jpg,.jpeg,.gif,.svg" flat bordered') \
+                    .classes("w-full max-w-[520px]")
+
     def pricing_card(self) -> None:
         """Rush fee and sales tax for this revision (Convenient Woodworking)."""
         rev, s = self.rev, self.settings
@@ -1939,6 +2036,7 @@ class Editor:
                     sw2.disable()
         if self.is_cw:
             self.pricing_card()
+        self.images_card()
         ui.label("Terms and text in this proposal. Edits here change only this revision; the Terms library "
                  "(Catalog > Terms library) is untouched.").classes("text-xs text-gray-500 mt-3")
         headings = list(lib.headings) + sorted({b.heading for b in rev.blocks} - set(lib.headings))
@@ -2064,7 +2162,9 @@ class Editor:
     # ------------------------------------------------------------ revisions
     async def issue_dialog(self) -> None:
         items = self.issues()
-        errors = [m for k, m, _ in items if k == "error"]
+        from ..preflight import blocking
+        blocked = blocking(self.project, self.rev, self.results)
+        errors = [m for k, m, _ in items if k == "error" and m not in blocked]
         warns = [m for k, m, _ in items if k == "warn"]
         diff = self._diff()
         contract = self.rev.is_contract
@@ -2079,6 +2179,13 @@ class Editor:
                          f"total {'+' if d >= 0 else '-'}{money(abs(d))} ({money(diff.old_total)} to "
                          f"{money(diff.new_total)}).").classes("text-sm")
             ui.label(f"Total Price: {money(self.results.base.total)}").classes("text-sm font-semibold")
+            if blocked:
+                ui.label("Fix these before issuing (placeholders and unpriced lines cannot go to a client):") \
+                    .classes("text-sm font-semibold text-red-700")
+            for m in blocked:
+                with ui.row().classes("items-start gap-2 no-wrap w-full"):
+                    ui.icon("block").classes("text-red-700")
+                    ui.label(m).classes("text-sm flex-1")
             for m in errors:
                 with ui.row().classes("items-start gap-2 no-wrap w-full"):
                     ui.icon("error").classes("text-red-700")
@@ -2097,8 +2204,10 @@ class Editor:
                 ui.label("No issues found.").classes("text-sm text-green-700")
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button("Cancel", on_click=lambda: dlg.submit(False)).props("flat")
-                ui.button("Issue anyway" if errors else "Issue and save PDF", icon="lock",
-                          on_click=lambda: dlg.submit(True)).props("color=negative" if errors else "")
+                b = ui.button("Issue anyway" if errors else "Issue and save PDF", icon="lock",
+                              on_click=lambda: dlg.submit(True)).props("color=negative" if errors else "")
+                if blocked:
+                    b.disable()
         if not await dlg:
             return
         try:
@@ -2190,6 +2299,14 @@ class Editor:
                                 placeholder="blank = the customer's first contact").props("dense").classes("grow")
                 po = ui.input("PO number", value=p.po_number).props("dense").classes("w-40")
             d = date_input("Proposal date", rev.proposal_date, readonly=self.locked)
+            if self.is_cw:
+                ui.label("Client property at the shop (restoration, repair): internal").classes("text-xs text-gray-500 mt-2")
+                with ui.row().classes("w-full gap-3 no-wrap items-start"):
+                    recv = date_input("Received", p.property_received)
+                    cond = ui.textarea("Condition when received", value=p.property_condition) \
+                        .props("dense autogrow").classes("grow")
+            else:
+                recv = cond = None
 
             def save() -> None:
                 try:
@@ -2198,6 +2315,9 @@ class Editor:
                     if (attn.value or "").strip():
                         p.attention = attn.value.strip()
                     p.po_number = (po.value or "").strip()
+                    if recv is not None:
+                        p.property_received = parse_date(recv.value)
+                        p.property_condition = cond.value or ""
                     p.project_name = name.value or p.project_name
                     if not self.locked:
                         rev.proposal_date = parse_date(d.value) or rev.proposal_date

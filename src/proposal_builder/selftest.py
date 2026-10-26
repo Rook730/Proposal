@@ -66,6 +66,20 @@ def run_self_test() -> tuple[bool, str]:
                                       ds.path(cw_settings.company.logo_path))
             assert cw_pdf[:4] == b"%PDF", "CW proposal PDF"
             lines.append(f"cw proposal pdf {len(cw_pdf)} bytes")
+            # appendix images: Pillow scales a photo down; the PDF prints it
+            import io
+            from PIL import Image
+            from .images import add_image
+            from .proposal import ProposalImage
+            buf = io.BytesIO()
+            Image.new("RGB", (3000, 2000), (168, 123, 32)).save(buf, "JPEG")
+            img_dir = ProjectStore(ds).project_dir("99999") / "images"
+            name = add_image(img_dir, buf.getvalue(), "photo.jpg")
+            cw_rev.images = [ProposalImage(file=name, caption="Self test")]
+            img_pdf = compile_document(build_document(cw_project, cw_rev, cw_settings, catalog, cw_bp,
+                                                      image_dir=img_dir), ds.path(cw_settings.company.logo_path))
+            assert img_pdf[:4] == b"%PDF" and len(img_pdf) > len(cw_pdf), "appendix image"
+            lines.append(f"appendix image ok ({(img_dir / name).stat().st_size} bytes stored)")
             from .spelling import check as spell_check
             from .spelling import suggestions
             rev.lines[-1].notes = "Install the cabinetery and recieve {project_name}"

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proposal-builder"
-version = "1.8.0"
+version = "1.9.0"
 description = "Proposal Builder for Kept Spec Advisors and Convenient Woodworking"
 requires-python = ">=3.12"
 dependencies = [
@@ -13,6 +13,7 @@ dependencies = [
     "openpyxl>=3.1",
     "typst>=0.13",
     "pyspellchecker>=0.8",
+    "pillow>=10",
 ]
 
 [project.optional-dependencies]

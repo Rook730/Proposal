@@ -26,8 +26,8 @@ ZERO = Decimal(0)
 CENT = Decimal("0.01")
 
 MATERIAL_KINDS: dict[str, str] = {
-    "lumber": "Lumber", "sheet": "Sheet goods", "dimensional": "Dimensional", "hardware": "Hardware",
-    "finish": "Finish", "outsourced": "Outsourced", "other": "Other",
+    "lumber": "Lumber", "sheet": "Sheet goods", "veneer": "Veneer", "dimensional": "Dimensional",
+    "hardware": "Hardware", "finish": "Finish", "outsourced": "Outsourced", "other": "Other",
 }
 YIELD_TIERS = ("low", "medium", "high")
 DEFAULT_PHASES = ["Design", "Milling", "Joinery and machining", "Assembly", "Sanding", "Finishing",
@@ -97,6 +97,11 @@ class BuildMaterial(_Model):
     @property
     def has_dims(self) -> bool:
         return self.kind == "lumber" and None not in (self.pieces, self.thickness, self.width, self.length)
+
+    @property
+    def has_area(self) -> bool:
+        """Veneer: pieces x W x L give square feet."""
+        return self.kind == "veneer" and None not in (self.pieces, self.width, self.length)
 
     @property
     def quantity(self) -> Decimal:
@@ -195,6 +200,10 @@ class BuildSheet(_Model):
                 bf = m.pieces * nom_in * m.width * m.length / 144 * self.yield_factor(m.yield_tier)
                 m.qty = bf.quantize(CENT, rounding=ROUND_HALF_UP)
                 m.unit = "BF"
+            elif m.has_area:
+                sf = m.pieces * m.width * m.length / 144 * self.yield_factor(m.yield_tier)
+                m.qty = sf.quantize(CENT, rounding=ROUND_HALF_UP)
+                m.unit = "SF"
 
     def totals(self, qty: Decimal) -> BuildTotals:
         def sums(setup: bool) -> tuple[Decimal, Decimal, Decimal]:

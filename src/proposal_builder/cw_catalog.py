@@ -140,6 +140,75 @@ def items() -> list[CatalogItem]:
     ]
 
 
+# ---------------------------------------------------------------- 1.9.0: restoration (Items sheet 2000 to 2690)
+
+RESTORATION_MARKER = "cw-1.9.0-restoration"
+RESTORATION_SECTIONS = [
+    Section(number=2000, name="Assessment & Documentation", key="CWAssessment", profile=CW),
+    Section(number=2100, name="Metalcraft", key="CWMetal", profile=CW),
+    Section(number=2200, name="Woodcraft", key="CWWood", profile=CW),
+    Section(number=2300, name="Glasscraft", key="CWGlass", profile=CW),
+    Section(number=2400, name="Electrical", key="CWElectrical", profile=CW),
+    Section(number=2500, name="Allowances", key="CWAllowances", profile=CW),
+]
+_RESTORE_METAL = ("Restore the metal components to original, like new, condition.\nMedia blast or chem strip existing "
+                  "paint/finish, fill pits/holes/cracks, retap mountings, and fab any missing parts, refinish to "
+                  "original specs.")
+_RESTORE_WOOD = ("Restore the wooden components to original, like new, condition.\nMedia blast or chem strip existing "
+                 "paint/finish, fill pits/holes, retap mountings, and fab any missing parts, refinish to original "
+                 "specs.")
+_REFURB = "Only remove chipping/flaking paint/finish, stabilize any mechanical issues, touchup finish as required."
+# code, section, title, description, price (26003 / 26004 where they had one; None = price per job)
+RESTORATION_ITEMS = [
+    (2010, 2000, "Condition assessment", "Document corrosion, mechanical integrity, missing hardware, electrical "
+                                         "condition.", "25"),
+    (2020, 2000, "Photography", "Before/during/after documentation at each phase of restoration.", "0"),
+    (2030, 2000, "Records", "Plaque with SN (if applicable), origination, restoration date.", "15"),
+    (2110, 2100, "Restore", _RESTORE_METAL, "200"),
+    (2120, 2100, "Refurbish", "Clean and repair metal components to improve appearance and function.\n" + _REFURB,
+     "75"),
+    (2130, 2100, "Fabricate - interior", "Fabricate mountings for use as interior fixture.", None),
+    (2140, 2100, "Fabricate - exterior", "Fabricate mountings for use as exterior fixture.", None),
+    (2210, 2200, "Restore", _RESTORE_WOOD, None),
+    (2220, 2200, "Refurbish", "Clean and repair wooden components to improve appearance and function.\n" + _REFURB,
+     "75"),
+    (2230, 2200, "Fabricate - interior", "Fabricate base for use as interior fixture.", None),
+    (2240, 2200, "Fabricate - exterior", "Fabricate base for use as exterior fixture.", None),
+    (2310, 2300, "Restore", "Restore the lamp globe to original, like new, condition.\nClean and polish existing "
+                            "(undamaged) globes. Source replacements for broken globes (if possible).", None),
+    (2320, 2300, "Refurbish", "Clean and polish lamp globe to improve appearance and function.", "45"),
+    (2410, 2400, "Restore", "", None),
+    (2420, 2400, "Refurbish", "Remove existing bulb base and all original wiring.\nInstall E26 lampholder to accept "
+                              "off-the-shelf LED bulbs.\nRewire to exterior code standard (worst-case location).\n"
+                              "Install switched 3-wire grounded cord and plug (interior/lamp use) OR junction box "
+                              "pigtail leads (pole/post-mount use).", "60"),
+    (2510, 2500, "Bulbs", "Final bulb selection depends on mounting/display location and use. Worst case cost "
+                          "scenario provided.", "15"),
+    (2520, 2500, "Weatherproofing", "Necessary for exterior located fixtures. Globes sealed with RTV silicone, "
+                                    "corrosion inhibitor applied to all unpainted surfaces, all exterior ferrous "
+                                    "fasteners substituted with stainless.", "25"),
+    (2530, 2500, "Finishes", "Allowance to purchase necessary paint, penetrating finishes, film finishes, etc.", "50"),
+    # Items sheet 2600 Delivery & Installation joins the 3000 section (3010 Delivery replaces 2610)
+    (2620, 3000, "White glove installation", "White glove installation at a location of your choice.", "0"),
+    (2630, 3000, "Installation - exterior", "Installation of fixture base. Electrical hookup not included.", "75"),
+]
+
+
+def apply_restoration(catalog: Catalog) -> bool:
+    if RESTORATION_MARKER in catalog.migrations:
+        return False
+    have_sec = {s.number for s in catalog.sections}
+    catalog.sections += [s.model_copy() for s in RESTORATION_SECTIONS if s.number not in have_sec]
+    catalog.sections.sort(key=lambda s: s.number)
+    have = {i.code for i in catalog.items}
+    catalog.items += [CatalogItem(code=c, section=sec, title=t, description=d, unit="EA",
+                                  price=D(p) if p is not None else None)
+                      for c, sec, t, d, p in RESTORATION_ITEMS if c not in have]
+    catalog.items.sort(key=lambda i: i.code)
+    catalog.migrations.append(RESTORATION_MARKER)
+    return True
+
+
 def apply(catalog: Catalog, policy: PricingPolicy | None = None) -> bool:
     """Add the Convenient Woodworking content once. Returns True when the catalog changed."""
     if MARKER in catalog.migrations:
@@ -169,4 +238,35 @@ def apply(catalog: Catalog, policy: PricingPolicy | None = None) -> bool:
     if not pr.hardware:
         pr.hardware = [h.model_copy() for h in HARDWARE]
     catalog.migrations.append(MARKER)
+    return True
+
+
+def apply_all(catalog: Catalog, policy: PricingPolicy | None = None) -> bool:
+    a = apply(catalog, policy)
+    b = apply_restoration(catalog)
+    return a or b
+
+
+# ---------------------------------------------------------------- terms library additions
+
+TERMS_MARKER = "cw-1.9.0"
+CLIENT_PROPERTY = ("client-property", "Terms & Conditions", "Client property in our care", (
+    "Items you leave with us for restoration or repair are kept in our shop and handled with care. We note their "
+    "condition when we receive them; we are not responsible for damage or defects that were already present or that "
+    "the work uncovers. Items not picked up within {storage_grace_days} days of our notice that the work is complete "
+    "are charged storage at {storage_rate} per square foot of floor space per month, with a minimum of {storage_min} "
+    "per month. Please keep items of significant value insured under your own policy."), 45)
+
+
+def apply_terms(boilerplate) -> bool:
+    """Add blocks introduced after a Convenient Woodworking library was created (once)."""
+    from .models import BoilerplateBlock
+    if TERMS_MARKER in boilerplate.migrations:
+        return False
+    bid, heading, title, body, order = CLIENT_PROPERTY
+    if not any(b.id == bid for b in boilerplate.blocks):
+        boilerplate.blocks.append(BoilerplateBlock(id=bid, heading=heading, title=title, body=body, order=order))
+        if heading not in boilerplate.headings:
+            boilerplate.headings.append(heading)
+    boilerplate.migrations.append(TERMS_MARKER)
     return True

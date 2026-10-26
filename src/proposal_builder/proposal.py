@@ -95,7 +95,7 @@ class Line(_Model):
     not_included: bool = False
     owner_furnished: bool = False
     credit_if_unused: bool = False
-    alternate: int | None = None              # 1..3: line exists only in that alternate
+    alternate: int | None = None              # 1..6: line exists only in that alternate
 
     internal_notes: str = ""
     vendor: str = ""
@@ -120,7 +120,7 @@ class Line(_Model):
 
 
 class Alternate(_Model):
-    number: int                               # 1..3
+    number: int                               # 1..6
     name: str = ""
     description: str = ""
     removes: list[str] = Field(default_factory=list)   # base line IDs removed
@@ -164,6 +164,14 @@ class ProposalBlock(_Model):
         self.source_title, self.source_body = lib_title, lib_body
 
 
+class ProposalImage(_Model):
+    """A picture or drawing printed in the appendix. The file lives in the project's images/ folder and is never
+    changed or deleted, so issued revisions keep their pictures."""
+    file: str                                 # file name in projects/<folder>/images/
+    caption: str = ""
+    section: int | None = None                # piece or section it shows (printed with the caption)
+
+
 class PieceSection(_Model):
     """A section created in the proposal (Convenient Woodworking: one per piece). Numbers start at 9000 so they
     never collide with catalog sections; line IDs read 90.01, 91.01 ..."""
@@ -196,6 +204,7 @@ class Revision(_Model):
     taxable: bool = False                                      # sales tax on the whole proposal
     tax_county: str = ""
     tax_rate: Decimal = Decimal(0)                             # snapshot of the county's rate
+    images: list[ProposalImage] = Field(default_factory=list)  # appendix, in print order
 
     # -- sections
     def piece(self, number: int) -> PieceSection | None:
@@ -380,6 +389,8 @@ class Project(_Model):
     customer_id: str | None = None    # crm.Customer; client_name / site_address keep the printed text
     attention: str = ""               # contact person printed under a company client
     po_number: str = ""               # client's purchase order number, printed in the header
+    property_received: date | None = None   # client-owned item received at the shop (restoration, repair)
+    property_condition: str = ""             # its condition when received (internal)
     site_address_id: str | None = None
     closed_on: date | None = None
     archived_on: date | None = None   # hidden from the project list; still counted in income summaries

@@ -238,6 +238,16 @@ class FinishPrice(_Model):
         return (self.container_price / self.coverage_sf).quantize(Decimal("0.0001")) if self.coverage_sf else Decimal(0)
 
 
+class VeneerPrice(_Model):
+    id: str
+    species: str                          # "Walnut, quartersawn"
+    thickness: str = ""                   # "0.6 mm", "1/42\""
+    price: Decimal = Decimal(0)           # per square foot
+    supplier: str = ""
+    date: Date | None = None
+    notes: str = ""
+
+
 class OutsourcedPrice(_Model):
     id: str
     service: str                          # "Spray finishing", "CNC cutting"
@@ -255,6 +265,7 @@ class PriceReferences(_Model):
     hardware: list[HardwarePrice] = Field(default_factory=list)
     finishes: list[FinishPrice] = Field(default_factory=list)
     outsourced: list[OutsourcedPrice] = Field(default_factory=list)
+    veneer: list[VeneerPrice] = Field(default_factory=list)
 
     def lumber_price(self, species: str, nominal: str) -> LumberPrice | None:
         return next((x for x in self.lumber if x.species.casefold() == species.casefold() and x.thickness == nominal),
@@ -262,7 +273,8 @@ class PriceReferences(_Model):
 
     def find(self, kind: str, ref: str):
         table = {"lumber": self.lumber, "sheet": self.sheets, "dimensional": self.dimensional,
-                 "hardware": self.hardware, "finish": self.finishes, "outsourced": self.outsourced}.get(kind, [])
+                 "hardware": self.hardware, "finish": self.finishes, "outsourced": self.outsourced,
+                 "veneer": self.veneer}.get(kind, [])
         return next((x for x in table if x.id == ref), None)
 
 
@@ -383,6 +395,7 @@ class Boilerplate(_Model):
     schema_version: int = SCHEMA_VERSION
     headings: list[str] = Field(default_factory=list)   # print order of groups
     blocks: list[BoilerplateBlock] = Field(default_factory=list)
+    migrations: list[str] = Field(default_factory=list)  # one-time additions already applied
 
     def by_heading(self, heading: str) -> list[BoilerplateBlock]:
         return sorted((b for b in self.blocks if b.heading == heading), key=lambda b: b.order)
@@ -475,6 +488,10 @@ class Settings(_Model):
     pricing: PricingPolicy | None = None           # Convenient Woodworking build sheet defaults
     tax_counties: list[TaxCounty] = Field(default_factory=list)
     new_projects_taxable: bool = False
+    # storage of client property (Convenient Woodworking terms): per SF of floor space per month
+    storage_rate: Decimal = Decimal("2.00")
+    storage_min: Decimal = Decimal("25")
+    storage_grace_days: int = 15
 
     def tax_rate(self, county: str) -> Decimal | None:
         return next((c.rate for c in self.tax_counties if c.name == county), None)

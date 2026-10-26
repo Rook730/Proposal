@@ -1,6 +1,6 @@
 # Convenient Woodworking profile: requirements draft
 
-Version 0.3 | 2026-10-25 | Owner: Nick (stages 1 and 2 built in 1.8.0)
+Version 0.4 | 2026-10-26 | Owner: Nick (stages 1 and 2 in 1.8.0, stage 3 in 1.9.0)
 Source: intake answers (claude/proposal-builder-cw-intake.md) and follow-ups F1 to F18. Open items are in section 16. Summary in docs/requirements.md section 16.
 
 ## 1. Purpose and scope
@@ -207,7 +207,7 @@ Not printed: Prepared by, valid-until date, slogan, cash discount (none offered)
    - Tax by county, deposit rule.
    - Customer type and PO number.
    - CW PDF template, How to read and terms library.
-3. **Remaining CW features:**
+3. **Remaining CW features (released in 1.9.0):**
    - Restoration import.
    - Image appendix.
    - Client property fields and storage.
@@ -219,5 +219,5 @@ Not printed: Prepared by, valid-until date, slogan, cash discount (none offered)
 ## 16. Open
 
 - Profit percent default.
-- Storage rate: proposed $2.00/SF of footprint per month, $25 minimum per month.
+- Storage rate: $2.00/SF per month, $25 minimum, 15 free days are the 1.9.0 defaults (Settings); confirm.
 - Box job inputs: 1/2" prefinished maple ply price, McMaster hardware prices (1647A34 handles, 1766A2 latches, 1608A42 piano hinge), engraving method and time, setup and per-box hours.

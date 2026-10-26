@@ -348,7 +348,8 @@ def prices_page() -> None:
     layout("Price references")
     st = get_state()
     from ..crm import new_id
-    from ..models import (DimensionalPrice, FinishPrice, HardwarePrice, LumberPrice, OutsourcedPrice, SheetPrice)
+    from ..models import (DimensionalPrice, FinishPrice, HardwarePrice, LumberPrice, OutsourcedPrice, SheetPrice,
+                          VeneerPrice)
     pr = st.catalog.prices
     page_title("Price references", "Material and service prices the build sheets start from (Convenient "
                "Woodworking). Each build sheet keeps its own copy; open a build sheet and use Pull prices to refresh "
@@ -356,6 +357,7 @@ def prices_page() -> None:
     with ui.tabs().props("dense inline-label align=left no-caps").classes("w-full border-b") as tabs:
         t_lum = ui.tab("Lumber", icon="forest")
         t_sht = ui.tab("Sheet goods", icon="layers")
+        t_ven = ui.tab("Veneer", icon="texture")
         t_dim = ui.tab("Dimensional", icon="straighten")
         t_hw = ui.tab("Hardware", icon="hardware")
         t_fin = ui.tab("Finishes", icon="format_paint")
@@ -378,6 +380,14 @@ def prices_page() -> None:
                           Col("width_in", "W (in)", "number", width=85), Col("length_in", "L (in)", "number", width=85),
                           Col("price", "$/sheet", "money", width=105), *sup],
                          st.save_catalog, lambda: SheetPrice(id=new_id(), product=""), height="62vh")
+        with ui.tab_panel(t_ven):
+            ui.label("$ per square foot. Build sheets compute square feet from pieces x W x L x yield.") \
+                .classes("text-xs text-gray-500")
+            EditableGrid(lambda: pr.veneer,
+                         [Col("species", "Species / cut", width=220), Col("thickness", "Thickness", width=110),
+                          Col("price", "$/SF", "money", width=100), *sup],
+                         st.save_catalog, lambda: VeneerPrice(id=new_id(), species=""), height="62vh",
+                         empty="No veneer yet. Use Add row.")
         with ui.tab_panel(t_dim):
             EditableGrid(lambda: pr.dimensional,
                          [Col("material", "Material", width=190), Col("size", "Size", width=80),
@@ -596,6 +606,18 @@ def settings_page(profile: str = KS) -> None:
                 if cw:
                     ui.label("Deposit due at signing; the balance is due at delivery or when installation is "
                              "complete.").classes("text-xs text-gray-500")
+                    ui.label("Storage of client property").classes("font-semibold text-sm mt-3")
+                    with ui.grid(columns=3).classes("w-full gap-x-4"):
+                        ui.number("Rate per SF per month", value=float(s.storage_rate), format="%.2f") \
+                            .props('dense prefix="$"').on_value_change(
+                                bind(s, "storage_rate", lambda x: Decimal(str(x or 0))))
+                        ui.number("Minimum per month", value=float(s.storage_min), format="%.2f") \
+                            .props('dense prefix="$"').on_value_change(
+                                bind(s, "storage_min", lambda x: Decimal(str(x or 0))))
+                        ui.number("Free days after notice", value=s.storage_grace_days, format="%d") \
+                            .props("dense").on_value_change(bind(s, "storage_grace_days", lambda x: int(x or 0)))
+                    ui.label("Printed in the terms block Client property in our care ({storage_rate}, {storage_min}, "
+                             "{storage_grace_days}).").classes("text-xs text-gray-500")
                 else:
                     ui.label("Issues tab and change orders warn when a total including owner-supplied items reaches "
                              "this amount. 0 turns the warning off.").classes("text-xs text-gray-500")
