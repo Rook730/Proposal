@@ -136,6 +136,7 @@ Convenient Woodworking, stage 3 (docs/cw-requirements.md section 15).
 
 ## Next release
 
-(nothing yet)
+70. [x] Fix: deleting or adding a labor row in a build sheet did not show until "Use this build sheet" (the grid's save callback returned a refresh handle, which crashed the redraw). Grids now ignore non-list save results.
+71. [x] Fix: Export PDF in the Preview window did nothing (since 1.7; the export was never started). The Export PDF item in the editor's menu was not affected. A test now checks that no button hides an async call this way.
 
 Open values: profit percent (10% placeholder), real McMaster prices for the square box template, actual hours (stage 4, calibration).

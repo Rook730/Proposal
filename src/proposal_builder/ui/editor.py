@@ -1861,8 +1861,11 @@ class Editor:
                 if errors:
                     ui.label(f"{len(errors)} issue(s): see Issues tab").classes("text-orange-200")
                 ui.space()
-                ui.button("Export PDF", icon="picture_as_pdf",
-                          on_click=lambda: (dlg.close(), self.export_pdf())).props("flat color=white")
+                async def export_from_preview() -> None:
+                    dlg.close()
+                    await self.export_pdf()
+                ui.button("Export PDF", icon="picture_as_pdf", on_click=export_from_preview) \
+                    .props("flat color=white")
                 ui.button(icon="close", on_click=dlg.close).props("flat round color=white")
             with ui.scroll_area().classes("w-full grow").style("background:#80868b"):
                 with ui.column().classes("w-full items-center gap-4 py-4"):

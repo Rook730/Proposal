@@ -215,8 +215,10 @@ def to_json(v: Any) -> Any:
     return v
 
 
-def warn(problems: list[str]) -> None:
-    if problems:
+def warn(problems) -> None:
+    """Show save warnings. Anything other than a list (e.g. a save callback that returns a refresh handle) is
+    ignored, so a grid always redraws after a save."""
+    if isinstance(problems, list) and problems:
         ui.notify("Saved with warnings: " + "; ".join(problems[:5])
                   + (" ..." if len(problems) > 5 else ""), type="warning", multi_line=True, timeout=8000)
 

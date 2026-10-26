@@ -263,11 +263,14 @@ def build_dialog(build: BuildSheet | None, qty: Decimal, catalog: Catalog, polic
                      "thickness times the yield. Setup rows count once per line.").classes("text-xs text-gray-500")
 
             ui.label("Labor").classes("font-semibold mt-2")
+
+            def labor_saved() -> None:
+                summary.refresh()
             EditableGrid(lambda: work.labor,
                          [Col("setup", "Setup", "bool", width=95),
                           Col("phase", "Phase", "select", phases or [""], width=220),
                           Col("hours", "Hours", "number", width=100), Col("notes", "Notes", flex=1)],
-                         lambda: summary.refresh(), lambda: BuildLabor(phase=phases[0] if phases else ""),
+                         labor_saved, lambda: BuildLabor(phase=phases[0] if phases else ""),
                          height="26vh", readonly=readonly,
                          empty="No labor yet. Use Add row. Setup hours (design, jigs, programming) count once.")
             notes = ui.textarea("Notes (internal)", value=work.notes).props("dense autogrow").classes("w-full")
