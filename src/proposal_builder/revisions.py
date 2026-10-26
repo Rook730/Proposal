@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal
 
-from .calc import calculate
+from .calc import calculate, fmt_pct
 from .models import Settings, StockClass
 from .proposal import (
     Project,
@@ -212,6 +212,13 @@ def revision_diff(old: Revision, new: Revision, settings: Settings, stock: list[
                      + "; alternate lines are now part of the base")
     elif new.is_contract and not old.is_contract and old.alternates:
         notes.append("Accepted as the base proposal; alternates were not selected")
+    if old.rush_pct != new.rush_pct:
+        if not new.rush_pct:
+            notes.append(f"Rush fee removed (was {fmt_pct(old.rush_pct)})")
+        elif not old.rush_pct:
+            notes.append(f"Rush fee added: {fmt_pct(new.rush_pct)} of the subtotal")
+        else:
+            notes.append(f"Rush fee changed from {fmt_pct(old.rush_pct)} to {fmt_pct(new.rush_pct)}")
     old_alts = {a.number for a in old.alternates}
     new_alts = {a.number for a in new.alternates}
     for n in sorted(new_alts - old_alts):

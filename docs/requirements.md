@@ -493,6 +493,8 @@ A toggle shows fields that never print:
 
 **1.9.2:** Lines grid always in print order. Build sheet audit: buy whole sheets and sticks, finish coats from the product, templates at current Settings rates, labor + profit per hour, rounding and price-for-1 labels, variable and takeoff quantities, automatic re-pricing on thickness changes, direct quantities, typed prices kept, glue-ups priced, under-1 quantity warning.
 
+**1.9.3:** Move up / Move down on a line alone in its section moves the section; adding a section keeps the user's section order; the changes page lists rush fee changes.
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.

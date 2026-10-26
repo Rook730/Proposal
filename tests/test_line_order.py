@@ -67,3 +67,19 @@ def test_reported_cw_order_box_allowance_delivery():
     assert rev.sections == [3100, 2500, 3000]
     line(rev, 2400, "Electrical")                               # a later addition does not undo it
     assert [s for s in rev.sections if s != 2400] == [3100, 2500, 3000]
+
+
+def test_revision_diff_lists_rush_changes():
+    from proposal_builder.models import Settings
+    from proposal_builder.revisions import revision_diff
+    old = Revision(rev="1.0")
+    line(old, 3100, "Square box")
+    new = old.model_copy(deep=True, update={"rev": "1.1"})
+
+    def notes(a, b):
+        old.rush_pct, new.rush_pct = D(a), D(b)
+        return [n for n in revision_diff(old, new, Settings(), []).notes if "Rush" in n]
+    assert notes("0", "0.2") == ["Rush fee added: 20% of the subtotal"]
+    assert notes("0.2", "0.35") == ["Rush fee changed from 20% to 35%"]
+    assert notes("0.2", "0") == ["Rush fee removed (was 20%)"]
+    assert notes("0.2", "0.2") == []

@@ -158,7 +158,12 @@ Build sheet audit (all findings fixed):
 81. [x] Parts thicker than the rough thickness map (glue-ups) are priced at the thickest nominal's rate (was a nonexistent "17/4" with no price).
 82. [x] A Built line with a quantity under 1 shows a warning in the build sheet and the Issues tab (the unit price carries all the setup).
 
-## Next release
+## Released in 1.9.3 (2026-10-26)
 
 83. [x] Move up / Move down on a line that is alone in its section (most CW pieces, delivery) now moves that section, so the line moves in the list and on the proposal (was a silent no-op). A line that is first or last in a section with other lines says so instead of doing nothing.
 84. [x] Adding a line in a new section, or a new piece, places that section by number without re-sorting the sections already there (was resetting any order set with the section arrows).
+85. [x] The "Changes from previous revision" page lists a rush fee added, changed or removed.
+
+## Next release
+
+(nothing yet)
