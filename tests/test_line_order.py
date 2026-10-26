@@ -53,3 +53,17 @@ def test_adding_a_section_keeps_manual_order():
     assert rev.sections == [2500, 3000, 2100]                   # 3000 stays ahead of 2100
     p = rev.add_piece("Box")                                    # pieces go before catalog sections
     assert rev.sections == [p.number, 2500, 3000, 2100]
+
+
+def test_reported_cw_order_box_allowance_delivery():
+    """3101 first, then the 2540 allowance, then 3010 delivery last; one line per section."""
+    rev = Revision()
+    line(rev, 2500, "Freight allowance")
+    line(rev, 3000, "Delivery")
+    box = line(rev, 3100, "Square box")
+    assert rev.sections == [2500, 3000, 3100]                   # default: number order
+    assert not rev.move_line(box.id, -1)                        # alone in its section, so the editor moves the section
+    assert rev.move_section(3100, -1) and rev.move_section(3100, -1)
+    assert rev.sections == [3100, 2500, 3000]
+    line(rev, 2400, "Electrical")                               # a later addition does not undo it
+    assert [s for s in rev.sections if s != 2400] == [3100, 2500, 3000]
