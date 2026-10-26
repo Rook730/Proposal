@@ -3,7 +3,8 @@
 A line priced "Built" gets its unit price from its build sheet:
 
     cost       = setup + qty x (materials + outsourced + hours x shop rate)   per piece
-    line price = cost x (1 + overhead % + profit %)       flat, not compounded, like KS percent items
+                 (rows marked "buy whole" round the line's quantity up to whole sheets or sticks first)
+    line price = cost x (1 + overhead % + profit %)       markups on cost, flat, like KS percent items
     unit price = line price / qty, rounded up to the rounding step ($5)
     line total = unit price x qty
 
@@ -51,12 +52,14 @@ def default_rough_map() -> list[RoughThickness]:
 
 
 def rough_for(thickness: Decimal, rough_map: list[RoughThickness]) -> tuple[str, Decimal]:
-    """Nominal stock for a finished thickness: the thinnest whose finished size covers it."""
-    for r in sorted(rough_map, key=lambda r: r.finished):
+    """Nominal stock for a finished thickness: the thinnest whose finished size covers it. Thicker than the map
+    (a glue-up): priced at the thickest nominal's rate, board feet counted at the thickness plus 1/4"."""
+    ordered = sorted(rough_map, key=lambda r: r.finished)
+    for r in ordered:
         if thickness <= r.finished:
             return r.nominal, r.nominal_in
-    q = Decimal(math.ceil((thickness + Decimal("0.25")) * 4)) / 4        # thicker than the map: add 1/4"
-    return f"{int(q * 4)}/4", q
+    q = Decimal(math.ceil((thickness + Decimal("0.25")) * 4)) / 4
+    return (ordered[-1].nominal if ordered else f"{int(q * 4)}/4"), q
 
 
 class PricingPolicy(_Model):
@@ -92,6 +95,8 @@ class BuildMaterial(_Model):
     unit: str = "EA"
     coats: Decimal | None = None           # finish: SF x coats
     unit_cost: Decimal = ZERO              # snapshot
+    typed_cost: bool = False               # unit cost typed by hand: Pull prices leaves it alone
+    buy_whole: bool = False                # round the line's quantity up to whole units (sheets, sticks)
     notes: str = ""
 
     @property
@@ -111,7 +116,16 @@ class BuildMaterial(_Model):
 
     @property
     def cost(self) -> Decimal:
+        """Per piece (or once, for setup rows), before buying whole units."""
         return (self.quantity * self.unit_cost).quantize(CENT, rounding=ROUND_HALF_UP)
+
+    def line_quantity(self, qty: Decimal) -> Decimal:
+        """Quantity bought for a line of qty pieces."""
+        n = self.quantity if self.setup else self.quantity * qty
+        return Decimal(math.ceil(n)) if self.buy_whole else n
+
+    def line_cost(self, qty: Decimal) -> Decimal:
+        return (self.line_quantity(qty) * self.unit_cost).quantize(CENT, rounding=ROUND_HALF_UP)
 
     @property
     def stale(self) -> bool:
@@ -129,11 +143,11 @@ class BuildLabor(_Model):
 @dataclass
 class BuildTotals:
     qty: Decimal
-    setup_materials: Decimal
-    setup_outsourced: Decimal
+    materials: Decimal                     # whole line, outsourced excluded, whole units bought
+    outsourced: Decimal                    # whole line
+    setup_materials: Decimal               # included in materials
+    whole_units: Decimal                   # included in materials: extra from buying whole sheets / sticks
     setup_hours: Decimal
-    unit_materials: Decimal                # per piece
-    unit_outsourced: Decimal
     unit_hours: Decimal
     shop_rate: Decimal
     cost: Decimal                          # whole line
@@ -142,14 +156,6 @@ class BuildTotals:
     line_price: Decimal                    # before rounding
     unit_price: Decimal                    # rounded up
     line_total: Decimal
-
-    @property
-    def materials(self) -> Decimal:        # whole line, outsourced excluded
-        return self.setup_materials + self.qty * self.unit_materials
-
-    @property
-    def outsourced(self) -> Decimal:
-        return self.setup_outsourced + self.qty * self.unit_outsourced
 
     @property
     def hours(self) -> Decimal:
@@ -165,9 +171,15 @@ class BuildTotals:
 
     @property
     def effective_rate(self) -> Decimal | None:
-        """What each shop hour earns: line total less materials and outsourced, per hour."""
-        return ((self.line_total - self.materials - self.outsourced) / self.hours).quantize(CENT) \
+        """Labor + profit per shop hour: the line total less materials, outsourced work and overhead (a cost),
+        per hour. Includes the price rounding."""
+        return ((self.line_total - self.materials - self.outsourced - self.overhead) / self.hours).quantize(CENT) \
             if self.hours else None
+
+    @property
+    def profit_margin(self) -> Decimal | None:
+        """Profit as a share of the price (the profit % is a markup on cost)."""
+        return self.profit / self.line_price if self.line_price else None
 
 
 class BuildSheet(_Model):
@@ -192,6 +204,15 @@ class BuildSheet(_Model):
     def yield_factor(self, tier: str) -> Decimal:
         return {"low": self.yield_low, "high": self.yield_high}.get(tier, self.yield_medium)
 
+    def apply_policy(self, p: PricingPolicy) -> None:
+        """Take the current rates (a template added to a proposal follows Settings, not the rates it was saved
+        with); materials and labor stay."""
+        self.shop_rate, self.overhead_pct, self.profit_pct, self.rounding = (p.shop_rate, p.overhead_pct,
+                                                                             p.profit_pct, p.rounding)
+        self.yield_low, self.yield_medium, self.yield_high = p.yield_low, p.yield_medium, p.yield_high
+        self.rough_map = [r.model_copy() for r in p.rough_map]
+        self.recalc()
+
     def recalc(self) -> None:
         """Board feet of lumber parts from their dimensions."""
         for m in self.materials:
@@ -206,24 +227,24 @@ class BuildSheet(_Model):
                 m.unit = "SF"
 
     def totals(self, qty: Decimal) -> BuildTotals:
-        def sums(setup: bool) -> tuple[Decimal, Decimal, Decimal]:
-            mats = sum((m.cost for m in self.materials if m.setup == setup and m.kind != "outsourced"), ZERO)
-            outs = sum((m.cost for m in self.materials if m.setup == setup and m.kind == "outsourced"), ZERO)
-            hrs = sum((x.hours for x in self.labor if x.setup == setup), ZERO)
-            return mats, outs, hrs
-        s_mat, s_out, s_hrs = sums(True)
-        u_mat, u_out, u_hrs = sums(False)
         q = qty if qty and qty > 0 else Decimal(1)
-        cost = (s_mat + s_out + s_hrs * self.shop_rate
-                + q * (u_mat + u_out + u_hrs * self.shop_rate)).quantize(CENT, rounding=ROUND_HALF_UP)
+        mats = sum((m.line_cost(q) for m in self.materials if m.kind != "outsourced"), ZERO)
+        outs = sum((m.line_cost(q) for m in self.materials if m.kind == "outsourced"), ZERO)
+        s_mat = sum((m.cost for m in self.materials if m.setup and m.kind != "outsourced"), ZERO)
+        exact = sum(((m.quantity if m.setup else m.quantity * q) * m.unit_cost for m in self.materials), ZERO)
+        whole = (mats + outs - exact).quantize(CENT, rounding=ROUND_HALF_UP) \
+            if any(m.buy_whole for m in self.materials) else ZERO
+        s_hrs = sum((x.hours for x in self.labor if x.setup), ZERO)
+        u_hrs = sum((x.hours for x in self.labor if not x.setup), ZERO)
+        cost = (mats + outs + (s_hrs + q * u_hrs) * self.shop_rate).quantize(CENT, rounding=ROUND_HALF_UP)
         overhead = (cost * self.overhead_pct).quantize(CENT, rounding=ROUND_HALF_UP)
         profit = (cost * self.profit_pct).quantize(CENT, rounding=ROUND_HALF_UP)
         line_price = cost + overhead + profit
         step = self.rounding if self.rounding and self.rounding > 0 else CENT
         unit = Decimal(math.ceil(line_price / q / step)) * step
         unit = unit.quantize(CENT)
-        return BuildTotals(qty=q, setup_materials=s_mat, setup_outsourced=s_out, setup_hours=s_hrs,
-                           unit_materials=u_mat, unit_outsourced=u_out, unit_hours=u_hrs,
+        return BuildTotals(qty=q, materials=mats, outsourced=outs, setup_materials=s_mat, whole_units=whole,
+                           setup_hours=s_hrs, unit_hours=u_hrs,
                            shop_rate=self.shop_rate, cost=cost, overhead=overhead, profit=profit,
                            line_price=line_price, unit_price=unit, line_total=(unit * q).quantize(CENT))
 
@@ -233,3 +254,40 @@ class BuildSheet(_Model):
     @property
     def empty(self) -> bool:
         return not self.materials and not self.labor
+
+
+# ---------------------------------------------------------------- pricing from Catalog > Price references
+
+
+def price_material(m: BuildMaterial, prices, sheet: BuildSheet) -> bool:
+    """Set the unit cost from the price references. Lumber is priced for the nominal its parts need.
+    Returns False when no price was found."""
+    if m.kind == "lumber":
+        if m.thickness is not None:
+            m.nominal, _ = rough_for(m.thickness, sheet.rough_map)
+        species = m.ref or m.name
+        lp = prices.lumber_price(species, m.nominal) if m.nominal else None
+        if lp is None:
+            return False
+        m.unit_cost, m.priced_as, m.ref = lp.price, lp.thickness, lp.species
+        return True
+    ref = prices.find(m.kind, m.ref) if m.ref else None
+    if ref is None:
+        return False
+    if m.kind == "finish":
+        m.unit_cost = ref.per_sf_coat
+        if m.coats is None and ref.coats:
+            m.coats = ref.coats                   # the product's coat count unless the row has its own
+    else:
+        m.unit_cost = ref.price
+    return True
+
+
+def pull_prices(sheet: BuildSheet, prices) -> tuple[list[str], list[str]]:
+    """Refresh unit costs from the price references. Rows with a typed cost are kept; lumber entered directly
+    as board feet (no part dimensions) is left alone. Returns (not found, kept typed)."""
+    sheet.recalc()
+    typed = [m.name for m in sheet.materials if m.typed_cost]
+    linked = [m for m in sheet.materials if not m.typed_cost and ((m.ref and m.kind != "lumber") or m.has_dims)]
+    missing = [m.name for m in linked if not price_material(m, prices, sheet)]
+    return missing, typed

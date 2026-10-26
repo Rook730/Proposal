@@ -419,7 +419,7 @@ class Project(_Model):
 
 
 def line_from_item(item: CatalogItem, catalog: Catalog, line_id: str,
-                   tier: Tier | None = None) -> Line:
+                   tier: Tier | None = None, policy=None) -> Line:
     """Snapshot a catalog item into a new proposal line."""
     ln = Line(
         id=line_id, section=item.section, code=item.code, title=item.title,
@@ -433,6 +433,8 @@ def line_from_item(item: CatalogItem, catalog: Catalog, line_id: str,
         build=item.build.model_copy(deep=True) if item.build else None,
     )
     apply_catalog_price(ln, item, catalog)
+    if ln.build is not None and policy is not None:
+        ln.build.apply_policy(policy)      # a template's materials and labor at today's rates (Settings)
     if item.not_included:
         ln.qty = Decimal(1)
     return ln

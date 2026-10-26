@@ -490,6 +490,9 @@ A toggle shows fields that never print:
 
 **1.9.1:** Fixes: build sheet labor rows redraw after delete or add; Export PDF in the Preview window works.
 
+
+**1.9.2:** Lines grid always in print order. Build sheet audit: buy whole sheets and sticks, finish coats from the product, templates at current Settings rates, labor + profit per hour, rounding and price-for-1 labels, variable and takeoff quantities, automatic re-pricing on thickness changes, direct quantities, typed prices kept, glue-ups priced, under-1 quantity warning.
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.
@@ -503,7 +506,7 @@ Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project manageme
 - The app is named Proposal Builder (window, exe, %APPDATA%\ProposalBuilder, copied once from %APPDATA%\KeptSpecProposal).
 
 **Stage 2 (1.8.0)**
-- Price basis Built: the unit price comes from the line's build sheet (`buildsheet.py`): cost = setup + qty x (materials + outsourced + hours x shop rate); line price = cost x (1 + overhead % + profit %), flat; unit price rounded up to the rounding step. The sheet stores its own policy and unit costs (snapshot rule); Pull prices refreshes from Catalog > Price references.
+- Price basis Built: the unit price comes from the line's build sheet (`buildsheet.py`): cost = setup + qty x (materials + outsourced + hours x shop rate), with "buy whole" rows rounded up to whole units for the line; line price = cost x (1 + overhead % + profit %), markups on cost, flat; unit price rounded up to the rounding step. A template added to a proposal takes the current Settings rates (1.9.2). The sheet stores its own policy and unit costs (snapshot rule); Pull prices refreshes from Catalog > Price references.
 - Lumber parts: finished T x W x L per unit; board feet at the nominal thickness from the rough thickness map, times the yield factor (low / medium / high).
 - Pieces: sections created in a revision (`Revision.pieces`, numbers from 9000), printed first.
 - Revision fields: rush_pct (fraction of the subtotal), taxable, tax_county, tax_rate (snapshot). Total = subtotal + percent items + rush + tax; each alternate and combination recomputes all three. Tax is on the whole proposal.

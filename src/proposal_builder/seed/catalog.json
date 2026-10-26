@@ -3097,6 +3097,8 @@
             "unit": "SHT",
             "coats": null,
             "unit_cost": "118",
+            "typed_cost": false,
+            "buy_whole": true,
             "notes": "3 sheets per 10 boxes (12\" strips for lids, bottoms and sides; ~11.6\" strips for ends)"
           },
           {
@@ -3115,6 +3117,8 @@
             "unit": "EA",
             "coats": null,
             "unit_cost": "8",
+            "typed_cost": false,
+            "buy_whole": false,
             "notes": ""
           },
           {
@@ -3133,6 +3137,8 @@
             "unit": "EA",
             "coats": null,
             "unit_cost": "10",
+            "typed_cost": false,
+            "buy_whole": false,
             "notes": ""
           },
           {
@@ -3151,6 +3157,8 @@
             "unit": "EA",
             "coats": null,
             "unit_cost": "15",
+            "typed_cost": false,
+            "buy_whole": false,
             "notes": ""
           }
         ],
@@ -4719,6 +4727,7 @@
   },
   "migrations": [
     "cw-1.8.0",
-    "cw-1.9.0-restoration"
+    "cw-1.9.0-restoration",
+    "cw-1.9.2-buy-whole"
   ]
 }

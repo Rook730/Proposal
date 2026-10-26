@@ -8,8 +8,9 @@ from typing import Callable
 from nicegui import ui
 from pydantic import ValidationError
 
-from ..buildsheet import MATERIAL_KINDS, YIELD_TIERS, BuildLabor, BuildMaterial, BuildSheet, PricingPolicy, rough_for
-from ..models import Catalog, PriceReferences
+from ..buildsheet import (MATERIAL_KINDS, YIELD_TIERS, BuildLabor, BuildMaterial, BuildSheet, PricingPolicy,
+                          price_material, pull_prices)
+from ..models import Catalog, PriceReferences  # noqa: F401
 from .widgets import Col, EditableGrid, to_decimal
 
 ZERO = Decimal(0)
@@ -23,28 +24,6 @@ def money(v: Decimal | None) -> str:
 
 def _n(v) -> float | None:
     return float(v) if v is not None else None
-
-
-def price_material(m: BuildMaterial, prices: PriceReferences, sheet: BuildSheet) -> bool:
-    """Set the unit cost from the price references. Lumber is priced for the nominal its parts need.
-    Returns False when no price was found."""
-    if m.kind == "lumber":
-        if m.thickness is not None:
-            m.nominal, _ = rough_for(m.thickness, sheet.rough_map)
-        species = m.ref or m.name
-        lp = prices.lumber_price(species, m.nominal) if m.nominal else None
-        if lp is None:
-            return False
-        m.unit_cost, m.priced_as, m.ref = lp.price, lp.thickness, lp.species
-        return True
-    ref = prices.find(m.kind, m.ref) if m.ref else None
-    if ref is None:
-        return False
-    if m.kind == "finish":
-        m.unit_cost = ref.per_sf_coat
-    else:
-        m.unit_cost = ref.price
-    return True
 
 
 def _ref_options(kind: str, prices: PriceReferences) -> dict[str, str]:
@@ -85,7 +64,9 @@ def add_material_dialog(sheet: BuildSheet, catalog: Catalog, on_added: Callable[
             unit = ui.input("Unit", value="EA").props("dense")
             coats = ui.number("Coats").props("dense")
             cost = ui.number("Unit cost ($) (blank = from references)").props("dense").classes("col-span-2")
-        setup = ui.checkbox("Setup (once per line, not per piece)")
+        with ui.row().classes("gap-6"):
+            setup = ui.checkbox("Setup (once per line, not per piece)")
+            whole = ui.checkbox("Buy whole units (round the line up to whole sheets or sticks)")
         hint = ui.label().classes("text-xs text-gray-500")
 
         def kind_changed(_=None) -> None:
@@ -98,6 +79,8 @@ def add_material_dialog(sheet: BuildSheet, catalog: Catalog, on_added: Callable[
             qty.set_visibility(not (lumber or veneer))
             unit.set_visibility(not (lumber or veneer))
             coats.set_visibility(k == "finish")
+            whole.set_visibility(k in ("sheet", "dimensional", "hardware", "other"))
+            whole.set_value(k in ("sheet", "dimensional"))
             unit.set_value({"sheet": "SHT", "dimensional": "PC", "finish": "SF"}.get(k, "EA"))
             qty.props(f'label="{"Surface SF per unit" if k == "finish" else "Qty per unit"}"')
             hint.set_text({"lumber": "Board feet = pieces x nominal thickness x W x L / 144 x yield. The nominal "
@@ -113,6 +96,7 @@ def add_material_dialog(sheet: BuildSheet, catalog: Catalog, on_added: Callable[
             k = kind.value
             try:
                 m = BuildMaterial(kind=k, setup=setup.value, ref=ref.value or "",
+                                  buy_whole=bool(whole.value) and k in ("sheet", "dimensional", "hardware", "other"),
                                   name=(name.value or "").strip() or (ref.options.get(ref.value, "") if ref.value
                                                                       else "").split(" $")[0].split(" (")[0])
                 if k == "lumber":
@@ -140,8 +124,7 @@ def add_material_dialog(sheet: BuildSheet, catalog: Catalog, on_added: Callable[
             sheet.recalc()
             typed = to_decimal(cost.value)
             if typed is not None:
-                m.unit_cost = typed
-                m.priced_as = m.nominal
+                m.unit_cost, m.typed_cost, m.priced_as = typed, True, m.nominal
             elif not price_material(m, prices, sheet):
                 ui.notify(f"No price found for {m.name}{' ' + m.nominal if m.nominal else ''}; enter the unit cost "
                           "in the grid.", type="warning")
@@ -182,22 +165,29 @@ def build_dialog(build: BuildSheet | None, qty: Decimal, catalog: Catalog, polic
                             if sub:
                                 ui.label(sub).classes("text-[11px] text-gray-500 whitespace-nowrap")
                     fig("Qty", f"{q.normalize():f}")
-                    fig("Materials", money(t.materials), f"{money(t.setup_materials)} setup" if t.setup_materials else "")
+                    msub = ", ".join(x for x in (f"{money(t.setup_materials)} setup" if t.setup_materials else "",
+                                                  f"{money(t.whole_units)} whole units" if t.whole_units else "") if x)
+                    fig("Materials", money(t.materials), msub)
                     if t.outsourced:
                         fig("Outsourced", money(t.outsourced))
                     fig("Hours", f"{t.hours.normalize():f}",
                         f"{t.setup_hours.normalize():f} setup + {t.unit_hours.normalize():f} each")
                     fig("Labor", money(t.labor), f"at {money(t.shop_rate)}/hr")
                     fig("Cost", money(t.cost))
-                    fig("Overhead", money(t.overhead), f"{work.overhead_pct * 100:.1f}%")
-                    fig("Profit", money(t.profit), f"{work.profit_pct * 100:.1f}%")
+                    fig("Overhead", money(t.overhead), f"{work.overhead_pct * 100:.1f}% of cost")
+                    fig("Profit", money(t.profit), f"{work.profit_pct * 100:.1f}% of cost, "
+                        f"{(t.profit_margin or 0) * 100:.1f}% of price")
                     fig("Unit price", money(t.unit_price), f"rounded up from {money(t.line_price / q)}")
-                    fig("Line total", money(t.line_total))
-                    fig("Per shop hour", money(t.effective_rate), "after materials")
+                    fig("Line total", money(t.line_total),
+                        f"rounding +{money(t.rounding)}" if t.rounding else "")
+                    fig("Labor + profit / hr", money(t.effective_rate), "after materials and overhead")
                     if q != 1:
                         fig("Price for 1", money(one.unit_price))
                 stale = [m.name for m in work.materials if m.stale]
                 unpriced = [m.name for m in work.materials if not m.unit_cost]
+                if q < 1:
+                    ui.label(f"Quantity {q.normalize():f} is less than one piece: the unit price carries all the "
+                             "setup. The line total is right; consider qty 1.").classes("text-xs text-orange-700")
                 if stale:
                     ui.label(f"Priced for a different thickness: {', '.join(stale)}. Use Pull prices.") \
                         .classes("text-xs text-orange-700")
@@ -207,11 +197,23 @@ def build_dialog(build: BuildSheet | None, qty: Decimal, catalog: Catalog, polic
 
             def changed() -> None:
                 work.recalc()
+                for m in work.materials:          # a part's thickness changed: price it for its new nominal
+                    if m.stale and not m.typed_cost:
+                        price_material(m, catalog.prices, work)
                 summary.refresh()
                 if holder.get("mats"):
                     holder["mats"].refresh()
 
             holder: dict = {}
+
+            def cell_edited(m: BuildMaterial, field: str) -> None:
+                if field == "unit_cost":
+                    m.typed_cost = True
+                    m.priced_as = m.nominal
+                elif field == "qty" and (m.has_dims or m.has_area):
+                    m.pieces = m.thickness = m.width = m.length = None   # entered directly from now on
+                    m.nominal = m.priced_as = ""
+                    ui.notify(f"{m.name}: quantity entered directly; Pcs, T, W and L cleared.", type="info")
             with ui.row().classes("items-end gap-3"):
                 for label, attr, pct in (("Shop rate ($/hr)", "shop_rate", False), ("Overhead %", "overhead_pct", True),
                                          ("Profit %", "profit_pct", True), ("Round up to ($)", "rounding", False)):
@@ -239,12 +241,11 @@ def build_dialog(build: BuildSheet | None, qty: Decimal, catalog: Catalog, polic
                         .props("dense outline no-caps")
 
                     def pull() -> None:
-                        work.recalc()
-                        missing = [m.name for m in work.materials if (m.ref or m.kind == "lumber")
-                                   and not price_material(m, catalog.prices, work)]
+                        missing, typed = pull_prices(work, catalog.prices)
                         changed()
                         ui.notify("Prices pulled from the price references."
-                                  + (f" Not found: {', '.join(missing)}" if missing else ""),
+                                  + (f" Not found: {', '.join(missing)}." if missing else "")
+                                  + (f" Kept typed prices: {', '.join(typed)}." if typed else ""),
                                   type="warning" if missing else "positive", multi_line=True)
                     ui.button("Pull prices", icon="sync", on_click=pull).props("dense flat no-caps")
             holder["mats"] = EditableGrid(
@@ -255,12 +256,17 @@ def build_dialog(build: BuildSheet | None, qty: Decimal, catalog: Catalog, polic
                  Col("length", "L", "number", width=75), Col("yield_tier", "Yield", "select", list(YIELD_TIERS), width=105),
                  Col("nominal", "Nominal", width=105, editable=False), Col("qty", "Qty", "number", width=85),
                  Col("unit", "Unit", width=85), Col("coats", "Coats", "number", width=90),
-                 Col("unit_cost", "Unit cost", "money", width=120), Col("cost", "Cost", "money", width=110, editable=False),
+                 Col("buy_whole", "Buy whole", "bool", width=115),
+                 Col("unit_cost", "Unit cost", "money", width=120), Col("cost", "Cost each", "money", width=120,
+                                                                         editable=False),
                  Col("notes", "Notes", flex=1)],
                 lambda: changed(), lambda: BuildMaterial(kind="other", name=""), height="34vh", readonly=readonly,
-                empty="No materials yet. Use Add material (from the price references) or Add row (typed).")
-            ui.label("Lumber parts: Pcs, T, W, L are finished inches per unit; Qty becomes board feet at the nominal "
-                     "thickness times the yield. Setup rows count once per line.").classes("text-xs text-gray-500")
+                empty="No materials yet. Use Add material (from the price references) or Add row (typed).",
+                on_cell=cell_edited)
+            ui.label("Lumber and veneer parts: Pcs, T, W, L are finished inches per piece; Qty becomes board feet (or "
+                     "square feet) times the yield. Type a Qty to enter it directly instead. Setup rows count once per "
+                     "line. Buy whole rounds the line's quantity up to whole sheets or sticks. A typed unit cost is "
+                     "kept by Pull prices.").classes("text-xs text-gray-500")
 
             ui.label("Labor").classes("font-semibold mt-2")
 

@@ -57,6 +57,8 @@ def _item_rows() -> list[dict]:
             shown += f"  ({i.rate_key})"
         elif i.price_source is PriceSource.ALLOWANCE:
             shown += f"  ({i.default_tier.value})" if price is not None else "range"
+        elif i.price_source is PriceSource.BUILT and price is not None:
+            shown += " for 1 (setup on one piece)"
         flags = " ".join(f for f, on in [("allow.", i.is_allowance), ("not incl.", i.not_included),
                                          ("owner", i.owner_furnished),
                                          ("credit", i.credit_if_unused), ("inactive", not i.active)] if on)

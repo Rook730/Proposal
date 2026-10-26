@@ -291,8 +291,10 @@ class EditableGrid:
 
     def __init__(self, models: Callable[[], list[BaseModel]], cols: list[Col],
                  save: Callable[[], list[str] | None], new_model: Callable[[], BaseModel] | None = None,
-                 height: str = "70vh", readonly: bool = False, empty: str = ""):
+                 height: str = "70vh", readonly: bool = False, empty: str = "",
+                 on_cell: Callable[[BaseModel, str], None] | None = None):
         self.models, self.cols, self.save, self.new_model = models, cols, save, new_model
+        self.on_cell = on_cell                 # called with (model, field) after a cell edit, before save
         self.readonly = readonly
         if readonly:
             self.cols = cols = [Col(**{**c.__dict__, "editable": False}) for c in cols]
@@ -426,6 +428,8 @@ class EditableGrid:
             ui.notify(f"Not saved: {err}", type="negative", multi_line=True)
             self.refresh()
             return
+        if self.on_cell is not None:
+            self.on_cell(model, field_)
         warn(self.save() or [])
 
     def add(self) -> None:

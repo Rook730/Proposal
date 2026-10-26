@@ -141,6 +141,23 @@ Convenient Woodworking, stage 3 (docs/cw-requirements.md section 15).
 
 Open values: profit percent (10% placeholder), real McMaster prices for the square box template, actual hours (stage 4, calibration).
 
-## Next release
+## Released in 1.9.2 (2026-10-26)
 
 72. [x] Fix: Move up / Move down looked like they did nothing after a column header was clicked: the lines grid sorted by that column (IDs as text, so 10.01 before 2.01) instead of showing print order. Header sorting is off in the lines grid; it always shows print order.
+
+Build sheet audit (all findings fixed):
+
+73. [x] Buy whole: sheet goods and dimensional rows can round the line's quantity up to whole sheets or sticks (on by default for new sheet and dimensional rows, and for the square box template once). The box: 12 now charges 4 sheets (was 3.6), 1 box charges a whole sheet ($660 for 1, was $555). The summary shows what buying whole units adds. Existing proposal lines keep their build sheet; tick Buy whole on their sheet rows to apply.
+74. [x] Finish rows take the product's coat count from Price references when the row has none (was 1 coat).
+75. [x] A template added from the catalog takes the current Settings rates (shop rate, overhead, profit, rounding, yield, rough thickness); its materials and labor come from the template. The template itself is unchanged.
+76. [x] "Per shop hour" is now "Labor + profit / hr": line total less materials, outsourced work and overhead, per hour (the box: $89.06, was shown as $106.63 with overhead in it). Profit shows its % of cost and % of price; Overhead says "of cost".
+77. [x] The line total shows the rounding it includes. Catalog items and Add from catalog label a Built item's price "for 1".
+78. [x] The build sheet uses the line's real quantity when it is bound to a variable or a takeoff (was the typed Qty field).
+79. [x] Changing a lumber part's thickness re-prices it for the new nominal (was stale until Pull prices). Typing Qty on a lumber or veneer row with dimensions enters it directly and clears Pcs, T, W, L (was silently recalculated).
+80. [x] Pull prices keeps typed unit costs and leaves lumber entered as plain board feet alone (was overwriting, or reporting "not found").
+81. [x] Parts thicker than the rough thickness map (glue-ups) are priced at the thickest nominal's rate (was a nonexistent "17/4" with no price).
+82. [x] A Built line with a quantity under 1 shows a warning in the build sheet and the Issues tab (the unit price carries all the setup).
+
+## Next release
+
+(nothing yet)

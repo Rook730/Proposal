@@ -40,7 +40,7 @@ def test_square_box_template_prices_like_the_estimate(cw):
     assert (t.cost, t.overhead, t.profit) == (D("2401.50"), D("360.23"), D("240.15"))
     assert t.unit_price == D("305.00") and t.line_total == D("3050.00")
     assert t.materials == D("864.00") and t.hours == D("20.5")
-    assert b.totals(D(1)).unit_price == D("555.00")            # setup carried by one box
+    assert b.totals(D(1)).unit_price == D("660.00")            # setup on one box, and a whole sheet ($118)
 
 
 def test_lumber_parts_board_feet_and_nominal():
@@ -54,7 +54,7 @@ def test_lumber_parts_board_feet_and_nominal():
     assert (top.nominal, top.qty, top.unit) == ("4/4", D("5.25"), "BF")      # 1 x 24 x 21 / 144 x 1.5
     assert (legs.nominal, legs.qty) == ("8/4", D("3.75"))                    # 3 x 2 x 2 x 25 / 144 x 1.8
     assert legs.stale and not top.stale
-    assert rough_for(D("4.5"), PricingPolicy().rough_map) == ("19/4", D("4.75"))
+    assert rough_for(D("4.5"), PricingPolicy().rough_map) == ("16/4", D("4.75"))   # glue-up at the 16/4 rate
 
 
 def test_built_line_with_tax_rush_and_deposit(cw):

@@ -99,7 +99,7 @@ def square_box_template(policy: PricingPolicy) -> CatalogItem:
     b = BuildSheet.from_policy(policy)
     b.materials = [
         BuildMaterial(kind="sheet", ref=MAPLE_PREFIN.id, name='Prefinished maple plywood, C2 1/2"', qty=D("0.3"),
-                      unit="SHT", unit_cost=MAPLE_PREFIN.price,
+                      unit="SHT", unit_cost=MAPLE_PREFIN.price, buy_whole=True,
                       notes="3 sheets per 10 boxes (12\" strips for lids, bottoms and sides; ~11.6\" strips for ends)"),
         *[BuildMaterial(kind="hardware", ref=h.id, name=f"{h.name} ({h.supplier} {h.part_number})", qty=D(q),
                         unit="EA", unit_cost=h.price) for h, q in zip(HARDWARE, ("2", "2", "1"))],
@@ -241,10 +241,26 @@ def apply(catalog: Catalog, policy: PricingPolicy | None = None) -> bool:
     return True
 
 
+BUY_WHOLE_MARKER = "cw-1.9.2-buy-whole"
+
+
+def apply_buy_whole(catalog: Catalog) -> bool:
+    """1.9.2: build sheet templates buy sheet goods and dimensional lumber in whole units (once)."""
+    if BUY_WHOLE_MARKER in catalog.migrations:
+        return False
+    for item in catalog.items:
+        for m in (item.build.materials if item.build else []):
+            if m.kind in ("sheet", "dimensional"):
+                m.buy_whole = True
+    catalog.migrations.append(BUY_WHOLE_MARKER)
+    return True
+
+
 def apply_all(catalog: Catalog, policy: PricingPolicy | None = None) -> bool:
     a = apply(catalog, policy)
     b = apply_restoration(catalog)
-    return a or b
+    c = apply_buy_whole(catalog)
+    return a or b or c
 
 
 # ---------------------------------------------------------------- terms library additions

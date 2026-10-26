@@ -870,8 +870,9 @@ class Editor:
             price = self.cat.unit_price(it)
             rows.append({"code": it.code, "section": self.section_name(it.section), "title": it.title,
                          "unit": it.unit, "source": basis_label(it.price_source).capitalize(),
-                         "price": (f"{price * 100:.1f}%" if it.price_source is PriceSource.PERCENT
-                                   else money(price)) if price is not None else "",
+                         "price": ((f"{price * 100:.1f}%" if it.price_source is PriceSource.PERCENT
+                                    else money(price)) if price is not None else "")
+                                  + (" for 1" if it.price_source is PriceSource.BUILT and price is not None else ""),
                          "description": it.description})
         with self.host, ui.dialog().props("maximized=false") as dlg, ui.card().classes("w-[1100px] max-w-full"):
             ui.label("Add from catalog" + (f" to Alt {alternate}" if alternate else "")).classes("text-lg font-semibold")
@@ -906,7 +907,7 @@ class Editor:
                 for r in sel:
                     it = self.cat.item(r["code"])
                     sec = piece.number if piece is not None else it.section   # into the piece being viewed
-                    ln = line_from_item(it, self.cat, self.new_id(sec, it.code))
+                    ln = line_from_item(it, self.cat, self.new_id(sec, it.code), policy=self.settings.pricing)
                     ln.section = sec
                     ln.alternate = alternate
                     self.rev.add_line(ln, by_code=True)
@@ -1117,9 +1118,19 @@ class Editor:
                             build_lbl = ui.label().classes("text-xs text-gray-600")
 
                 def built_qty() -> Decimal:
+                    """The quantity the line will be priced at: typed, from a variable, or from a takeoff."""
+                    from ..calc import numeric, stock_round
                     try:
+                        if qmode.value == "variable" and qty_var.value:
+                            return numeric(self.variables()[qty_var.value]) or Decimal(1)
+                        if qmode.value == "takeoff" and takeoff.value and stock.value:
+                            cls = next((c for c in cat.stock_classes if c.key == stock.value), None)
+                            w = Decimal(str(waste.value)) / 100 if waste.value not in (None, "") \
+                                else self.settings.default_waste_pct
+                            if cls is not None:
+                                return stock_round(Decimal(str(takeoff.value)), w, cls.lengths_ft).total
                         return to_decimal(qty.value) or Decimal(1)
-                    except ValueError:
+                    except (KeyError, ValueError):
                         return Decimal(1)
 
                 def show_built() -> None:
@@ -1133,7 +1144,8 @@ class Editor:
                     build_lbl.set_text(f"Cost {money(t.cost)} + overhead {money(t.overhead)} + profit "
                                        f"{money(t.profit)}, rounded up: {money(t.unit_price)} each, "
                                        f"{money(t.line_total)} for {t.qty.normalize():f}. "
-                                       f"{t.hours.normalize():f} hours, {money(t.effective_rate)} per shop hour.")
+                                       f"{t.hours.normalize():f} hours, {money(t.effective_rate)} labor + profit "
+                                       "per hour.")
 
                 def open_build() -> None:
                     from .build_ui import build_dialog
@@ -1226,7 +1238,8 @@ class Editor:
                     refresh_form()
                 basis.on_value_change(basis_changed)
                 qmode.on_value_change(refresh_form)
-                qty.on_value_change(lambda _: show_built() if basis.value == "built" else None)
+                for el in (qty, qty_var, takeoff, stock, waste, qmode):
+                    el.on_value_change(lambda _: show_built() if basis.value == "built" else None)
 
                 def upd_stock() -> None:
                     from ..calc import stock_round
@@ -1647,6 +1660,9 @@ class Editor:
             if not ln.is_percent and not ln.not_included and not ln.owner_furnished and ln.section in self.rev.sections:
                 if lr.qty == 0:
                     out.append(("warn", f"{ln.id} {ln.title}: quantity is 0", ("line", ln.id)))
+            if ln.is_built and ln.section in self.rev.sections and 0 < lr.qty < 1:
+                out.append(("warn", f"{ln.id} {ln.title}: quantity under 1; the unit price carries all the build "
+                                    "sheet's setup", ("line", ln.id)))
             if ln.is_built and ln.build is not None:
                 stale = [m.name for m in ln.build.materials if m.stale]
                 unpriced = [m.name for m in ln.build.materials if not m.unit_cost]
