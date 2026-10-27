@@ -164,6 +164,12 @@ Build sheet audit (all findings fixed):
 84. [x] Adding a line in a new section, or a new piece, places that section by number without re-sorting the sections already there (was resetting any order set with the section arrows).
 85. [x] The "Changes from previous revision" page lists a rush fee added, changed or removed.
 
+## Released in 1.10.0 (2026-10-26)
+
+86. [x] Purchase list (CW, editor menu): build sheet materials of the base lines, totaled across the project and rounded up once to whole units, with part numbers, suppliers, estimated cost and the lines that use each item. Screen and PDF.
+87. [x] Change orders page for CW shows change orders only: no actual costs, payments, ledger, contingency or management hours. Funding is Client or No charge. CW change order PDFs use the dark gold band.
+88. [x] Price references older than 182 days (Settings, Build sheet pricing), or undated, are highlighted on Price references and flagged in the build sheet and the Issues tab.
+
 ## Next release
 
 (nothing yet)

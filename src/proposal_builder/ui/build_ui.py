@@ -9,7 +9,7 @@ from nicegui import ui
 from pydantic import ValidationError
 
 from ..buildsheet import (MATERIAL_KINDS, YIELD_TIERS, BuildLabor, BuildMaterial, BuildSheet, PricingPolicy,
-                          price_material, pull_prices)
+                          old_prices, price_material, pull_prices)
 from ..models import Catalog, PriceReferences  # noqa: F401
 from .widgets import Col, EditableGrid, to_decimal
 
@@ -193,6 +193,11 @@ def build_dialog(build: BuildSheet | None, qty: Decimal, catalog: Catalog, polic
                         .classes("text-xs text-orange-700")
                 if unpriced:
                     ui.label(f"No unit cost: {', '.join(unpriced)}.").classes("text-xs text-orange-700")
+                max_age = (policy or PricingPolicy()).price_max_age_days
+                old = old_prices(work, catalog.prices, max_age)
+                if old:
+                    ui.label(f"Price references older than {max_age} days or undated: {', '.join(old)}. Update them "
+                             "in Catalog > Price references, then Pull prices.").classes("text-xs text-orange-700")
             summary()
 
             def changed() -> None:

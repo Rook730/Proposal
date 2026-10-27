@@ -66,6 +66,14 @@ def run_self_test() -> tuple[bool, str]:
                                       ds.path(cw_settings.company.logo_path))
             assert cw_pdf[:4] == b"%PDF", "CW proposal PDF"
             lines.append(f"cw proposal pdf {len(cw_pdf)} bytes")
+            from .purchase import purchase_list
+            from .render.purchase_doc import purchase_document
+            pl = purchase_list(cw_rev, cw_res, catalog.prices)
+            assert pl.total() == Decimal("864.00"), pl.total()
+            buy_pdf = compile_document(purchase_document(cw_project, cw_rev, cw_settings, pl),
+                                       ds.path(cw_settings.company.logo_path), template="purchase.typ")
+            assert buy_pdf[:4] == b"%PDF", "purchase list PDF"
+            lines.append(f"cw purchase list {pl.total()}, pdf {len(buy_pdf)} bytes")
             # appendix images: Pillow scales a photo down; the PDF prints it
             import io
             from PIL import Image

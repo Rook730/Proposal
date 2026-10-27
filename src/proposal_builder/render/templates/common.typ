@@ -30,7 +30,8 @@
   v(2pt)
   align(center, text(9pt, fill: muted)[#c.address #h(1em) | #h(1em) Phone: #c.phone #h(1em) | #h(1em) Email: #c.email])
   v(8pt)
-  block(width: 100%, fill: accent, inset: (x: 8pt, y: 6pt), text(13pt, weight: "bold", fill: white, upper(title)))
+  let band-c = if c.at("accent", default: "") != "" { rgb(c.accent) } else { accent }
+  block(width: 100%, fill: band-c, inset: (x: 8pt, y: 6pt), text(13pt, weight: "bold", fill: white, upper(title)))
   v(6pt)
 }
 

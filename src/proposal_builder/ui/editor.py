@@ -13,6 +13,7 @@ from pathlib import Path
 from nicegui import run, ui
 from pydantic import ValidationError
 
+from ..buildsheet import old_prices
 from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
 from ..models import Performer, PriceSource, Variable, bases_for, basis_label, profile_name
 from ..proposal import (
@@ -321,7 +322,8 @@ class Editor:
             contract = contract_context(acc, s, self.cat.stock_classes, self.project)
             ledger = build_ledger(contract, ps.load_change_orders(num), ps.load_reconciliation(num))
             rep = contract_report(ledger, s)
-            ui.label(f"Contract: Rev {acc.rev} (accepted). Actual uses closeout data from Change orders & ledger.") \
+            src = "includes approved change orders" if self.is_cw else "uses closeout data from Change orders & ledger"
+            ui.label(f"Contract: Rev {acc.rev} (accepted). Actual {src}.") \
                 .classes("text-sm font-semibold")
         else:
             r = self.results
@@ -436,7 +438,9 @@ class Editor:
                 with ui.menu():
                     ui.menu_item("Project info", on_click=self.project_dialog)
                     ui.menu_item("Export PDF", on_click=self.export_pdf)
-                    ui.menu_item("Change orders & ledger",
+                    if self.is_cw:
+                        ui.menu_item("Purchase list", on_click=self.purchase_dialog)
+                    ui.menu_item("Change orders" if self.is_cw else "Change orders & ledger",
                                  on_click=lambda: ui.navigate.to(f"/project/{p.number}/closeout"))
         if self.locked:
             with ui.row().classes("w-full items-center gap-2 px-3 py-1 rounded pb-warnbox"):
@@ -1691,6 +1695,13 @@ class Editor:
                 if unpriced:
                     out.append(("warn", f"{ln.id} {ln.title}: build sheet material with no cost ({', '.join(unpriced)})",
                                 ("line", ln.id)))
+            if ln.build is not None and self.settings.pricing is not None and ln.section in self.rev.sections:
+                max_age = self.settings.pricing.price_max_age_days
+                old = old_prices(ln.build, self.cat.prices, max_age)
+                if old:
+                    out.append(("warn", f"{ln.id} {ln.title}: build sheet prices older than {max_age} days or "
+                                        f"undated ({', '.join(old)}); update Catalog > Price references, then open "
+                                        "the build sheet and Pull prices", ("line", ln.id)))
             miss = undefined_references(ln.notes, v)
             if miss:
                 out.append(("error", f"{ln.id}: undefined variable(s) {', '.join(sorted(miss))} in notes",
@@ -1945,6 +1956,53 @@ class Editor:
                 else:
                     ui.button("Download", icon="download", on_click=lambda: ui.download.content(pdf, path.name))
                 ui.button("Close", on_click=lambda: (dlg.close(), reload() if reload else None)).props("flat")
+        dlg.open()
+
+    # ------------------------------------------------------------ purchase list (CW)
+    def purchase_dialog(self) -> None:
+        """What to buy: build sheet materials of the base lines, totaled across the project."""
+        from ..buildsheet import MATERIAL_KINDS
+        from ..purchase import purchase_list
+        from ..render.purchase_doc import purchase_document, purchase_filename, row_dict
+        from .pdf_ui import export_pdf, preview_pdf
+        pl = purchase_list(self.rev, self.results, self.cat.prices)
+        cols = [{"name": k, "label": lbl, "field": k, "align": a} for k, lbl, a in (
+            ("name", "Item", "left"), ("part", "Part no.", "left"), ("supplier", "Supplier", "left"),
+            ("needed", "Needed", "right"), ("buy", "Buy", "right"), ("unit_cost", "Unit cost", "right"),
+            ("cost", "Est. cost", "right"), ("lines", "Lines", "left"), ("date", "Priced", "left"))]
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[1100px] max-w-full"):
+            with ui.row().classes("w-full items-center"):
+                ui.label(f"Purchase list: Rev {self.rev.rev}").classes("text-lg font-semibold")
+                ui.space()
+                doc = lambda: purchase_document(self.project, self.rev, self.settings, pl)  # noqa: E731
+
+                async def preview() -> None:
+                    await preview_pdf(doc(), "purchase.typ", "Purchase list", self._logo())
+
+                async def export() -> None:
+                    await export_pdf(doc(), "purchase.typ", purchase_filename(self.project, self.rev),
+                                     self._pdf_dir(), self._logo())
+                ui.button("Preview", icon="visibility", on_click=preview).props("dense outline no-caps")
+                ui.button("Export PDF", icon="picture_as_pdf", on_click=export).props("dense no-caps")
+                ui.button(icon="close", on_click=dlg.close).props("flat round dense")
+            ui.label("Base lines only, totaled across the project and rounded up to whole units. Estimated cost "
+                     "uses the current price references.").classes("text-xs text-gray-500")
+            if not pl.rows:
+                ui.label("No build sheet materials in the base lines.").classes("text-gray-600")
+            with ui.scroll_area().style("height:60vh"):
+                for kind, rows in pl.groups():
+                    with ui.row().classes("w-full items-baseline mt-2"):
+                        ui.label(MATERIAL_KINDS.get(kind, kind)).classes("font-semibold")
+                        ui.space()
+                        ui.label(money(pl.total(kind))).classes("text-sm text-gray-700")
+                    ui.table(columns=cols, rows=[row_dict(r) | {"id": n} for n, r in enumerate(rows)],
+                             row_key="id").props("dense flat bordered hide-bottom").classes("w-full")
+            with ui.row().classes("w-full items-center"):
+                if pl.skipped:
+                    ui.label(f"No build sheet (not in this list): {', '.join(pl.skipped)}") \
+                        .classes("text-xs text-gray-500")
+                ui.space()
+                ui.label(f"Estimated materials total {money(pl.total())}").classes("font-semibold")
         dlg.open()
 
     # ------------------------------------------------------------ terms & options

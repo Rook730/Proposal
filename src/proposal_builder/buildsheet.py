@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -73,6 +74,7 @@ class PricingPolicy(_Model):
     yield_high: Decimal = Decimal("1.8")
     rough_map: list[RoughThickness] = Field(default_factory=default_rough_map)
     phases: list[str] = Field(default_factory=lambda: list(DEFAULT_PHASES))
+    price_max_age_days: int = 182                  # price references older than this (or undated) are flagged
 
     def yield_factor(self, tier: str) -> Decimal:
         return {"low": self.yield_low, "high": self.yield_high}.get(tier, self.yield_medium)
@@ -291,3 +293,39 @@ def pull_prices(sheet: BuildSheet, prices) -> tuple[list[str], list[str]]:
     linked = [m for m in sheet.materials if not m.typed_cost and ((m.ref and m.kind != "lumber") or m.has_dims)]
     missing = [m.name for m in linked if not price_material(m, prices, sheet)]
     return missing, typed
+
+
+# ---------------------------------------------------------------- price age
+
+
+def price_cutoff(max_age_days: int, today: date | None = None) -> date:
+    """Price references dated before this are old."""
+    return (today or date.today()) - timedelta(days=max_age_days)
+
+
+def is_old(price_date: date | None, max_age_days: int, today: date | None = None) -> bool:
+    return price_date is None or price_date < price_cutoff(max_age_days, today)
+
+
+def reference_for(m: BuildMaterial, prices):
+    """The price reference row a material was priced from, or None (typed cost, or not linked)."""
+    if m.typed_cost:
+        return None
+    if m.kind == "lumber":
+        nominal = m.priced_as or m.nominal
+        return prices.lumber_price(m.ref, nominal) if m.ref and nominal else None
+    return prices.find(m.kind, m.ref) if m.ref else None
+
+
+def old_prices(sheet: BuildSheet, prices, max_age_days: int, today: date | None = None) -> list[str]:
+    """Materials whose price reference is older than max_age_days or has no date, e.g. "Cherry 8/4 (2025.03.01)"."""
+    out = []
+    for m in sheet.materials:
+        ref = reference_for(m, prices)
+        if ref is not None and is_old(ref.date, max_age_days, today):
+            when = ref.date.strftime("%Y.%m.%d") if ref.date else "no date"
+            label = f"{m.ref} {m.priced_as or m.nominal}" if m.kind == "lumber" else m.name
+            item = f"{label} ({when})"
+            if item not in out:
+                out.append(item)
+    return out

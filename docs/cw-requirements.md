@@ -157,7 +157,9 @@ Not printed: Prepared by, valid-until date, slogan, cash discount (none offered)
 - Revisions, alternates and change orders on all CW jobs.
 - **Not used for CW:** closeout ledger, contingency, change order management, retainage, license threshold check.
 - **Acceptance** is design signoff. Changes after acceptance go through change orders.
-- **Change order price:** build sheet delta priced with the section 6 formula, plus tax.
+- **Change order price:** build sheet delta priced with the section 6 formula, plus tax. The change orders page shows change orders only (1.10.0).
+- **Purchase list (1.10.0):** build sheet materials of the base lines, totaled across the project and rounded up to whole units; screen and PDF, internal.
+- **Price age (1.10.0):** price references older than 182 days (setting) or undated are flagged.
 - **Placeholders:** TBD and other placeholders block Issue with no "Issue anyway", in both profiles.
 - **Client property:**
   - Project fields: received date, condition notes.

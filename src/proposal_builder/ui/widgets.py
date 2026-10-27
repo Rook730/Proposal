@@ -54,6 +54,7 @@ THEME_CSS = """
     .pb-brand { color: #1F3A5F; }      .pb-red { color: #B00020; }
     .pb-green { color: #1B5E20; }      .pb-amber { color: #B26A00; }
     .pb-pct { background: #E6E8EB !important; }
+    .pb-old { background: #FDEBD3 !important; color: #8A4B00; }
     .pb-alt1, .pb-altbg1 { background: #DCE8F7 !important; }
     .pb-alt2, .pb-altbg2 { background: #E3F1E8 !important; }
     .pb-alt3, .pb-altbg3 { background: #F6ECDD !important; }
@@ -284,6 +285,7 @@ class Col:
     flex: int | None = None
     editable: bool = True
     lookup: dict[str, str] | None = None   # kind "lookup": stored id -> shown label
+    cell_class: dict[str, str] | None = None   # AG Grid cellClassRules: css class -> JS function of params
 
 
 class EditableGrid:
@@ -362,6 +364,8 @@ class EditableGrid:
             d["width"] = c.width
         if c.flex:
             d["flex"] = c.flex
+        if c.cell_class:
+            d["cellClassRules"] = {f":{cls}": fn for cls, fn in c.cell_class.items()}
         if c.kind == "number":
             d["cellDataType"] = "number"
         elif c.kind == "money":

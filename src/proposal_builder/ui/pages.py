@@ -364,8 +364,19 @@ def prices_page() -> None:
         t_hw = ui.tab("Hardware", icon="hardware")
         t_fin = ui.tab("Finishes", icon="format_paint")
         t_out = ui.tab("Outsourced", icon="handshake")
-    sup = [Col("supplier", "Supplier", width=150), Col("date", "Price date", "date", width=120),
+    from ..buildsheet import PricingPolicy, is_old, price_cutoff
+    max_age = (st.settings_for("cw").pricing or PricingPolicy()).price_max_age_days
+    cutoff = price_cutoff(max_age).isoformat()
+    sup = [Col("supplier", "Supplier", width=150),
+           Col("date", "Price date", "date", width=120,
+               cell_class={"pb-old": f"p => !p.value || p.value < '{cutoff}'"}),
            Col("notes", "Notes", flex=1)]
+    tables = (pr.lumber, pr.sheets, pr.veneer, pr.dimensional, pr.hardware, pr.finishes, pr.outsourced)
+    n_old = sum(is_old(x.date, max_age) for t in tables for x in t)
+    ui.label(f"Highlighted price dates are older than {max_age} days, or blank ({n_old} rows). Build sheets and the "
+             "Issues tab flag lines priced from them. The age is set in Settings (Convenient Woodworking)."
+             if n_old else f"All prices are dated within {max_age} days.") \
+        .classes("text-sm " + ("text-orange-800" if n_old else "text-gray-600"))
     with ui.tab_panels(tabs, value=t_lum).classes("w-full"):
         with ui.tab_panel(t_lum):
             ui.label("Rough lumber, $ per board foot at nominal thickness (4/4, 8/4 ...). Build sheets find the "
@@ -639,6 +650,9 @@ def settings_page(profile: str = KS) -> None:
                                 .on_value_change(bind(pol, "overhead_pct", pct))
                             ui.number("Profit", value=float(pol.profit_pct * 100)).props('dense suffix="%"') \
                                 .on_value_change(bind(pol, "profit_pct", pct))
+                            ui.number("Flag price references older than", value=pol.price_max_age_days,
+                                      format="%d").props('dense suffix="days"') \
+                                .on_value_change(bind(pol, "price_max_age_days", lambda x: int(x or 0) or 182))
                         ui.label("Overhead covers machines, consumables, tooling and material handling.") \
                             .classes("text-xs text-gray-500")
                         with ui.grid(columns=3).classes("w-full gap-x-4"):

@@ -493,6 +493,8 @@ A toggle shows fields that never print:
 
 **1.9.2:** Lines grid always in print order. Build sheet audit: buy whole sheets and sticks, finish coats from the product, templates at current Settings rates, labor + profit per hour, rounding and price-for-1 labels, variable and takeoff quantities, automatic re-pricing on thickness changes, direct quantities, typed prices kept, glue-ups priced, under-1 quantity warning.
 
+**1.10.0:** Purchase list, CW change orders page, price age warnings.
+
 **1.9.3:** Move up / Move down on a line alone in its section moves the section; adding a section keeps the user's section order; the changes page lists rush fee changes.
 
 ## 16. Company profiles (Convenient Woodworking)
@@ -524,3 +526,9 @@ Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project manageme
 - Project.property_received / property_condition (internal). Settings.storage_rate / storage_min / storage_grace_days feed the "Client property in our care" terms block.
 - Veneer price references and build sheet rows (SF = pieces x W x L / 144 x yield).
 - Alternates: up to 6. Placeholders and unpriced printed lines block Issue (no override).
+
+**1.10.0**
+- Purchase list (`purchase.py`, editor menu, CW only): build sheet materials of the open revision's base lines (no alternate, not-included or owner lines), totaled across the project, then rounded up once (lumber BF, sheets, sticks, hardware, veneer SF to whole units; finish SF x coats and containers from coverage). Estimated cost from the current price reference, else the build sheet cost. Screen and PDF (purchase.typ), internal.
+- Change orders page for CW: change orders only (no actual costs, payments, ledger, contingency, management hours, contractor column, license or insurance banners). Funding is Client or No charge. Price = cost change x (1 + overhead + profit) + tax.
+- Price age: PricingPolicy.price_max_age_days (default 182). A price reference older than that, or with no date, is highlighted on Price references and flagged in the build sheet and the Issues tab for lines priced from it. Typed costs are not flagged.
+- CW documents from common.typ (change order, purchase list) use the dark gold heading band.

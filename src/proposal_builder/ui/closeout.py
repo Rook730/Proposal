@@ -35,7 +35,7 @@ from ..proposal import ProjectStatus
 from ..render.closeout_docs import change_order_document, ledger_document, safe_name
 from ..render.document import compile_document
 from .state import get_state
-from .widgets import Col, EditableGrid, date_input, fmt_date, layout, parse_date
+from .widgets import Col, EditableGrid, date_input, fmt_date, keep_current, layout, parse_date
 
 ZERO = Decimal(0)
 
@@ -60,6 +60,7 @@ class Closeout:
         if self.rev is not None:
             self.contract = contract_context(self.rev, self.settings, self.st.catalog.stock_classes, self.project)
         self.ledger = self._ledger()
+        self.cw = self.settings.pricing is not None     # Convenient Woodworking: change orders only
 
     # ------------------------------------------------------------ plumbing
     def _ledger(self):
@@ -94,17 +95,19 @@ class Closeout:
     # ------------------------------------------------------------ page
     def build(self) -> None:
         p = self.project
-        layout(f"{p.number} change orders & ledger", drawer=False)
+        page = "change orders" if self.cw else "change orders & ledger"
+        layout(f"{p.number} {page}", drawer=False)
         with ui.row().classes("w-full items-center gap-4"):
             ui.button(icon="arrow_back", on_click=lambda: ui.navigate.to(f"/project/{p.number}")) \
                 .props("flat round dense")
             with ui.column().classes("gap-0"):
-                ui.label(f"{p.number}  {p.project_name}: change orders & ledger").classes("text-xl font-semibold")
+                ui.label(f"{p.number}  {p.project_name}: {page}").classes("text-xl font-semibold")
                 ui.label("  |  ".join(x for x in (p.client_name, p.site_address) if x)).classes("text-sm text-gray-600")
         if self.contract is None:
             with ui.card().classes("mt-4"):
                 ui.label("No accepted revision yet.").classes("font-semibold")
-                ui.label("Change orders and the ledger work from the accepted contract. In the proposal editor: "
+                ui.label(f"{'Change orders work' if self.cw else 'Change orders and the ledger work'} from the "
+                         "accepted contract. In the proposal editor: "
                          "issue the final revision (Finalize, then issue 2.0) and use Mark accepted once the client "
                          "signs.").classes("text-sm")
                 ui.button("Open the proposal", icon="description",
@@ -112,6 +115,9 @@ class Closeout:
             return
         self.close_bar()
         self.tiles()
+        if self.cw:
+            self.co_tab()
+            return
         with ui.tabs().props("dense inline-label align=left").classes("w-full border-b") as tabs:
             t_co = ui.tab("Change orders", icon="change_circle")
             t_act = ui.tab("Actual costs", icon="receipt_long")
@@ -136,7 +142,9 @@ class Closeout:
         with ui.row().classes("w-full items-center gap-3 mt-2"):
             if self.closed:
                 ui.icon("lock").classes("text-gray-600")
-                ui.label(f"Closed on {p.closed_on:%Y.%m.%d}. Change orders, costs and payments are read-only.") \
+                ui.label(f"Closed on {p.closed_on:%Y.%m.%d}. "
+                         + ("Change orders are read-only." if self.cw else
+                            "Change orders, costs and payments are read-only.")) \
                     .classes("text-sm text-gray-700")
                 ui.button("Reopen", icon="lock_open", on_click=self._reopen).props("dense flat")
             else:
@@ -148,9 +156,10 @@ class Closeout:
         drafts = [o.number for o in self.log.orders if o.status not in (COStatus.APPROVED, COStatus.REJECTED)]
         with ui.dialog() as dlg, ui.card().classes("w-[460px]"):
             ui.label("Close this project?").classes("text-lg font-semibold")
-            ui.label("Change orders, actual costs and payments become read-only. You can reopen it later.") \
+            ui.label(("Change orders become read-only." if self.cw else
+                      "Change orders, actual costs and payments become read-only.") + " You can reopen it later.") \
                 .classes("text-sm")
-            if lg and lg.balance_due:
+            if lg and lg.balance_due and not self.cw:
                 ui.label(f"Balance due is {money(lg.balance_due)}.").classes("text-sm text-orange-700")
             if drafts:
                 ui.label(f"Change orders not approved or rejected: {', '.join(drafts)}.").classes("text-sm text-orange-700")
@@ -178,6 +187,13 @@ class Closeout:
                     if sub:
                         ui.label(sub).classes("text-xs text-gray-500")
             tile("Contract", money(c.total), f"Rev {c.rev.rev}")
+            if self.cw:
+                pending = [o for o in self.log.orders if o.status in (COStatus.DRAFT, COStatus.ISSUED)]
+                tile("Approved change orders", money(lg.co_billed), f"{len(lg.approved)} approved")
+                tile("Contract with change orders", money(c.total + lg.co_billed))
+                if pending:
+                    tile("Not yet approved", str(len(pending)), "draft or issued", color="amber")
+                return
             tile("Change orders billed", money(lg.co_billed), f"{len(lg.approved)} approved")
             tile("Contingency left", money(lg.unused_contingency), f"of {money(c.contingency)}")
             tile("CO management left", money(lg.co_management_credit), f"of {money(c.co_management)}")
@@ -192,17 +208,25 @@ class Closeout:
 
     # ------------------------------------------------------------ change orders
     def co_tab(self) -> None:
+        c = self.contract
         with ui.row().classes("gap-2 items-center mb-2"):
             if not self.closed:
                 ui.button("New change order", icon="add", on_click=self.new_co).props("dense")
-            ui.label(f"Price = direct cost change x (1 + {self.contract.markup_pct * 100:.0f}% overhead and profit). "
-                     "Contingency-funded orders draw contingency at price; any overflow is billed. "
-                     f"Management hours are drawn from the change order management allowance at "
-                     f"{money(self.contract.mgmt_rate)}/HR; time beyond it is billed at that rate. "
-                     "Only approved orders count in the ledger.").classes("text-xs text-gray-500")
-        self.threshold_banner()
-        for w in insurance_warnings(self.st.contractors, project_contractor_ids(self.project, self.rev)):
-            ui.label(w).classes("text-sm text-orange-700")
+            if self.cw:
+                tax = f" + sales tax ({c.tax_rate * 100:.2f}%)" if c.tax_rate else ""
+                ui.label(f"Price = cost change x (1 + {c.markup_pct * 100:.0f}% overhead and profit){tax}. "
+                         "Enter the cost change from the build sheet (materials, outsourced work and hours at the "
+                         "shop rate). Only approved orders count.").classes("text-xs text-gray-500")
+            else:
+                ui.label(f"Price = direct cost change x (1 + {c.markup_pct * 100:.0f}% overhead and profit). "
+                         "Contingency-funded orders draw contingency at price; any overflow is billed. "
+                         f"Management hours are drawn from the change order management allowance at "
+                         f"{money(c.mgmt_rate)}/HR; time beyond it is billed at that rate. "
+                         "Only approved orders count in the ledger.").classes("text-xs text-gray-500")
+        if not self.cw:
+            self.threshold_banner()
+            for w in insurance_warnings(self.st.contractors, project_contractor_ids(self.project, self.rev)):
+                ui.label(w).classes("text-sm text-orange-700")
         self.co_list()
 
     @ui.refreshable_method
@@ -233,8 +257,9 @@ class Closeout:
                          "requested": fmt_date(o.requested), "delta": money(pr.cost_delta), "price": money(pr.price),
                          "mgmt": f"{o.mgmt_hours.normalize():f} HR" if o.mgmt_hours else "",
                          "contingency": money(pr.from_contingency), "billed": money(pr.billed)})
+        hide = {"contingency", "mgmt"} if self.cw else set()
         g = ui.aggrid({
-            "columnDefs": [{"field": "number", "headerName": "CO #", "width": 110},
+            "columnDefs": [c for c in [{"field": "number", "headerName": "CO #", "width": 110},
                            {"field": "title", "headerName": "Title", "flex": 1},
                            {"field": "status", "headerName": "Status", "width": 100},
                            {"field": "funding", "headerName": "Funding", "width": 170},
@@ -243,7 +268,8 @@ class Closeout:
                            {"field": "price", "headerName": "Price", "width": 110, "type": "rightAligned"},
                            {"field": "contingency", "headerName": "From contingency", "width": 140, "type": "rightAligned"},
                            {"field": "mgmt", "headerName": "Mgmt time", "width": 100, "type": "rightAligned"},
-                           {"field": "billed", "headerName": "Billed", "width": 110, "type": "rightAligned"}],
+                           {"field": "billed", "headerName": "Billed", "width": 110, "type": "rightAligned"}]
+                           if c["field"] not in hide],
             "rowData": rows, "rowHeight": 32, "headerHeight": 36,
         }, auto_size_columns=False).classes("w-full").style("height:50vh")
         g.on("cellDoubleClicked", lambda e: self.co_dialog(self.log.get(e.args["data"]["number"])))
@@ -272,11 +298,19 @@ class Closeout:
             with ui.grid(columns=4).classes("w-full gap-x-3"):
                 title = ui.input("Title", value=work.title).props(ro).classes("col-span-2")
                 requested = date_input("Requested", work.requested, readonly=locked)
-                funding = ui.select({f.value: f.value for f in COFunding}, label="Funding",
+                if self.cw:     # no contingency or management allowance on Convenient Woodworking jobs
+                    fund_opts = {COFunding.CLIENT.value: "Client",
+                                 COFunding.ABSORBED.value: f"No charge (absorbed by {self.settings.company.dba})"}
+                else:
+                    fund_opts = {f.value: f.value for f in COFunding}
+                funding = ui.select(keep_current(fund_opts, work.funding.value), label="Funding",
                                     value=work.funding.value).props(ro)
                 hours = ui.number("Management hours (scoping, pricing, paperwork)",
                                   value=float(work.mgmt_hours) if work.mgmt_hours else None).props(ro)
-            ui.label("Itemized changes at direct cost (no management time; log that as hours above). "
+                hours.set_visibility(not self.cw)
+            ui.label("Itemized changes at cost (materials, outsourced work and hours at the shop rate). "
+                     "Lines: proposal line IDs this change touches, comma separated." if self.cw else
+                     "Itemized changes at direct cost (no management time; log that as hours above). "
                      "Lines: proposal line IDs this change touches, comma separated.") \
                 .classes("text-xs text-gray-500")
 
@@ -301,16 +335,17 @@ class Closeout:
                 bad = sorted({lid for it in work.items for lid in it.line_ids if lid not in line_ids})
                 lines_warn.set_text(f"Unknown line IDs: {', '.join(bad)}" if bad else "")
 
-            EditableGrid(lambda: work.items,
-                         [Col("description", "Description (condition)", flex=2),
-                          Col("action", "Action", "select", self.settings.lists.co_actions, width=100),
-                          Col("change", "Change", flex=2),
-                          Col("line_ids", "Lines", "strlist", width=110),
-                          Col("performer", "Performer", "select", self.settings.performer_names(), width=170),
-                          Col("contractor_id", "Contractor", "lookup", width=170,
-                              lookup={c.id: c.company for c in self.st.contractors.sorted()}),
-                          Col("original_cost", "Original cost", "money", width=120),
-                          Col("final_cost", "Final cost", "money", width=110)],
+            cols = [Col("description", "Description (condition)", flex=2),
+                    Col("action", "Action", "select", self.settings.lists.co_actions, width=100),
+                    Col("change", "Change", flex=2),
+                    Col("line_ids", "Lines", "strlist", width=110),
+                    Col("performer", "Performer", "select", self.settings.performer_names(), width=170)]
+            if not self.cw:
+                cols.append(Col("contractor_id", "Contractor", "lookup", width=170,
+                                lookup={c.id: c.company for c in self.st.contractors.sorted()}))
+            cols += [Col("original_cost", "Original cost", "money", width=120),
+                     Col("final_cost", "Final cost", "money", width=110)]
+            EditableGrid(lambda: work.items, cols,
                          lambda: recompute(), lambda: COItem(), height="22vh", readonly=locked)
             lines_warn = ui.label().classes("text-xs text-orange-700")
             funding.on_value_change(lambda _: recompute())

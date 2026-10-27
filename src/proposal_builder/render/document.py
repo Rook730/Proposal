@@ -389,7 +389,8 @@ def compile_document(doc: dict, logo: Path | None, fmt: str = "pdf", ppi: int = 
 def company_block(settings: Settings) -> dict:
     c = settings.company
     return {"name": c.dba, "legal": c.legal_name, "address": c.address, "phone": c.phone,
-            "email": c.email, "logo": "logo.png" if c.logo_path else ""}
+            "email": c.email, "logo": "logo.png" if c.logo_path else "",
+            "accent": "#A87B20" if settings.pricing is not None else ""}   # Convenient Woodworking dark gold
 
 
 def pdf_filename(project: Project, rev: Revision) -> str:
