@@ -142,7 +142,8 @@ def customer_dialog(cust: Customer | None, on_saved, preset_name: str = "") -> N
             on_saved(work)
 
         async def delete() -> None:
-            if _customer_projects(work.id):
+            foreign = any(d.get("customer_id") == work.id for d in st.projects.list_foreign_projects())
+            if _customer_projects(work.id) or foreign:
                 ui.notify("This customer has projects; mark it inactive instead.", type="warning")
                 return
             st.customers.customers.remove(cust)

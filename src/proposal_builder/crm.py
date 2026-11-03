@@ -11,13 +11,15 @@ import re
 import uuid
 from datetime import date, timedelta
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from .base import SavedModel
 
 INSURANCE_WARN_DAYS = 30
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class _Model(SavedModel):
+    """Saved to the data folder: unknown fields from newer versions are kept (base.py)."""
 
 
 def new_id() -> str:

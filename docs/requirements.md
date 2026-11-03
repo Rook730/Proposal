@@ -497,6 +497,8 @@ A toggle shows fields that never print:
 
 **1.9.3:** Move up / Move down on a line alone in its section moves the section; adding a section keeps the user's section order; the changes page lists rush fee changes.
 
+**1.10.1: forward compatibility.** Saved files keep fields this version does not know; catalog sections and projects of an unknown company (the CE branch) are kept untouched, hidden or listed only. Lets a newer build share the data folder (docs/ce-requirements.md section 2). Details in docs/PENDING.md (items 89 to 91).
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.

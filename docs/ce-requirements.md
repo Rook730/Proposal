@@ -43,11 +43,17 @@ Depth is a preset that turns modules on (section 5). Any module can be turned on
 - **Branch** `ce` in Rook730/Proposal. `main` stays the stable app. Merge after stage 1 (see Merge below).
 - **Step 0: 1.10.1 on main (forward compatibility).** Today every persisted model uses `extra="forbid"`, so a file saved by the branch build would stop 1.10.0 from reading the folder.
   - Persisted models keep unknown fields on load and write them back on save (not dropped, not rejected).
-  - Projects with an unknown profile (`ce`) list with their company and open read-only. No new CE projects.
-  - `profiles/ce/` is ignored. Unknown catalog section profiles are kept and hidden.
+  - Projects with an unknown profile (`ce`) are listed with their company but not opened (as built: a read-only view would show a stripped-down proposal, since CE content is invisible to 1.10.1). No new CE projects. They are left out of income, customer linking and Copy from.
+  - `profiles/ce/` is ignored. Unknown catalog section profiles are kept and hidden, with their items; their codes and numbers count as taken.
   - Numbering: unchanged shared YYNNN sequence. Stable picks up the counter the branch build advanced.
   - Tests: load a folder saved by the branch build, edit a KS project and a CW project, confirm CE files are byte-identical and unknown fields survive.
   - Every PC runs 1.10.1 before the first branch build touches the live folder.
+- **Shared-file contract for the `ce` branch** (what 1.10.1 can tolerate):
+  - Shared files (root `settings.json`, `catalog.json`, `boilerplate.json`, `customers.json`, `contractors.json`, `suppliers.json`): add fields only. No renamed or removed fields, no changed meaning, no new enum values in existing fields.
+  - Exception: catalog sections with `profile: "ce"` and the items in them may use anything (new price bases, new fields); 1.10.1 keeps them raw.
+  - CE sections and item codes: 4000 to 4900 (KS uses 100 to 1400, CW 2000 to 3xxx, pieces 9000+).
+  - CE settings and terms live in `profiles/ce/`; CE projects in their own folders. 1.10.1 never reads either.
+  - A KS or CW project gains new fields only (e.g. brand data); KS and CW revisions must keep loading in 1.10.1.
 - **Branch builds:** prerelease tags `v1.11.0-ce.N` from `build-windows.yml`. Stable's updater reads `releases/latest`, which skips prereleases, so stable is never offered a branch build. The branch build's updater checks prereleases on its own channel so it does not offer stable as an "update".
 - **Rollback:** stop running the branch exe. 1.10.1 still reads the whole folder; CE projects stay viewable read-only.
 - **Merge:** after stage 1 is accepted (decided 2026-11-03). CE ships in the next minor release from `main`; stages 2 to 4 continue on new branches or on `main`.

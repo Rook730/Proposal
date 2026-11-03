@@ -150,7 +150,7 @@ def item_dialog(item: CatalogItem | None, on_saved) -> None:
                 new_code = int(code.value or 0)
                 if new_code <= 0:
                     raise ValueError("code is required")
-                if any(i.code == new_code for i in cat.items if i is not item):
+                if new_code in cat.reserved_codes() - ({item.code} if item else set()):
                     raise ValueError(f"code {new_code} already exists")
                 ps = PriceSource(source.value)
                 p = to_decimal(price.value)
@@ -251,7 +251,7 @@ def sections_page() -> None:
                "sets which proposals offer the section.")
 
     def new() -> Section:
-        n = max((s.number for s in st.catalog.sections), default=0) + 100
+        n = max(st.catalog.reserved_section_numbers(), default=0) + 100
         return Section(number=n, name="New section", key=f"Section{n}")
 
     def save():

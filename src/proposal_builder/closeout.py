@@ -22,23 +22,24 @@ Reconciliation ("Final Project Ledger")
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import datetime as dt
+from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+from .base import SavedModel
 from .calc import Results, calculate, money
-from .models import Performer, Settings, StockClass
+from .models import Settings, StockClass
 from .proposal import Line, Project, Revision, RevisionState
 
 ZERO = Decimal(0)
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class _Model(SavedModel):
+    """Saved to the data folder: unknown fields from newer versions are kept (base.py)."""
 
 
 # ---------------------------------------------------------------- change orders

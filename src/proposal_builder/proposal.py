@@ -12,15 +12,15 @@ from decimal import Decimal
 from enum import Enum
 from typing import Iterable
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+from .base import SavedModel
 from .buildsheet import BuildSheet
 from .models import (
     KS,
     BoilerplateBlock,
     Catalog,
     CatalogItem,
-    Performer,
     PriceSource,
     Tier,
     Variable,
@@ -29,8 +29,8 @@ from .models import (
 SCHEMA_VERSION = 1
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class _Model(SavedModel):
+    """Saved to the data folder: unknown fields from newer versions are kept (base.py)."""
 
 
 class ProjectStatus(str, Enum):
