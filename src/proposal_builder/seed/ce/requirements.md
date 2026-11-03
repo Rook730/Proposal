@@ -888,7 +888,7 @@ Drawing package shall include but not be limited to:
 
 - Index shall be first sheet
 - All main level, mid-level and sub-level assembly drawings
-  - Assembly drawings shall also include bill of materials in table format for all equipment shown on the assembly.
+- Assembly drawings shall also include bill of materials in table format for all equipment shown on the assembly.
 - Drawings to contain dimensional information required for debug, maintenance, equipment set-up, System install, etc.
 - Manufacturing grade prints of any item that is deemed a spare or expendable wear part.
 
@@ -976,7 +976,7 @@ The project will progress through the milestones described below, with the requi
     - Inspection and verification of all design and construction features, functionality, materials and components, documentation as specified in this document, the deviations/corrections form, the Provider's quotation, previously approved drawings, HMI screens and any other written agreement.
     - Cyclic dry run of minimum 24 hours will be performed.
     - Trial runs of a minimum quantity of one (1) shift of product will be ran through the System for verification of functionality and repeatability.
-  - If the FAT does not meet all the requirements described in this procedure and URS, then the Consumer may: reject the equipment and provide a written list of corrections/improvements to be completed prior to a repeat FAT; accept the equipment with improvements to be made either before shipment or before the time of the start-up and site validation at the {plant} plant; or accept the equipment as is.
+    - If the FAT does not meet all the requirements described in this procedure and URS, then the Consumer may: reject the equipment and provide a written list of corrections/improvements to be completed prior to a repeat FAT; accept the equipment with improvements to be made either before shipment or before the time of the start-up and site validation at the {plant} plant; or accept the equipment as is.
 - Site Acceptance Testing
   - The Consumer will pay the remaining amount due, after successful completion of installation and commissioning in the {plant} plant, start-up, validation, and receipt of any final documentation, drawings, software, etc. that are described in this document or agreed upon in writing.
   - Provider will install the System and complete any training (if required) at the Consumer's facility. The SAT will be conducted and documented on an SAT document to be provided in advance.
@@ -1025,9 +1025,9 @@ This includes but is not limited to:
   - HMI
   - Robot
   - Servo
-- Software
-- Firmware
-- etc.
+  - Software
+  - Firmware
+  - etc.
 
 All System documentation shall be provided in the following formats:
 
