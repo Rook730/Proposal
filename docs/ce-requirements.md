@@ -55,7 +55,7 @@ Depth is a preset that turns modules on (section 5). Any module can be turned on
   - CE settings and terms live in `profiles/ce/`; CE projects in their own folders. 1.10.1 never reads either.
   - A KS or CW project gains new fields only (e.g. brand data); KS and CW revisions must keep loading in 1.10.1.
 - **Branch builds:** prerelease tags `v1.11.0-ce.N` from `build-windows.yml`. Stable's updater reads `releases/latest`, which skips prereleases, so stable is never offered a branch build. The branch build's updater checks prereleases on its own channel so it does not offer stable as an "update".
-- **Rollback:** stop running the branch exe. 1.10.1 still reads the whole folder; CE projects stay viewable read-only.
+- **Rollback:** stop running the branch exe. 1.10.1 still reads the whole folder; CE projects stay listed (not opened).
 - **Merge:** after stage 1 is accepted (decided 2026-11-03). CE ships in the next minor release from `main`; stages 2 to 4 continue on new branches or on `main`.
 
 ## 3. Branding (every company, every document)
