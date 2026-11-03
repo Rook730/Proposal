@@ -102,7 +102,8 @@ class Editor:
     def variables(self) -> dict[str, str]:
         if self.project.profile == CE:      # includes fixed fee, deposit and totals used in its terms
             from ..render.ce_document import ce_variables
-            return ce_variables(self.project, self.rev, self.settings, self.cat, self.results)
+            return ce_variables(self.project, self.rev, self.settings, self.cat, self.results,
+                                self.rev.urs if self.locked and self.rev.urs is not None else self.urs)
         return variable_map(self.project, self.rev, self.settings)
 
     @property
@@ -157,6 +158,16 @@ class Editor:
                 **{s.number: f"{s.number} {s.name}" for s in self.sections}}
 
     # ------------------------------------------------------------ page
+    @property
+    def urs(self):
+        """The project's URS (Convenient Enterprises requirements), or None."""
+        panel = getattr(self, "req_panel", None)
+        if panel is not None:
+            return panel.urs
+        if not hasattr(self, "_urs_cache"):
+            self._urs_cache = self.st.projects.load_urs(self.project.number) if self.is_ce else None
+        return self._urs_cache
+
     def build(self) -> None:
         layout(f"{self.project.number} {self.project.project_name}", drawer=False)
         # dialogs live here, outside any refreshable panel, so a refresh (e.g. after a save) never deletes
@@ -170,12 +181,13 @@ class Editor:
             t_alts = ui.tab("Options" if self.is_ce else "Alternates", icon="call_split")
             t_terms = ui.tab("Proposal text" if self.is_ce else "Terms & options", icon="article")
             t_plan = ui.tab("Project plan", icon="event_note") if self.is_ce else None
+            t_reqs = ui.tab("Requirements", icon="fact_check") if self.is_ce else None
             t_issues = ui.tab("Issues", icon="report")
             with t_issues:
                 self.issue_badge = ui.badge("").classes("ml-1")
             self.tabs, self.t_issues = tabs, t_issues
             self.t_lines, self.t_vars, self.t_alts, self.t_terms = t_lines, t_vars, t_alts, t_terms
-            self.t_plan = t_plan
+            self.t_plan, self.t_reqs = t_plan, t_reqs
             self._update_issue_badge()
             t_income = ui.tab("Income", icon="savings")
             t_quotes = None if self.is_ce else ui.tab("Sub quotes", icon="request_quote")
@@ -191,6 +203,10 @@ class Editor:
             if t_plan is not None:
                 with ui.tab_panel(t_plan):
                     self.plan_panel()
+            if t_reqs is not None:
+                with ui.tab_panel(t_reqs):
+                    from .requirements import RequirementsPanel
+                    self.req_panel = RequirementsPanel(self)
             with ui.tab_panel(t_issues):
                 self.issues_panel()
             with ui.tab_panel(t_income):
@@ -1093,6 +1109,12 @@ class Editor:
                         ui.button(icon="add", on_click=new_con).props("dense flat").tooltip("New contractor")
                     alt = ui.select({0: "Base", **{a.number: f"Alt {a.number} only" for a in rev.alternates}},
                                     label="Belongs to", value=work.alternate or 0).props("dense").classes("col-span-2")
+                    category = None
+                    if self.is_ce:          # M19: tooling and capital equipment print apart (URS response)
+                        from ..ce_models import CATEGORIES
+                        category = ui.select(CATEGORIES, label="Category (URS response)",
+                                             value=work.category if work.category in CATEGORIES else "") \
+                            .props("dense").classes("col-span-2")
 
                 with ui.row().classes("w-full items-start no-wrap gap-4"):
                     with ui.column().classes("w-1/2 gap-1"):
@@ -1422,6 +1444,7 @@ class Editor:
                         sub_name=(self.st.contractors.get(sub_sel.value).company if sub_sel.value else ""),
                         alternate=int(alt.value) or None, print_general=print_general.value,
                         notes=notes.value or "",
+                        category=(category.value or "") if category is not None else work.category,
                         qty=(sum((t.hours for t in tasks_work), Decimal(0)) if m == "tasks" else
                              to_decimal(qty.value) if qty.value not in (None, "") else Decimal(0)),
                         tasks=[t.model_copy() for t in tasks_work] if m == "tasks" else [],
@@ -1862,6 +1885,7 @@ class Editor:
         if self.is_ce:
             from .. import ce
             out += ce.checks(self.rev, self.results.base, self.settings, self.cat, self.library)
+            out += self._urs_issues()
         return out
 
     def spelling(self) -> list:
@@ -1903,6 +1927,41 @@ class Editor:
         return {"block": "Open terms block", "section": "Show section", "project": "Project info",
                 "customer": "Open customer", "contractor": "Open contractor"}.get(kind, "Open")
 
+    def _urs_issues(self) -> list[tuple]:
+        """Convenient Enterprises requirements (ce-requirements 12): open interview answers, blanks left in the
+        URS, compliance not answered, Deviate/Clarify without text, client revision to review."""
+        from .. import ce_urs as U
+        from ..ce_models import URS
+        tab = ("tab", "requirements")
+        urs = self.rev.urs if self.locked and self.rev.urs is not None else self.urs
+        out: list[tuple] = []
+        if urs is None:
+            if self.rev.depth == URS:
+                out.append(("warn", "URS response depth, but this project has no requirements (Requirements tab)",
+                            tab))
+            return out
+        lib = self.st.requirements
+        if urs.mode == U.OURS:
+            open_q = U.open_answers(lib, urs)
+            if open_q:
+                out.append(("info", f"Requirements interview: {len(open_q)} question(s) open (Requirements tab > "
+                                    "Interview, or send the Word questionnaire)", tab))
+            left = U.leftover_blanks(lib, urs, self.project)
+            if left:
+                total = sum(n for _, n in left)
+                out.append(("info", f"URS/RFQ: {total} blank(s) to fill in before it is issued, in "
+                                    + ", ".join(s for s, _ in left[:10]) + (" ..." if len(left) > 10 else ""), tab))
+        if self.rev.depth == URS or urs.mode == U.CLIENT:
+            for m in U.compliance_issues(urs):
+                out.append(("warn", m, tab))
+        if self.rev.depth == URS:
+            big = [b for b in self.rev.bom if (b.extended or 0) >= 10000]
+            listed = any(b.id == "commercial" and b.on for b in self.rev.blocks)
+            if big and not listed:
+                out.append(("warn", f"{len(big)} bill of materials item(s) of $10,000 or more, but the Commercial "
+                                    "table that lists them separately is off (Proposal text tab)", ("tab", "terms")))
+        return out
+
     def open_issue(self, target: tuple) -> None:
         """Go to the place an issue is fixed: a line's form, a terms block, a tab, project info, a contact."""
         kind, ref = target
@@ -1917,7 +1976,8 @@ class Editor:
                 self._block_dialog(b, b.heading)
         elif kind == "tab":
             self.tabs.set_value({"variables": self.t_vars, "alternates": self.t_alts, "terms": self.t_terms,
-                                 "plan": self.t_plan or self.t_lines}.get(ref, self.t_lines))
+                                 "plan": self.t_plan or self.t_lines,
+                                 "requirements": self.t_reqs or self.t_lines}.get(ref, self.t_lines))
         elif kind == "section":
             self.tabs.set_value(self.t_lines)
             self._filter(int(ref))
@@ -1998,7 +2058,7 @@ class Editor:
     def _document(self) -> dict:
         return build_document(self.project, self.rev, self.settings, self.cat, self.library,
                               self.results, diff=self._diff(),
-                              image_dir=self.st.projects.image_dir(self.project.number))
+                              image_dir=self.st.projects.image_dir(self.project.number), urs=self.urs)
 
     async def preview(self) -> None:
         errors = [m for k, m, _ in self.issues() if k == "error"]
@@ -2095,8 +2155,10 @@ class Editor:
         self.save()
         self.plan_panel.refresh()
         self.terms_panel.refresh()
-        ui.notify("Detailed: bill of materials, schedule, milestone payments and assumptions print."
-                  if depth == "detailed" else "Letter: the Detailed tables and assumptions are off.", type="info")
+        ui.notify({"detailed": "Detailed: bill of materials, schedule, milestone payments and assumptions print.",
+                   "urs": "URS response: Detailed plus the compliance matrix, system description and commercial "
+                          "items. Fill the TBDs on the Proposal text tab."}.get(
+                      depth, "Letter: the Detailed and URS-response blocks are off."), type="info")
 
     @ui.refreshable_method
     def plan_panel(self) -> None:
@@ -2108,7 +2170,9 @@ class Editor:
             ui.toggle(DEPTHS, value=rev.depth or "letter", on_change=lambda e: self._set_depth(e.value)) \
                 .props("dense no-caps" + (" disable" if ro else ""))
             ui.label("Letter prints the narrative and cost. Detailed also prints the bill of materials, schedule, "
-                     "milestone payments and assumptions (turn any of them off on the Proposal text tab).") \
+                     "milestone payments and assumptions. URS response adds the compliance matrix, system "
+                     "description and commercial items (Requirements tab). Turn any block off on the Proposal text "
+                     "tab.") \
                 .classes("text-xs text-gray-500")
         with ui.row().classes("gap-2 mt-2"):
             if not ro:

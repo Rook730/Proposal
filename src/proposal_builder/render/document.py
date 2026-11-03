@@ -128,10 +128,10 @@ def _sov(rev: Revision, res: Results, catalog: Catalog) -> dict:
 
 def build_document(project: Project, rev: Revision, settings: Settings, catalog: Catalog,
                    boilerplate: Boilerplate, results: Results | None = None, diff=None,
-                   image_dir: Path | None = None) -> dict:
+                   image_dir: Path | None = None, urs=None) -> dict:
     if project.profile == CE:      # Convenient Enterprises: narrative modules and a cost table
         from .ce_document import build_ce_document
-        return build_ce_document(project, rev, settings, catalog, boilerplate, results)
+        return build_ce_document(project, rev, settings, catalog, boilerplate, results, urs)
     res = results or calculate(rev, settings, catalog.stock_classes, project)
     v = variable_map(project, rev, settings)
     v.update(document_variables(res, settings))

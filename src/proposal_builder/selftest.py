@@ -112,6 +112,23 @@ def run_self_test() -> tuple[bool, str]:
             det_pdf = compile_document(build_document(ce_project, ce_rev, ce_settings, catalog, ce_bp), ce_logo)
             assert det_pdf[:4] == b"%PDF", "CE detailed proposal PDF"
             lines.append(f"ce detailed total {ce_res.base.total}, proposal {len(det_pdf)} bytes")
+            # requirements engine: library, URS/RFQ package (Word and PDF), Response Form, questionnaire
+            from . import ce_urs
+            from .render.urs_document import build_package, build_response_form, write_docx, write_response_docx
+            from .render.urs_questionnaire import read_questionnaire, write_questionnaire
+            req = ds.load_requirements()
+            assert len(req.nodes) > 100, "requirement library"
+            urs = ce_urs.from_library(req, ce_project)
+            urs.answers["plant"] = "Fletcher"
+            urs.items[2].status, urs.items[2].response = "deviate", "Self test"
+            pkg = build_package(req, urs, ce_project)
+            urs_docx, urs_pdf = write_docx(pkg), compile_document(pkg, None, template="urs.typ")
+            form = build_response_form(req, urs, ce_project)
+            form_pdf = compile_document(form, None, template="urs.typ")
+            assert urs_docx[:2] == b"PK" and urs_pdf[:4] == b"%PDF" and form_pdf[:4] == b"%PDF", "URS documents"
+            assert write_response_docx(form)[:2] == b"PK" and form["rows"][0][1] == "Self test", "Response Form"
+            assert read_questionnaire(write_questionnaire(req, urs))[0] == {"plant": "Fletcher"}, "questionnaire"
+            lines.append(f"urs package {len(urs_docx)} bytes docx, {len(urs_pdf)} bytes pdf")
             # appendix images: Pillow scales a photo down; the PDF prints it
             import io
             from PIL import Image
@@ -133,7 +150,7 @@ def run_self_test() -> tuple[bool, str]:
             assert bad == ["cabinetery", "recieve"], bad
             assert "cabinetry" in [s.lower() for s in suggestions("cabinetery")]
             lines.append("spelling ok")
-            from .ui import closeout, crm_pages, editor, pages, projects, summary_page  # noqa: F401  UI modules import cleanly
+            from .ui import closeout, crm_pages, editor, pages, projects, requirements, summary_page  # noqa: F401  UI modules import cleanly
             lines.append("ui modules ok")
             json.dumps({"ok": True})
         lines.append("SELF-TEST PASSED")

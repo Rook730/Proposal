@@ -44,7 +44,7 @@ def test_ce_profile_seeded(st: AppState):
     assert s.brand.layout == "band" and s.brand.font == "IBM Plex Sans"
     assert s.next_proposal_number() == st.settings.next_proposal_number()      # one shared sequence
     heads = st.boilerplate_for(CE).headings
-    assert heads[:3] == ["Intro", "Scope", "Deliverables"] and heads[-1] == "Acceptance"
+    assert heads[:2] == ["Intro", "Scope"] and "Deliverables" in heads and heads[-1] == "Acceptance"
 
 
 def test_brand_defaults_keep_old_looks():

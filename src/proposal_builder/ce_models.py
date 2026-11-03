@@ -14,8 +14,10 @@ from pydantic import Field
 from .base import SavedModel
 
 D = Decimal
-LETTER, DETAILED = "letter", "detailed"
-DEPTHS = {LETTER: "Letter", DETAILED: "Detailed"}
+LETTER, DETAILED, URS = "letter", "detailed", "urs"
+DEPTHS = {LETTER: "Letter", DETAILED: "Detailed", URS: "URS response"}
+CATEGORIES = {"": "From section", "engineering": "Engineering", "support": "Support", "travel": "Travel",
+              "hardware": "Hardware", "capital": "Capital equipment", "tooling": "Tooling"}
 CLIENT, CONSULTANT = "client", "consultant"
 BUYERS = {CLIENT: "Client", CONSULTANT: "Consultant (cost + sourcing fee)"}
 

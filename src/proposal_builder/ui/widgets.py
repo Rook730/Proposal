@@ -24,6 +24,7 @@ NAV_CATALOG = [
     ("Stock lengths", "/stock", "carpenter"),
     ("Price references", "/prices", "forest"),
     ("Terms library", "/boilerplate", "article"),
+    ("Requirement library", "/requirements", "fact_check"),
 ]
 
 NAV_CONTACTS = [

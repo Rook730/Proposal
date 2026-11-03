@@ -38,6 +38,7 @@ def main() -> int:
         "--collect-submodules", "proposal_builder",
         "--collect-all", "typst",
         "--collect-data", "spellchecker",
+        "--collect-data", "docx",              # python-docx default template (URS/RFQ Word export)
         "--hidden-import", "PIL.ImageOps",
         "--distpath", str(ROOT / "dist"),
         "--workpath", str(ROOT / "build"),

@@ -16,6 +16,7 @@ from pydantic import Field
 
 from .base import SavedModel
 from .ce_models import BomItem, Milestone, Phase, TaskHours
+from .ce_urs import ProjectUrs
 from .buildsheet import BuildSheet
 from .models import (
     KS,
@@ -104,6 +105,7 @@ class Line(_Model):
     quote_amount: Decimal | None = None
     build: BuildSheet | None = None           # BUILT: internal cost build-up (never printed)
     tasks: list[TaskHours] = Field(default_factory=list)   # hours buildup (CE, internal): qty = their sum
+    category: str = ""                        # CE: engineering, support, travel, hardware, capital, tooling ("" = section)
 
     @property
     def is_built(self) -> bool:
@@ -212,6 +214,7 @@ class Revision(_Model):
     bom: list[BomItem] = Field(default_factory=list)
     milestones: list[Milestone] = Field(default_factory=list)
     phases: list[Phase] = Field(default_factory=list)
+    urs: ProjectUrs | None = None                              # CE: requirements as issued with this revision
 
     # -- sections
     def piece(self, number: int) -> PieceSection | None:
@@ -374,7 +377,7 @@ def new_revision_from(src: Revision, rev: str) -> Revision:
     """Editable copy of a revision with a new number and today's date."""
     data = src.model_dump()
     data.update(rev=rev, state=RevisionState.DRAFT, proposal_date=date.today(), based_on=src.rev,
-                issued_at=None)
+                issued_at=None, urs=None)     # a draft prints the live requirements
     return Revision.model_validate(data)
 
 

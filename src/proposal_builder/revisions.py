@@ -42,6 +42,8 @@ def issue(ps: ProjectStore, project: Project, rev: Revision) -> Revision:
         raise RevisionError(f"Rev {rev.rev} is already {rev.state.value.lower()}")
     rev.state = RevisionState.ISSUED
     rev.issued_at = datetime.now().replace(microsecond=0)
+    if project.profile == "ce":       # requirements and compliance as issued (snapshot rule)
+        rev.urs = ps.load_urs(project.number)
     ps.save_revision(project.number, rev, allow_locked=True)
     for r in ps.list_revisions(project.number):
         if r == rev.rev:

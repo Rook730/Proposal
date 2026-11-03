@@ -69,7 +69,7 @@ def folder(tmp_path: Path) -> Path:
     _write(d / "project.json", pj)
     rv = _read(d / "rev_1.0.json")
     rv["modules"] = {"m1": True}
-    rv["lines"][0]["category"] = "engineering"
+    rv["lines"][0]["future_category"] = "engineering"
     _write(d / "rev_1.0.json", rv)
 
     _write(root / "profiles/zz/settings.json", {"company": {"dba": "Convenient Enterprises"}, "rate": "125"})
@@ -116,7 +116,7 @@ def test_unknown_fields_survive_load_edit_save(folder: Path):
     d = ps.project_dir("26010")
     assert _read(d / "project.json")["job_code"] == "KS-26010"
     rv = _read(d / "rev_1.0.json")
-    assert rv["modules"] == {"m1": True} and rv["lines"][0]["category"] == "engineering"
+    assert rv["modules"] == {"m1": True} and rv["lines"][0]["future_category"] == "engineering"
 
 
 def test_new_revision_copy_keeps_unknown_fields(folder: Path):
@@ -124,7 +124,7 @@ def test_new_revision_copy_keeps_unknown_fields(folder: Path):
     rev = ProjectStore(DataStore(folder)).load_revision("26010")
     nxt = new_revision_from(rev, "1.1")
     assert nxt.unknown_fields["modules"] == {"m1": True}
-    assert nxt.lines[0].unknown_fields["category"] == "engineering"
+    assert nxt.lines[0].unknown_fields["future_category"] == "engineering"
 
 
 def test_foreign_catalog_sections_hidden_and_kept(folder: Path):

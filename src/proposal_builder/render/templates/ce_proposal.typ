@@ -81,6 +81,31 @@
   grid.cell(colspan: 3, align(right, text(weight: "bold")[Fixed fee])), align(right, text(weight: "bold", m.fixed)),
 ))
 
+#let compliance-table(rows) = if rows.len() == 0 { text(fill: muted, style: "italic")[No requirements entered.] } else {
+  grid(columns: (0.6in, 1fr, 1.45in), inset: (x: 4pt, y: 3pt), stroke: rules,
+    ..small-head([Section], [Requirement], [Compliance]),
+    ..rows.map(r => (
+      text(8.5pt, r.number),
+      [#pad(left: (r.level - 1) * 0.12in, text(8.5pt, weight: if r.level == 1 { "medium" } else { "regular" }, r.heading))
+       #if r.response != "" { linebreak(); pad(left: (r.level - 1) * 0.12in, text(8pt, fill: muted, r.response)) }],
+      text(8.5pt, weight: if r.deviate { "bold" } else { "regular" }, r.status))).flatten())
+}
+
+#let commercial-table(c) = {
+  block(breakable: false, grid(columns: (1fr, 1.2in), inset: (x: 4pt, y: 4pt), stroke: rules,
+    ..small-head([Category], align(right)[Amount]),
+    ..c.rows.map(r => (r.label, align(right, r.amount))).flatten(),
+    text(weight: "bold")[Total], align(right, text(weight: "bold", c.total))))
+  if c.major.len() > 0 {
+    v(4pt)
+    text(weight: "medium")[Major purchased components (\$10,000 or more)]
+    grid(columns: (1fr, 0.8in), inset: (x: 4pt, y: 3pt), stroke: rules,
+      ..small-head([Item], align(right)[Qty]),
+      ..c.major.map(r => ([#r.item #if r.description != "" { linebreak(); text(8.5pt, fill: muted, r.description) }],
+                          align(right, r.qty + " " + r.unit))).flatten())
+  }
+}
+
 #let timeline-chart(t) = if t.rows.len() == 0 { [] } else {
   let total = calc.max(t.weeks, 1)
   block(breakable: false, grid(columns: (1.9in, 1fr), inset: (x: 4pt, y: 4pt), stroke: rules,
@@ -112,6 +137,8 @@
   else if b.kind == "bom" { bom-table(d.bom) }
   else if b.kind == "milestones" { milestone-table(d.milestones) }
   else if b.kind == "timeline" { timeline-chart(d.timeline) }
+  else if b.kind == "compliance" { compliance-table(d.compliance) }
+  else if b.kind == "commercial" { commercial-table(d.commercial) }
   else if b.kind == "signatures" {
     sign-block(d.signatures.client + " (Client):")
     v(10pt)

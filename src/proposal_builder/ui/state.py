@@ -39,6 +39,7 @@ class AppState:
     def reload(self) -> None:
         # copies missing seed files only (never overwrites), e.g. the logo for older data folders
         self.store.initialize_from_seed()
+        self._requirements = None
         self.settings = self.store.load_settings()
         self.catalog = self.store.load_catalog()
         self.boilerplate = self.store.load_boilerplate()
@@ -66,7 +67,8 @@ class AppState:
                 if key == "cw" and cw_catalog.apply_terms(self.profile_boilerplate[key]):
                     self.store.save_boilerplate(self.profile_boilerplate[key], key)
                 if key == "ce":
-                    if ce_catalog.upgrade_library(self.profile_boilerplate[key]):
+                    up2 = ce_catalog.upgrade_library(self.profile_boilerplate[key])
+                    if ce_catalog.upgrade_library_stage3(self.profile_boilerplate[key]) or up2:
                         self.store.save_boilerplate(self.profile_boilerplate[key], key)
                     if ce_catalog.upgrade_settings(self.profile_settings[key]):
                         self.store.save_settings(self.profile_settings[key], key)
@@ -142,6 +144,16 @@ class AppState:
 
     def save_boilerplate(self, profile: str = KS) -> None:
         self.store.save_boilerplate(self.boilerplate_for(profile), profile)
+
+    @property
+    def requirements(self):
+        """Convenient Enterprises requirement library, loaded on first use."""
+        if getattr(self, "_requirements", None) is None:
+            self._requirements = self.store.load_requirements()
+        return self._requirements
+
+    def save_requirements(self) -> None:
+        self.store.save_requirements(self.requirements)
 
 
 _state: AppState | None = None

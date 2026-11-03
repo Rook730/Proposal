@@ -260,6 +260,20 @@ class DataStore:
         """Optional list files (customers, contractors, suppliers): empty when missing."""
         return self.load(name, cls) if self.path(name).exists() else cls()
 
+    def load_requirements(self, profile: str = "ce"):
+        """The requirement library (profiles/ce/requirements.json), created from the seed on first use."""
+        from .ce_urs import RequirementLibrary, default_library
+        rel = self.profile_file(profile, "requirements.json")
+        if not self.path(rel).exists():
+            lib = default_library()
+            self.path(rel).parent.mkdir(parents=True, exist_ok=True)
+            self.save(rel, lib)
+            return lib
+        return self.load(rel, RequirementLibrary)
+
+    def save_requirements(self, lib, profile: str = "ce") -> None:
+        self.save(self.profile_file(profile, "requirements.json"), lib)
+
     def load_boilerplate(self, profile: str = KS) -> Boilerplate:
         return self.load(self.profile_file(profile, "boilerplate.json"), Boilerplate)
 
@@ -453,6 +467,16 @@ class ProjectStore:
 
     def save_change_orders(self, number: str, log) -> None:
         self._save(self.project_dir(number) / "change_orders.json", log)
+
+    # -- Convenient Enterprises requirements (urs.json; CE projects only)
+    def load_urs(self, number: str):
+        from .ce_urs import ProjectUrs
+        d = self.project_dir(number)
+        p = d / "urs.json" if d is not None else None
+        return ProjectUrs.model_validate_json(p.read_text(encoding="utf-8")) if p and p.exists() else None
+
+    def save_urs(self, number: str, urs) -> None:
+        self._save(self.project_dir(number) / "urs.json", urs)
 
     def load_quotes(self, number: str):
         from .quotes import QuoteLog

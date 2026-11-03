@@ -173,23 +173,31 @@ def trip_lines(rev: Revision, catalog: Catalog, dest, trips: int, nights: int, n
 
 
 def set_depth(rev: Revision, depth: str, library, settings: Settings) -> None:
-    """Letter: the Detailed-depth blocks are off. Detailed: they are on (added from the library if this revision
-    predates them), and empty milestones and schedule start from the Settings templates."""
-    from .ce_catalog import DETAILED_IDS
-    from .ce_models import DETAILED
+    """Letter: the Detailed and URS-response blocks are off. Detailed: the Detailed blocks are on (added from the
+    library if this revision predates them), and empty milestones and schedule start from the Settings templates.
+    URS response: Detailed plus the requirements, system description and commercial blocks."""
+    from .ce_catalog import DETAILED_IDS, URS_IDS
+    from .ce_models import DETAILED, URS
     from .proposal import default_blocks
-    on = depth == DETAILED
+    detailed, urs = depth in (DETAILED, URS), depth == URS
     have = {b.id for b in rev.blocks}
-    if on:
-        missing = [b for b in library.blocks if b.id in DETAILED_IDS and b.id not in have]
-        rev.blocks += default_blocks(missing)
+    wanted = (DETAILED_IDS if detailed else ()) + (URS_IDS if urs else ())
+    missing = [b for b in library.blocks if b.id in wanted and b.id not in have]
+    if missing:
+        added = default_blocks(missing)
+        for b in added:
+            b.on = True
+        rev.blocks += added
+    if detailed:
         if not rev.milestones:
             rev.milestones = [m.model_copy() for m in settings.milestone_template]
         if not rev.phases:
             rev.phases = [p.model_copy() for p in settings.phase_template]
     for b in rev.blocks:
         if b.id in DETAILED_IDS:
-            b.on = on
+            b.on = detailed
+        elif b.id in URS_IDS:
+            b.on = urs
     rev.depth = depth
 
 

@@ -20,7 +20,8 @@ from .markup import md_to_typst
 
 COST_TABLE, SIGNATURES = "{cost_table}", "{signatures}"
 # Detailed depth tables (stage 2): block body -> kind
-TABLES = {"{bom_table}": "bom", "{milestone_table}": "milestones", "{timeline_table}": "timeline"}
+TABLES = {"{bom_table}": "bom", "{milestone_table}": "milestones", "{timeline_table}": "timeline",
+          "{compliance_table}": "compliance", "{commercial_table}": "commercial"}
 BILLING_LABEL = {ce.FIXED: "Fixed fee", ce.ESTIMATE: "Estimate, billed at actual"}
 
 
@@ -28,8 +29,24 @@ def _money(v: Decimal | None) -> str:
     return "" if v is None else f"${v:,.2f}"
 
 
-def ce_variables(project: Project, rev: Revision, settings: Settings, catalog: Catalog, res: Results) -> dict:
+def urs_reference(urs) -> str:
+    """How the proposal names the requirements it answers: "(Tandem Jig URS, Ref 123, Rev B)"."""
+    if urs is None:
+        return ""
+    if urs.mode == "client":
+        c = urs.client
+        parts = [c.title, c.reference and f"Ref {c.reference}", c.revision and f"Rev {c.revision}", c.date]
+    else:
+        parts = [urs.title and f"{urs.title} URS/RFQ", urs.reference and f"Ref {urs.reference}",
+                 f"Rev {urs.revision}"]
+    parts = [p for p in parts if p]
+    return f"({', '.join(parts)})" if parts else ""
+
+
+def ce_variables(project: Project, rev: Revision, settings: Settings, catalog: Catalog, res: Results,
+                 urs=None) -> dict:
     v = variable_map(project, rev, settings)
+    v["urs_reference"] = urs_reference(urs if urs is not None else rev.urs)
     pay = ce.payments(res.base, settings, catalog)
     v.update({"total_price": _money(res.base.total), "subtotal": _money(res.base.subtotal),
               "fixed_fee": _money(pay.fixed), "estimate_total": _money(pay.estimate),
@@ -92,6 +109,47 @@ def milestone_data(rev: Revision, res: Results, settings: Settings, catalog: Cat
             "fixed": _money(pay.fixed), "complete": left == 0}
 
 
+def compliance_data(urs) -> list[dict]:
+    """M17: every live requirement (not information sections) with its compliance status and response."""
+    from .. import ce_urs as U
+    if urs is None:
+        return []
+    out = []
+    for it, num, live in U.compliance_rows(urs):
+        if not live or it.kind == "information" or (not it.heading and not it.body):
+            continue
+        out.append({"number": num, "heading": it.heading, "level": it.level,
+                    "status": U.STATUSES.get(it.status, "") if it.status else "TBD",
+                    "deviate": it.status in U.FORM_STATUSES,
+                    "response": it.response if it.status in U.FORM_STATUSES or it.status == "client" else ""})
+    return out
+
+
+def line_category(ln: Line) -> str:
+    from ..ce_catalog import SECTION_CATEGORY
+    return ln.category or SECTION_CATEGORY.get(ln.section, "engineering")
+
+
+def commercial_data(rev: Revision, res: Results) -> dict:
+    """M19: base-proposal totals by category (tooling separated from capital equipment) and the major purchased
+    components (bill of materials items of $10,000 or more)."""
+    from ..ce_models import CATEGORIES
+    totals: dict[str, Decimal] = {}
+    for ln in rev.lines:
+        if ln.alternate is not None or ln.section not in rev.sections or ln.id not in res.lines:
+            continue
+        cat = line_category(ln)
+        totals[cat] = totals.get(cat, Decimal(0)) + res.lines[ln.id].cost
+    order = ["capital", "tooling", "engineering", "hardware", "support", "travel"]
+    rows = [{"label": CATEGORIES.get(k, k.title()), "amount": _money(totals[k])}
+            for k in order + sorted(set(totals) - set(order)) if totals.get(k)]
+    major = [{"item": " ".join(x for x in (b.manufacturer, b.model) if x) or b.description,
+              "description": b.description if (b.manufacturer or b.model) else "", "qty": fmt_qty(b.qty),
+              "unit": b.unit}
+             for b in rev.bom if (b.extended or Decimal(0)) >= Decimal(10000)]
+    return {"rows": rows, "total": _money(res.base.total), "major": major}
+
+
 def timeline_data(rev: Revision) -> dict:
     end = max((p.start_week + p.weeks for p in rev.phases), default=Decimal(0))
     return {"weeks": float(end), "label": fmt_qty(end),
@@ -112,9 +170,12 @@ def _company(settings: Settings) -> dict:
 
 
 def build_ce_document(project: Project, rev: Revision, settings: Settings, catalog: Catalog,
-                      boilerplate: Boilerplate, results: Results | None = None) -> dict:
+                      boilerplate: Boilerplate, results: Results | None = None, urs=None) -> dict:
+    """urs: the project's live requirements for a draft; an issued revision prints its own snapshot."""
     res = results or calculate(rev, settings, catalog.stock_classes, project)
-    v = ce_variables(project, rev, settings, catalog, res)
+    if rev.urs is not None and (urs is None or rev.state.value != "Draft"):
+        urs = rev.urs
+    v = ce_variables(project, rev, settings, catalog, res, urs)
     by_heading: dict[str, list] = {}
     for b in sorted(rev.blocks, key=lambda b: b.order):
         if not b.on:
@@ -141,6 +202,8 @@ def build_ce_document(project: Project, rev: Revision, settings: Settings, catal
         "bom": bom_data(rev),
         "milestones": milestone_data(rev, res, settings, catalog),
         "timeline": timeline_data(rev),
+        "compliance": compliance_data(urs),
+        "commercial": commercial_data(rev, res),
         "signatures": {"client": project.client_name or "Client",
                        "company": settings.company.dba or settings.company.legal_name},
     }

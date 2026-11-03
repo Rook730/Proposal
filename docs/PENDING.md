@@ -193,3 +193,9 @@ Build sheet audit (all findings fixed):
 104. [x] CE ECNs: change orders page as ECNs, hours x rate items, no markup, Engineering Change Notice PDF.
 105. [x] Price references (hardware) gain make, model and lead time.
 106. [x] CE Issues checks: payment schedule not 100%, BOM items without cost or make/model, certification wording, Material text contradicting the BOM.
+107. [x] CE requirement library (Catalog > Requirement library): the URS/RFQ Template as numbered sections with variables, yes/no questions and intake questions; export the blank template (Word and PDF).
+108. [x] CE Requirements tab: write the URS from the library, or enter the client's spec with their numbering; compliance status and response per requirement; client revisions flag responses for review. Details in docs/ce-requirements.md section 13c.
+109. [x] CE intake: in-app interview and Word questionnaire (content controls, import back).
+110. [x] CE URS/RFQ package and URS Response Form, Word and PDF.
+111. [x] CE URS response depth: compliance matrix, system description and commercial items in the proposal; category per line; requirements snapshot on Issue.
+112. [x] CE Issues checks for requirements: open interview questions, blanks in the URS, unanswered compliance, Deviate/Clarify without text, client revision to review, major components not listed.

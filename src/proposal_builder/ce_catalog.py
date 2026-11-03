@@ -109,6 +109,67 @@ DETAILED_BLOCKS = [
 DETAILED_IDS = tuple(b[1] for b in DETAILED_BLOCKS)
 
 
+# Library blocks for URS-response depth (stage 3): M17 compliance, M18 system description, M19 commercial items.
+STAGE3 = "ce-stage3"
+URS_HEADINGS = (("Requirements", "Scope"), ("System Description", "Requirements"), ("Commercial", "Cost"))
+_SD = "TBD: describe {} (or turn this block off on the Proposal text tab)."
+URS_BLOCKS = [
+    ("Requirements", "compliance-intro", "", (
+        "This proposal responds to the Client's User Requirements Specification {urs_reference}. Each requirement's "
+        "compliance is listed below. Deviations and clarifications are detailed on the attached URS Response "
+        "Form; any requirement not listed there will be met as written."), 10),
+    ("Requirements", "compliance", "Compliance matrix", "{compliance_table}", 20),
+    ("System Description", "sd-loading", "Loading and unloading", _SD.format("how parts are loaded and unloaded"),
+     10),
+    ("System Description", "sd-machine-layout", "Machine layout", _SD.format("the machine layout"), 20),
+    ("System Description", "sd-cell-layout", "Cell layout", _SD.format("the cell layout"), 30),
+    ("System Description", "sd-data", "Data collection and management",
+     _SD.format("the data collection and management scheme"), 40),
+    ("System Description", "sd-controls", "Controls functionality and operating modes",
+     _SD.format("the controls functionality and the automatic and manual modes"), 50),
+    ("System Description", "sd-hmi", "HMI screens", _SD.format("the HMI screens (titles or examples)"), 60),
+    ("System Description", "sd-sequence", "Order of operations",
+     _SD.format("the order of operations in automatic and manual modes"), 70),
+    ("System Description", "sd-quality", "Quality checks", _SD.format("the quality checks"), 80),
+    ("System Description", "sd-cycle", "Estimated cycle time",
+     _SD.format("the estimated cycle time, broken down into manual and automatic operations"), 90),
+    ("System Description", "sd-recipes", "Recipes", _SD.format("the recipe layout and ingredients"), 100),
+    ("Commercial", "commercial", "Capital, tooling and major components", "{commercial_table}", 10),
+    ("Commercial", "training", "Training and support", (
+        "On-site training and support for the duration of installation is included. Additional on-site training "
+        "and support: TBD days, to be used consecutively within TBD months of installation."), 20),
+    ("Commercial", "warranty", "Warranty", "TBD: warranty and any extended warranty offered.", 30),
+    ("Commercial", "shipping", "Crating, insurance and shipment",
+     "TBD: skidding, crating and protection, insurance and method of shipment.", 40),
+    ("Commercial", "ongoing-support", "Ongoing support", (
+        "Technical support and field service are provided by the Consultant from Fletcher, NC. Remote "
+        "troubleshooting: response within TBD business hours by phone. On-site break-down repairs and scheduled "
+        "maintenance: TBD. Unplanned break-down support is billed at {eng_rate}/hr plus travel. Emergency service "
+        "agreement: TBD."), 50),
+]
+URS_IDS = tuple(b[1] for b in URS_BLOCKS)
+
+
+def upgrade_library_stage3(bp) -> bool:
+    """URS-response blocks and their headings (Requirements, System Description, Commercial), once."""
+    from .models import BoilerplateBlock
+    if STAGE3 in bp.migrations:
+        return False
+    for heading, after in URS_HEADINGS:
+        if heading not in bp.headings:
+            at = bp.headings.index(after) + 1 if after in bp.headings else len(bp.headings)
+            bp.headings.insert(at, heading)
+    have = {b.id for b in bp.blocks}
+    bp.blocks += [BoilerplateBlock(id=i, heading=h, title=t, body=body, default_on=False, order=o)
+                  for h, i, t, body, o in URS_BLOCKS if i not in have]
+    bp.migrations.append(STAGE3)
+    return True
+
+
+# Default category per section (a line's category overrides it): ce-requirements 6, needed for M19
+SECTION_CATEGORY = {4000: "engineering", 4100: "support", 4200: "travel", 4300: "hardware"}
+
+
 def apply_stage2(catalog: Catalog) -> bool:
     """Hardware section and its pass-through line item, once."""
     if STAGE2 in catalog.migrations:

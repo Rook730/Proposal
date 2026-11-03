@@ -1,6 +1,6 @@
 # Convenient Enterprises (engineering) profile: requirements draft
 
-Version 0.5 | 2026-11-03 | Owner: Nick (stage 0 released in 1.10.1; stages 1 and 2 built on `ce`)
+Version 0.6 | 2026-11-03 | Owner: Nick (stage 0 released in 1.10.1; stages 1 to 3 built on `ce`)
 Source: intake in the claude.ai Project "Automation Proposal Software" (URS_RFQ Template.docx, URS_Response_Form.docx, URS_RFQ Data workbooks, MGM Proposal_20260828_Rev1.0 and Estimate 2026-02). Open items are in section 15.
 
 ## 1. Purpose and scope
@@ -30,7 +30,7 @@ Depth is a preset that turns modules on (section 5). Any module can be turned on
    - MGM predates the CE mileage rule (section 6); the rebuild leaves the mileage line off.
 2. Generate URS/RFQ Template Rev 1.0 from the requirement library with no manual edits: same sections and numbering, Response Form and acknowledgement page.
 3. Respond to a complete URS: every requirement has a status, and the Response Form lists every Deviate and Clarify item by section number.
-4. Time: a Letter proposal like MGM is built in 1 hour or less.
+4. Time: a Letter proposal like MGM is built in 1 hour or less (a target, not a gate: decided 2026-11-03).
 
 **Out of scope (for now)**
 - Invoicing (Wave), e-signature, multi-user, client web portal or hosted forms.
@@ -56,7 +56,7 @@ Depth is a preset that turns modules on (section 5). Any module can be turned on
   - A KS or CW project gains new fields only (e.g. brand data); KS and CW revisions must keep loading in 1.10.1.
 - **Branch builds:** prerelease tags `v1.11.0-ce.N` from `build-windows.yml`. Stable's updater reads `releases/latest`, which skips prereleases, so stable is never offered a branch build. The branch build's updater checks prereleases on its own channel so it does not offer stable as an "update".
 - **Rollback:** stop running the branch exe. 1.10.1 still reads the whole folder; CE projects stay listed (not opened).
-- **Merge:** after stage 1 is accepted (decided 2026-11-03). CE ships in the next minor release from `main`; stages 2 to 4 continue on new branches or on `main`.
+- **Merge:** after stage 1 is accepted (decided 2026-11-03). CE ships in the next minor release from `main`; stages 2 to 4 continue on new branches or on `main`. The 1-hour target (test 4) does not hold up the merge; as built, stages 2 and 3 continued on `ce` and the merge waits for Nick's go-ahead.
 
 ## 3. Branding (every company, every document)
 
@@ -216,7 +216,7 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 0. **1.10.1 on main:** forward compatibility (section 2).
 1. **CE profile, branding, Letter depth:** profile plumbing, brand settings for all three companies, modules M1 to M11, cost model, Estimate PDF, CE terms library seeded from MGM, mileage as a fee line. Acceptance: tests 1 and 4. Then merge to `main`.
 2. **Detailed depth:** M12 to M16, ECNs, travel destinations, hardware price references (as built: 13b).
-3. **Requirements engine:** library seeded from the template, project URS, URS/RFQ package export, Word questionnaire and in-app interview, manual spec entry, compliance matrix, Response Form, M17 to M19. Acceptance: tests 2 and 3.
+3. **Requirements engine:** library seeded from the template, project URS, URS/RFQ package export, Word questionnaire and in-app interview, manual spec entry, compliance matrix, Response Form, M17 to M19. Acceptance: tests 2 and 3 (as built: 13c).
 4. **Calculators, qualification and tracking:** TAKT, cycle time, PDA, 3P, FAT/SAT (M20); turnkey commercial items; Clockify actuals.
 
 ## 13a. As built: stage 1 (branch `ce`, prerelease 1.11.0-ce.1)
@@ -246,6 +246,20 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 - **Checks:** 9 stage 2 tests (`tests/test_ce_stage2.py`); the self-test builds a Detailed proposal (total $13,256.25 with $1,100.00 hardware). KS and CW documents pixel-identical (22 pages, including change orders). A folder written by this build opened in 1.10.1: CE project listed and not opened, section 4300 and item 4310 kept, new fields on KS change orders, settings and price references kept through a 1.10.1 save; CE files untouched.
 - **Not in stage 2:** category tag per line; revision rounds used; deliverable and milestone status with invoice prompt; Clockify actuals (stage 4); hours per role.
 
+## 13c. As built: stage 3 (branch `ce`, prerelease 1.11.0-ce.3)
+
+- **Requirement library (`ce_urs.py`, `seed/ce/requirements.md`):** the URS/RFQ Template Rev 1.0 as 120 sections (levels 1 to 3, numbered as in the template, 1 to 15 plus the FAT/SAT appendix as 16), each with a kind (requirement, instruction, data, information) and the yes/no questions it depends on. Seven yes/no questions (pneumatics, hydraulics, PLC/HMI, recipes, interfaces, tooling, FAT/SAT plan) and 36 variables with plain-language questions, examples and defaults (the template's own wording). Template notes are marked `[!...]`: blue in the template, dropped from an issued URS; other bracketed text is a blank to fill in. Interface Devices keeps both of the template's paragraphs until the interfaces question is answered. The data folder keeps `profiles/ce/requirements.json`, created from the seed on first use and edited on Catalog > Requirement library (sections, variables and questions, yes/no questions, front matter; Export blank template).
+- **Project URS (`urs.json` in the project folder):** Requirements tab of a CE project. Two starts: *We write the URS/RFQ* (copy of the library; adds the no-charge intake line 4090) or *Respond to the client's spec* (blank, or the library tree with its numbers, then edited to the client's numbering; title, reference, revision, date of their document; their file is reference only, never parsed). Rows: number (automatic, or typed for client specs), level, heading, text, kind, on/off, compliance status (Comply, Comply with clarification, Deviate, N/A, Information only, By client), response, links. Grid with in-place status and response, double-click dialog, add/move/indent/delete, Comply to the rest. Sections turned off print "Not applicable" (numbers stay) or are left out (later sections renumber), per project. Library updated indicator per row.
+- **Intake (8.3):** in-app interview (`/project/<n>/interview`, one topic per page, progress bar, saves as you type, "Don't know" leaves the question open) and the Word questionnaire with content controls (check boxes for yes/no, text boxes for answers, "Don't know" boxes); import reads the controls by tag, so notes typed elsewhere do no harm. Both write the same answers. A variable whose sections are all off is not asked.
+- **URS/RFQ package (`render/urs_document.py`, `urs.typ`):** Word (.docx, python-docx) and PDF from one model: cover (client, address, title, subtitle, URS/RFQ and RFQ lines, revision and month, issued and due dates, confidential information), URS/RFQ revision history, table of contents (Word builds it when the file is opened), numbered sections with bullets, tables and signature lines, footer with revision, page X of Y, author and document number. The blank template adds the instructions page and Document Version History and Approvals, as the original does. Saved in the project's `urs` folder. Styles are built to match the template (Calibri in Word, Carlito in the PDF); the original .docx was not available (only its text), so list nesting was set from the text and Word styles approximated.
+- **Response Form:** URS/RFQ reference, revision, completed by (default: the library author), completed date (default: today), the template instructions, and every Deviate and Clarify row by section number (Clarify text prefixed "Clarification:"), padded to 12 rows. Word and PDF.
+- **URS response depth (M17 to M19):** third depth on the Project plan tab. Turns on the Detailed blocks plus new terms-library headings Requirements (intro naming the spec `{urs_reference}` and the compliance matrix `{compliance_table}`), System Description (loading/unloading, machine and cell layout, data, controls and modes, HMI screens, order of operations, quality checks, cycle time, recipes; each a TBD block) and Commercial (`{commercial_table}`: base totals by category with tooling apart from capital equipment, and bill of materials items of $10,000 or more; training and support, warranty, crating/insurance/shipment, ongoing support). Folders from stage 2 get the blocks once (marker "ce-stage3").
+- **Category per line (6):** line form, CE only: engineering, support, travel, hardware, capital equipment, tooling; "From section" uses 4000 engineering, 4100 support, 4200 travel, 4300 hardware. `Line.category` is a new field (allowed by the contract).
+- **Snapshot:** issuing a CE revision stores the URS and its compliance in the revision (`Revision.urs`); an issued revision prints its own copy, drafts print the live one. A new revision starts from the live one.
+- **Issues (12):** interview questions open; blanks left in the URS (by section); with URS response depth or a client spec: requirements with no status, Deviate/Clarify with no response text, responses to review after a client revision; URS response depth with no requirements; bill of materials items of $10,000 or more while the Commercial table is off.
+- **Checks:** 7 tests (`tests/test_ce_urs.py`): numbering matches the template's contents and appendix cross-references (acceptance test 2, with the blank template's Word headings and PDF); answers, yes/no questions and both omit modes; questionnaire round trip; compliance, Response Form order and client revision review (acceptance test 3); URS response proposal with compliance matrix, commercial table and the issue snapshot. Self-test builds the package, Response Form and questionnaire. KS and CW documents pixel-identical (22 pages). A stage 3 folder round-trips through 1.10.1 (CE files untouched; new revision and line fields kept).
+- **Not in stage 3:** the original template's exact Word styles (needs the .docx); attaching the client's spec file from the app (type its name in Document details); M20 qualification documents and calculators (stage 4).
+
 ## 14. Defaults chosen (no preference given)
 
 - Wave: the app makes the PO estimate; Wave invoices only (section 7).
@@ -254,7 +268,7 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 ## 15. Decisions log (open items resolved 2026-11-03)
 
 1. CE logo supplied (`seed/ce/logo.svg`); black, no accent color.
-2. Target time for a Letter proposal: 1 hour (acceptance test 4).
+2. Target time for a Letter proposal: 1 hour (acceptance test 4); a target, not a gate for the merge.
 3. Mileage: same as CW (section 6).
 4. URS/RFQ packages and intake are issued by CE; not billable, but noted on the proposal as a no-charge line.
 5. URS responses always use our Response Form.

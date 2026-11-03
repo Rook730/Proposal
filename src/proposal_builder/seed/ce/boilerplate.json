@@ -3,6 +3,8 @@
   "headings": [
     "Intro",
     "Scope",
+    "Requirements",
+    "System Description",
     "Deliverables",
     "Material",
     "Labor",
@@ -10,6 +12,7 @@
     "Assumptions",
     "Time Table",
     "Cost",
+    "Commercial",
     "Terms",
     "Termination",
     "Acceptance"
@@ -246,9 +249,146 @@
       "body": "- The existing machine is mechanically sound and its current controls documentation is accurate.\n- Client staff and the machine are available for the onsite days as scheduled.\n- TBD: project-specific assumptions and risks.",
       "default_on": false,
       "order": 10
+    },
+    {
+      "id": "compliance-intro",
+      "heading": "Requirements",
+      "title": "",
+      "body": "This proposal responds to the Client's User Requirements Specification {urs_reference}. Each requirement's compliance is listed below. Deviations and clarifications are detailed on the attached URS Response Form; any requirement not listed there will be met as written.",
+      "default_on": false,
+      "order": 10
+    },
+    {
+      "id": "compliance",
+      "heading": "Requirements",
+      "title": "Compliance matrix",
+      "body": "{compliance_table}",
+      "default_on": false,
+      "order": 20
+    },
+    {
+      "id": "sd-loading",
+      "heading": "System Description",
+      "title": "Loading and unloading",
+      "body": "TBD: describe how parts are loaded and unloaded (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 10
+    },
+    {
+      "id": "sd-machine-layout",
+      "heading": "System Description",
+      "title": "Machine layout",
+      "body": "TBD: describe the machine layout (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 20
+    },
+    {
+      "id": "sd-cell-layout",
+      "heading": "System Description",
+      "title": "Cell layout",
+      "body": "TBD: describe the cell layout (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 30
+    },
+    {
+      "id": "sd-data",
+      "heading": "System Description",
+      "title": "Data collection and management",
+      "body": "TBD: describe the data collection and management scheme (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 40
+    },
+    {
+      "id": "sd-controls",
+      "heading": "System Description",
+      "title": "Controls functionality and operating modes",
+      "body": "TBD: describe the controls functionality and the automatic and manual modes (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 50
+    },
+    {
+      "id": "sd-hmi",
+      "heading": "System Description",
+      "title": "HMI screens",
+      "body": "TBD: describe the HMI screens (titles or examples) (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 60
+    },
+    {
+      "id": "sd-sequence",
+      "heading": "System Description",
+      "title": "Order of operations",
+      "body": "TBD: describe the order of operations in automatic and manual modes (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 70
+    },
+    {
+      "id": "sd-quality",
+      "heading": "System Description",
+      "title": "Quality checks",
+      "body": "TBD: describe the quality checks (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 80
+    },
+    {
+      "id": "sd-cycle",
+      "heading": "System Description",
+      "title": "Estimated cycle time",
+      "body": "TBD: describe the estimated cycle time, broken down into manual and automatic operations (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 90
+    },
+    {
+      "id": "sd-recipes",
+      "heading": "System Description",
+      "title": "Recipes",
+      "body": "TBD: describe the recipe layout and ingredients (or turn this block off on the Proposal text tab).",
+      "default_on": false,
+      "order": 100
+    },
+    {
+      "id": "commercial",
+      "heading": "Commercial",
+      "title": "Capital, tooling and major components",
+      "body": "{commercial_table}",
+      "default_on": false,
+      "order": 10
+    },
+    {
+      "id": "training",
+      "heading": "Commercial",
+      "title": "Training and support",
+      "body": "On-site training and support for the duration of installation is included. Additional on-site training and support: TBD days, to be used consecutively within TBD months of installation.",
+      "default_on": false,
+      "order": 20
+    },
+    {
+      "id": "warranty",
+      "heading": "Commercial",
+      "title": "Warranty",
+      "body": "TBD: warranty and any extended warranty offered.",
+      "default_on": false,
+      "order": 30
+    },
+    {
+      "id": "shipping",
+      "heading": "Commercial",
+      "title": "Crating, insurance and shipment",
+      "body": "TBD: skidding, crating and protection, insurance and method of shipment.",
+      "default_on": false,
+      "order": 40
+    },
+    {
+      "id": "ongoing-support",
+      "heading": "Commercial",
+      "title": "Ongoing support",
+      "body": "Technical support and field service are provided by the Consultant from Fletcher, NC. Remote troubleshooting: response within TBD business hours by phone. On-site break-down repairs and scheduled maintenance: TBD. Unplanned break-down support is billed at {eng_rate}/hr plus travel. Emergency service agreement: TBD.",
+      "default_on": false,
+      "order": 50
     }
   ],
   "migrations": [
-    "ce-stage2"
+    "ce-stage2",
+    "ce-stage3"
   ]
 }
