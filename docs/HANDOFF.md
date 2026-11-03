@@ -8,7 +8,7 @@ Approach A: same app, a second **company profile**. Kept Spec Advisors (project 
 
 Intake with Nick (2026-10-25) is done: answers in the claude.ai Project (`claude/proposal-builder-cw-intake.md`), requirements in `docs/cw-requirements.md`, summary in `docs/requirements.md` section 16.
 
-**Status:** stages 1 to 3 are released (1.8.0 and 1.9.0; PENDING items 43 to 69). Stage 4 (actual hours by phase for calibration, wholesale) waits until the app is in use. Open values: profit percent (10% placeholder), real hardware prices for the square box template, storage defaults to confirm.
+**Status (2.0.0):** a third company, Convenient Enterprises (engineering), was added on the `ce` branch and merged as 2.0.0; its spec and as-built notes are docs/ce-requirements.md. Convenient Woodworking: stages 1 to 3 are released (1.8.0 and 1.9.0; PENDING items 43 to 69). Stage 4 (actual hours by phase for calibration, wholesale) waits until the app is in use. Open values: profit percent (10% placeholder), real hardware prices for the square box template, storage defaults to confirm.
 
 ## Read first
 

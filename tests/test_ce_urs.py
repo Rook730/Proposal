@@ -116,7 +116,12 @@ def test_issued_package_answers_tags_and_omit(lib):
     flat = str(doc["sections"])
     assert "[Modify the below" not in flat and "Murphy plant" in flat and "press bushings" in flat
     assert "Leak tester" in flat and "There are no external devices" not in flat
-    assert not doc["instructions"] and doc["doc_control"] is None
+    assert not doc["instructions"] and doc["doc_control"] is None and doc["prepared_by"] == ""
+    co = {"name": "Convenient Enterprises", "legal": "Convenient Enterprises LLC", "email": "nick@convenient.enterprises"}
+    branded = build_package(lib, urs, mode=U.ISSUED, company=co)
+    assert branded["prepared_by"] == "Prepared by Convenient Enterprises LLC | nick@convenient.enterprises"
+    d = docx.Document(io.BytesIO(write_docx(branded)))
+    assert d.sections[0].footer.paragraphs[-1].text == branded["prepared_by"]
     urs.omit = U.OMIT_REMOVE
     secs = {s["number"]: s["heading"] for s in build_package(lib, urs, mode=U.ISSUED)["sections"]}
     assert secs["6"] == "Pneumatic Specifications" and secs["15"] == "Appendix: FAT/SAT Plan"

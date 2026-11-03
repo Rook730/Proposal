@@ -61,7 +61,9 @@
     set text(8.5pt)
     grid(columns: (1fr, 1fr), [Revision: #d.revision],
       align(right)[Page #counter(page).display("1 of 1", both: true)])
-    text(7.5pt, fill: luma(90))[Author: #d.author #linebreak() Document Number: #d.document_number]
+    grid(columns: (1fr, auto), align: bottom,
+      text(7.5pt, fill: luma(90))[Author: #d.author #linebreak() Document Number: #d.document_number],
+      text(6.5pt, fill: luma(150), d.at("prepared_by", default: "")))
   })
 #set text(font: "Carlito", size: 11pt)
 #set par(justify: false, leading: 0.55em, spacing: 0.75em)

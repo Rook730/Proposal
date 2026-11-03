@@ -158,6 +158,7 @@ def build_package(lib: U.RequirementLibrary, urs: U.ProjectUrs | None, project=N
         "sections": sections,
         "author": urs.author or lib.author,
         "document_number": urs.document_number or "Not Assigned",
+        "prepared_by": prepared_by(company),
     }
     return doc
 
@@ -182,7 +183,17 @@ def build_response_form(lib: U.RequirementLibrary, urs: U.ProjectUrs, project=No
         "revision": urs.client.revision or urs.revision or "1.0",
         "author": urs.completed_by or lib.author,
         "document_number": urs.reference or urs.document_number or "Not Assigned",
+        "prepared_by": prepared_by(company),
     }
+
+
+def prepared_by(company: dict | None) -> str:
+    """Small footer credit: the URS is the client's document, traceable to the company that prepared it."""
+    if not company:
+        return ""
+    who = company.get("legal") or company.get("name") or ""
+    contact = company.get("email") or company.get("phone") or ""
+    return f"Prepared by {who}" + (f" | {contact}" if contact else "") if who else ""
 
 
 def package_filename(project, urs: U.ProjectUrs, ext: str) -> str:
@@ -344,6 +355,16 @@ def _footer(d, doc: dict) -> None:
     p2 = f.add_paragraph()
     r2 = p2.add_run(f"Author: {doc['author']}\nDocument Number: {doc['document_number']}")
     r2.font.size = Pt(8)
+    if doc.get("prepared_by"):
+        from docx.shared import RGBColor
+        p3 = f.add_paragraph()
+        p3.alignment = 2        # right
+        r3 = p3.add_run(doc["prepared_by"])
+        r3.font.size = Pt(7)
+        r3.font.color.rgb = RGBColor(0x8C, 0x8C, 0x8C)
+    d.core_properties.author = doc["author"]
+    if doc.get("prepared_by"):
+        d.core_properties.comments = doc["prepared_by"]
     h = sec.header.paragraphs[0]
     hr = h.add_run(doc.get("client") or "")
     hr.bold = True

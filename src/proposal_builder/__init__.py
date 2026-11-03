@@ -1,3 +1,3 @@
-"""Proposal Builder for Kept Spec Advisors and Convenient Woodworking."""
+"""Proposal Builder for Kept Spec Advisors, Convenient Woodworking and Convenient Enterprises."""
 
-__version__ = "1.11.0-ce.3"
+__version__ = "2.0.0"

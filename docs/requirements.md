@@ -499,6 +499,8 @@ A toggle shows fields that never print:
 
 **1.10.1: forward compatibility.** Saved files keep fields this version does not know; catalog sections and projects of an unknown company (the CE branch) are kept untouched, hidden or listed only. Lets a newer build share the data folder (docs/ce-requirements.md section 2). Details in docs/PENDING.md (items 89 to 91).
 
+**2.0.0: Convenient Enterprises.** Third company (engineering): Letter, Detailed and URS-response proposals, Estimate, hours buildup, bill of materials, milestone payments, schedule, travel destinations, ECNs, the requirements engine (requirement library, project URS, interview and Word questionnaire, URS/RFQ package, compliance matrix, URS Response Form), and a brand per company for every document. Kept Spec and Convenient Woodworking documents are unchanged. Requirements and as-built notes in docs/ce-requirements.md (sections 13a to 13c); PENDING items 92 to 112. Merged from the `ce` branch (prereleases 1.11.0-ce.1 to ce.3).
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.

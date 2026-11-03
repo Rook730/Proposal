@@ -176,7 +176,7 @@ Build sheet audit (all findings fixed):
 90. [x] Catalog sections of a company this version does not know (e.g. "ce"), and the items in them, are kept exactly as read, hidden everywhere (catalog pages, pickers, items_for) and written back on save. Their codes and section numbers count as taken (code check on the item form, duplicate check, next section number).
 91. [x] Projects of a company this version does not know are listed on the Projects page (company shown in capitals, status marked "(newer version)") but never opened, saved, archived or deleted here: double-click, the editor and change orders pages say so. They are left out of income, customer linking, contractor usage and Copy from. Their number stays taken. A customer with such a project cannot be deleted.
 
-## Next release (1.11.0: Convenient Enterprises, branch `ce`; prereleases 1.11.0-ce.N)
+## Released in 2.0.0 (2026-11-03): Convenient Enterprises (merged from branch `ce`, prereleases 1.11.0-ce.1 to ce.3)
 
 92. [x] Convenient Enterprises profile: third company (settings, terms library, logo), catalog sections 4000 to 4200 with fixed-fee and time-and-materials billing, its performer, global variables for rates and terms. Details in docs/ce-requirements.md section 13a.
 93. [x] CE proposal PDF: narrative modules with spaced headings, cost table (fixed fee, estimate, deposit, options outside the total), both signatures, header band on every page.

@@ -27,6 +27,11 @@ KIND_LABELS = list(U.KINDS.values())
 KIND_KEY = {v: k for k, v in U.KINDS.items()}
 
 
+def company_info(settings) -> dict:
+    c = settings.company
+    return {"name": c.dba or c.legal_name, "legal": c.legal_name, "email": c.email, "phone": c.phone, "logo": ""}
+
+
 def _open_buttons(paths) -> None:
     with ui.row():
         if sys.platform == "win32":
@@ -505,7 +510,7 @@ class RequirementsPanel:
 
     # ------------------------------------------------------------ exports
     def _company(self) -> dict:
-        return {"name": self.ed.settings.company.dba or self.ed.settings.company.legal_name, "logo": ""}
+        return company_info(self.ed.settings)
 
     async def _write(self, files: list[tuple[str, bytes]], title: str) -> None:
         paths = []
@@ -692,7 +697,7 @@ def library_page() -> None:
 
     with ui.row().classes("gap-2"):
         async def template() -> None:
-            doc = build_package(lib, None)
+            doc = build_package(lib, None, company=company_info(st.settings_for("ce")))
             docx = await run.io_bound(write_docx, doc)
             pdf = await run.io_bound(compile_document, doc, None, "pdf", 110, "urs.typ")
             folder = st.store.root / "profiles" / "ce" / "exports"
