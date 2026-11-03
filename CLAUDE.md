@@ -20,6 +20,7 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 ## Conventions
 - Catalog edits must never change saved proposals (snapshot rule, spec 4.9).
 - Two companies (spec section 16, docs/cw-requirements.md): a project's settings and terms come from `st.settings_for(project.profile)` / `st.boilerplate_for(project.profile)`, never `st.settings` directly (that is Kept Spec plus the shared values). Catalog lists offered in a project use `catalog.sections_for(profile)` / `items_for(profile)`.
+- CE profile: docs/ce-requirements.md (source of truth for the ce branch)
 - User-facing text: no em dashes.
 - Tests: `python -m pytest -q`. Importer parity test needs PROPOSAL_XLSX=<path to workbook>.
 - Release: see docs/HANDOFF.md (bump versions, push main, run build-windows.yml with release_tag).
