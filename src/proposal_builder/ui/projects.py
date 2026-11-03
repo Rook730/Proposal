@@ -252,7 +252,7 @@ def projects_page() -> None:
         ui.button("Import from Excel", icon="upload_file", on_click=lambda: import_dialog(refresh)) \
             .props("dense outline")
         filter_box(lambda: grid)
-        company = ui.select({"": "Both companies", **PROFILES}, value="", on_change=lambda _: refresh()) \
+        company = ui.select({"": "All companies", **PROFILES}, value="", on_change=lambda _: refresh()) \
             .props("dense options-dense").classes("w-56")
         show = ui.switch("Show archived", on_change=lambda _: refresh()).props("dense")
         ui.space()

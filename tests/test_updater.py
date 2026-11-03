@@ -47,3 +47,17 @@ def test_download_and_swap(tmp_path: Path):
         assert sorted(p.name for p in exe.parent.iterdir()) == ["KeptSpec.exe"]
     finally:
         httpd.shutdown()
+
+
+def test_prerelease_channel():
+    assert updater.is_newer("1.11.0-ce.2", "1.11.0-ce.1")
+    assert updater.is_newer("1.11.0", "1.11.0-ce.9")          # the final release replaces branch builds
+    assert updater.is_newer("1.11.0-ce.1", "1.10.1")
+    assert not updater.is_newer("1.10.1", "1.11.0-ce.1")
+    assert updater.is_prerelease("1.11.0-ce.1") and not updater.is_prerelease("1.10.1")
+    rel = updater.newest_release([
+        {"tag_name": "v1.10.1", "assets": []},
+        {"tag_name": "v1.11.0-ce.2", "prerelease": True, "assets": []},
+        {"tag_name": "v1.11.0-ce.3", "draft": True, "assets": []},
+        {"tag_name": "v1.11.0-ce.1", "prerelease": True, "assets": []}])
+    assert rel.tag == "v1.11.0-ce.2"

@@ -23,6 +23,8 @@ schluter shiplap sq subfloor subfloors templated templating trex underlayment un
 walkthrough walkthroughs wk wks hr hrs approx sf ea ln mt romex ditra kerdi
 prefinished venmo paypal signoff sapwood heartwood hardwax tenon tenons dovetail dovetails dowel dowels
 mdf plywood veneer veneered crating reuleaux haywood
+deliverables deliverable upfit upfits retrofit runoff unitronics fanuc staubli motoman yaskawa automationdirect
+pneumatics pneumatically interlocked interlocks lockout tagout sistema tandemize tandemized torque ecn ecns
 """.split())
 
 _PROTECT = re.compile(VAR_RE.pattern + r"|https?://\S+|www\.\S+|\S+@\S+\.\S+|\]\([^)]*\)")

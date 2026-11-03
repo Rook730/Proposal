@@ -176,6 +176,14 @@ Build sheet audit (all findings fixed):
 90. [x] Catalog sections of a company this version does not know (e.g. "ce"), and the items in them, are kept exactly as read, hidden everywhere (catalog pages, pickers, items_for) and written back on save. Their codes and section numbers count as taken (code check on the item form, duplicate check, next section number).
 91. [x] Projects of a company this version does not know are listed on the Projects page (company shown in capitals, status marked "(newer version)") but never opened, saved, archived or deleted here: double-click, the editor and change orders pages say so. They are left out of income, customer linking, contractor usage and Copy from. Their number stays taken. A customer with such a project cannot be deleted.
 
-## Next release
+## Next release (1.11.0: Convenient Enterprises, branch `ce`; prereleases 1.11.0-ce.N)
 
-(nothing yet)
+92. [x] Convenient Enterprises profile: third company (settings, terms library, logo), catalog sections 4000 to 4200 with fixed-fee and time-and-materials billing, its performer, global variables for rates and terms. Details in docs/ce-requirements.md section 13a.
+93. [x] CE proposal PDF: narrative modules with spaced headings, cost table (fixed fee, estimate, deposit, options outside the total), both signatures, header band on every page.
+94. [x] CE Estimate PDF for the client's PO, saved with every export and on Issue; Preview / Export estimate in the editor menu.
+95. [x] Brand per company (Settings > Company > Brand): layout, colors, fonts, spaced headings, logo width, footer. Every document of the company uses it. Kept Spec and Convenient Woodworking look exactly as before until changed.
+96. [x] IBM Plex Sans bundled (OFL) beside Carlito.
+97. [x] Editor for CE projects: Options tab (add-only), Proposal text tab, CE totals strip; no change orders, sub quotes or SOV until stage 2.
+98. [x] Income: Convenient Enterprises column (Income tab, Income summary, CSV).
+99. [x] Branch builds (version with a dash) follow prereleases; the build workflow publishes such tags as prereleases.
+100. [x] Labels: "All companies" filter; numbering text says one sequence for all companies.

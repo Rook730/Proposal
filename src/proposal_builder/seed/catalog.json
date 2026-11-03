@@ -128,6 +128,30 @@
       "name": "Mileage beyond the local delivery area (IRS 2026 rate)",
       "unit": "MI",
       "rate": "0.725"
+    },
+    {
+      "key": "ce_eng",
+      "name": "Convenient Enterprises engineering",
+      "unit": "HR",
+      "rate": "125"
+    },
+    {
+      "key": "ce_travel",
+      "name": "Convenient Enterprises travel time (half rate)",
+      "unit": "HR",
+      "rate": "62.50"
+    },
+    {
+      "key": "ce_lodging",
+      "name": "Lodging (per night)",
+      "unit": "EA",
+      "rate": "300"
+    },
+    {
+      "key": "ce_mileage",
+      "name": "Mileage beyond the one-hour zone (IRS 2026 rate)",
+      "unit": "MI",
+      "rate": "0.725"
     }
   ],
   "sections": [
@@ -135,133 +159,176 @@
       "number": 100,
       "name": "General Conditions",
       "key": "GeneralConditions",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 200,
       "name": "Management/Supervision",
       "key": "ManagementSupervision",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 300,
       "name": "Site Protection",
       "key": "SiteProtection",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 400,
       "name": "Temporary Utilities",
       "key": "TempUtilities",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 500,
       "name": "Demolition",
       "key": "Demo",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 600,
       "name": "Mechanical, Electrical, & Plumbing (MEP)",
       "key": "MEP",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 700,
       "name": "Insulation",
       "key": "Insulation",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 800,
       "name": "Interior Construction",
       "key": "IntConst",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 900,
       "name": "Cabinetry, Casework, & Millwork",
       "key": "Millwork",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 1000,
       "name": "Floor Finishes",
       "key": "Floor",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 1100,
       "name": "Interior Finishes, Fixtures & Hardware",
       "key": "InteriorFinish",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 1200,
       "name": "Punchlist & Closeout",
       "key": "Closeout",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 1300,
       "name": "Miscellaneous",
       "key": "Misc",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 1400,
       "name": "Company Overhead & Profit",
       "key": "Overhead",
-      "profile": "ks"
+      "profile": "ks",
+      "billing": ""
     },
     {
       "number": 2000,
       "name": "Assessment & Documentation",
       "key": "CWAssessment",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 2100,
       "name": "Metalcraft",
       "key": "CWMetal",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 2200,
       "name": "Woodcraft",
       "key": "CWWood",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 2300,
       "name": "Glasscraft",
       "key": "CWGlass",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 2400,
       "name": "Electrical",
       "key": "CWElectrical",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 2500,
       "name": "Allowances",
       "key": "CWAllowances",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 3000,
       "name": "Delivery & Installation",
       "key": "CWDelivery",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
     },
     {
       "number": 3100,
       "name": "Shop-built pieces",
       "key": "CWPieces",
-      "profile": "cw"
+      "profile": "cw",
+      "billing": ""
+    },
+    {
+      "number": 4000,
+      "name": "Engineering (fixed fee)",
+      "key": "CEFixed",
+      "profile": "ce",
+      "billing": "fixed"
+    },
+    {
+      "number": 4100,
+      "name": "Technical support (time and materials)",
+      "key": "CESupport",
+      "profile": "ce",
+      "billing": "estimate"
+    },
+    {
+      "number": 4200,
+      "name": "Travel (time and materials)",
+      "key": "CETravel",
+      "profile": "ce",
+      "billing": "estimate"
     }
   ],
   "items": [
@@ -3259,6 +3326,292 @@
         ],
         "notes": "Hours and hardware prices are first estimates (26006); adjust after the job."
       }
+    },
+    {
+      "code": 4010,
+      "section": 4000,
+      "group": "",
+      "title": "Fixed-fee design package",
+      "description": "Design, documentation, programming, program delivery, advisory reviews, revisions and associated phone and email communication, per Scope and Deliverables.",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4020,
+      "section": 4000,
+      "group": "",
+      "title": "PLC programming",
+      "description": "",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4030,
+      "section": 4000,
+      "group": "",
+      "title": "HMI development",
+      "description": "",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4040,
+      "section": 4000,
+      "group": "",
+      "title": "Robot programming",
+      "description": "",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4050,
+      "section": 4000,
+      "group": "",
+      "title": "ISO 13849-1 verification (SISTEMA)",
+      "description": "Model the designed safety functions in the IFA SISTEMA tool to calculate and document the achieved Performance Level of the safety circuits.",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4060,
+      "section": 4000,
+      "group": "",
+      "title": "Fixed fee (lump sum)",
+      "description": "",
+      "unit": "LS",
+      "price_source": "fixed",
+      "price": null,
+      "rate_key": null,
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4090,
+      "section": 4000,
+      "group": "",
+      "title": "Requirements intake and URS preparation",
+      "description": "Included at no charge.",
+      "unit": "LS",
+      "price_source": "fixed",
+      "price": "0",
+      "rate_key": null,
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4110,
+      "section": 4100,
+      "group": "",
+      "title": "Onsite support",
+      "description": "Billed at actual time.",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4120,
+      "section": 4100,
+      "group": "",
+      "title": "Remote support",
+      "description": "To be used after machine run-off and acceptance. Billed at actual time.",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4130,
+      "section": 4100,
+      "group": "",
+      "title": "Out-of-scope engineering (approved in writing)",
+      "description": "",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_eng",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4210,
+      "section": 4200,
+      "group": "",
+      "title": "Travel time (one way)",
+      "description": "",
+      "unit": "HR",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_travel",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4220,
+      "section": 4200,
+      "group": "",
+      "title": "Lodging (per night)",
+      "description": "",
+      "unit": "EA",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_lodging",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
+    },
+    {
+      "code": 4230,
+      "section": 4200,
+      "group": "",
+      "title": "Mileage beyond the one-hour zone (round trip)",
+      "description": "",
+      "unit": "MI",
+      "price_source": "rate",
+      "price": null,
+      "rate_key": "ce_mileage",
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
     }
   ],
   "allowances": [
@@ -4728,6 +5081,7 @@
   "migrations": [
     "cw-1.8.0",
     "cw-1.9.0-restoration",
-    "cw-1.9.2-buy-whole"
+    "cw-1.9.2-buy-whole",
+    "ce-stage1"
   ]
 }

@@ -104,8 +104,10 @@ def test_seed_sections_are_kept_spec():
     cat = Catalog.model_validate_json((resources.files("proposal_builder") / "seed" / "catalog.json")
                                       .read_text(encoding="utf-8"))
     assert all(s.profile == KS for s in cat.sections if s.number < 2000)
-    assert {s.profile for s in cat.sections if s.number >= 2000} == {CW}
-    assert [s.number for s in cat.sections if s.number >= 2000] == [2000, 2100, 2200, 2300, 2400, 2500, 3000, 3100]
+    assert {s.profile for s in cat.sections if 2000 <= s.number < 4000 or s.number >= 5000} == {CW}
+    assert {s.profile for s in cat.sections if 4000 <= s.number < 5000} == {"ce"}
+    assert [s.number for s in cat.sections if s.number >= 2000] == [2000, 2100, 2200, 2300, 2400, 2500, 3000, 3100,
+                                                                    4000, 4100, 4200]
 
 
 def test_config_moves_from_old_app_folder(tmp_path: Path, monkeypatch):

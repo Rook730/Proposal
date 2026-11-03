@@ -20,10 +20,10 @@ SCHEMA_VERSION = 1
 # ---------------------------------------------------------------- company profiles
 # One app, two companies. Each project belongs to one profile for life. The catalog is shared; each
 # section says which profile(s) use it. Settings and the terms library are kept per profile.
-KS, CW = "ks", "cw"
-PROFILES: dict[str, str] = {KS: "Kept Spec Advisors", CW: "Convenient Woodworking"}
-PROFILE_SHORT: dict[str, str] = {KS: "KS", CW: "CW"}
-SECTION_PROFILES: dict[str, str] = {KS: "KS", CW: "CW", "both": "KS and CW"}
+KS, CW, CE = "ks", "cw", "ce"
+PROFILES: dict[str, str] = {KS: "Kept Spec Advisors", CW: "Convenient Woodworking", CE: "Convenient Enterprises"}
+PROFILE_SHORT: dict[str, str] = {KS: "KS", CW: "CW", CE: "CE"}
+SECTION_PROFILES: dict[str, str] = {KS: "KS", CW: "CW", CE: "CE", "both": "KS and CW"}
 
 
 def profile_name(key: str) -> str:
@@ -64,6 +64,7 @@ class Performer(str, Enum):
     NONE = ""
     KEPT_SPEC = "Kept Spec Advisors"
     CW = "Convenient Woodworking"
+    CE = "Convenient Enterprises"
     SUB = "Licensed Sub"
     CLIENT = "Client (owner-furnished)"
 
@@ -93,7 +94,10 @@ class Section(_Model):
     number: int                 # 100, 200 ... 1400
     name: str
     key: str                    # short identifier, e.g. "MEP"
-    profile: str = KS           # which company uses it: "ks", "cw" or "both"
+    profile: str = KS           # which company uses it: "ks", "cw", "ce" or "both" ("both" = KS and CW)
+    # Convenient Enterprises: how the section's lines are billed. "fixed" (fixed fee, invoiced by milestone;
+    # the deposit is taken on these) or "estimate" (time and materials, billed at actual). "" = not used.
+    billing: str = ""
 
     def used_by(self, profile: str) -> bool:
         return self.profile in (profile, "both")
@@ -459,16 +463,43 @@ class Company(_Model):
     logo_path: str = ""     # relative to the data folder
 
 
+class Brand(_Model):
+    """How a company's documents look. Every PDF the company produces uses it (ce-requirements section 3)."""
+    layout: str = "classic"          # "classic": centered logo, contact line, colored title band
+                                     # "band": gray header band with the logo on every page (Convenient Enterprises)
+    ink: str = "#222B3A"             # body text and rules
+    accent: str = "#1F3A5F"          # title bands and headings
+    header_fill: str = "#C8C7CB"     # header band ("band" layout)
+    font: str = "Carlito"            # body font, from the bundled fonts (BRAND_FONTS)
+    heading_font: str = ""           # "" = the body font
+    spaced_headings: bool = False    # headings in letter-spaced capitals (S C O P E)
+    logo_width_in: Decimal = Decimal("3.1")    # logo on the proposal's first page ("classic")
+    footer: str = ""                 # small print at the foot of every page
+
+
+BRAND_FONTS = ("Carlito", "IBM Plex Sans")
+BRAND_LAYOUTS = {"classic": "Classic (centered logo, color title band)", "band": "Header band (logo on every page)"}
+
+
+def default_brand(settings: "Settings") -> Brand:
+    """The brand a company's settings use. Settings saved before brands existed keep their old look:
+    Convenient Woodworking (build sheet pricing) uses its dark gold, everything else the Kept Spec blue."""
+    if settings.brand is not None:
+        return settings.brand
+    return Brand(accent="#A87B20") if settings.pricing is not None else Brand()
+
+
 class PerformerDef(_Model):
     """An entry in the Performer dropdown (Settings > Lists)."""
     name: str
     note: str = ""                       # printed at the start of the line's description; blank prints nothing
-    income: str = ""                     # "KS", "CW" or "" (pass-through): which Income column it counts in
+    income: str = ""                     # "KS", "CW", "CE" or "" (pass-through): which Income column it counts in
 
 
 def default_performers() -> list[PerformerDef]:
     return [PerformerDef(name=Performer.KEPT_SPEC.value, income="KS"),
             PerformerDef(name=Performer.CW.value, note="Performed by Convenient Woodworking.", income="CW"),
+            PerformerDef(name=Performer.CE.value, income="CE"),
             PerformerDef(name=Performer.SUB.value, note="Performed by a licensed subcontractor."),
             PerformerDef(name=Performer.CLIENT.value, note="Owner-furnished.")]
 
@@ -496,6 +527,7 @@ class TaxCounty(_Model):
 class Settings(_Model):
     schema_version: int = SCHEMA_VERSION
     company: Company = Field(default_factory=Company)
+    brand: Brand | None = None             # None: the look from before brands existed (default_brand)
     proposal_year: int = 26
     next_proposal_seq: int = 6
     default_waste_pct: Decimal = Decimal("0.10")
@@ -519,8 +551,10 @@ class Settings(_Model):
     co_management_code: int = 1320
     co_management_rate_key: str = "pm"     # rate for change order management hours
     recommended_by: str = "Kept Spec - Nick Matney"
-    # payment: "progress" (Kept Spec: deposit, progress payments, retainage) or "deposit" (Convenient
-    # Woodworking: deposit, balance at delivery; the deposit is deposit_pct_small below deposit_threshold)
+    # payment: "progress" (Kept Spec: deposit, progress payments, retainage), "deposit" (Convenient
+    # Woodworking: deposit, balance at delivery; the deposit is deposit_pct_small below deposit_threshold) or
+    # "fixed_fee" (Convenient Enterprises: deposit_pct of the fixed fee, the rest of the fixed fee by milestone,
+    # time and materials weekly at actual)
     payment_rule: str = "progress"
     deposit_threshold: Decimal = Decimal(0)
     deposit_pct_small: Decimal = Decimal(0)
@@ -531,6 +565,8 @@ class Settings(_Model):
     storage_rate: Decimal = Decimal("2.00")
     storage_min: Decimal = Decimal("25")
     storage_grace_days: int = 15
+    estimate_note: str = ""        # printed under the Estimate (Convenient Enterprises); may use {variables}
+    migrations: list[str] = Field(default_factory=list)     # one-time settings changes already applied
 
     def tax_rate(self, county: str) -> Decimal | None:
         return next((c.rate for c in self.tax_counties if c.name == county), None)

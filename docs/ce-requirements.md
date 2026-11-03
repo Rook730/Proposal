@@ -1,6 +1,6 @@
 # Convenient Enterprises (engineering) profile: requirements draft
 
-Version 0.3 | 2026-11-03 | Owner: Nick
+Version 0.4 | 2026-11-03 | Owner: Nick (stage 0 released in 1.10.1; stage 1 built on `ce`)
 Source: intake in the claude.ai Project "Automation Proposal Software" (URS_RFQ Template.docx, URS_Response_Form.docx, URS_RFQ Data workbooks, MGM Proposal_20260828_Rev1.0 and Estimate 2026-02). Open items are in section 15.
 
 ## 1. Purpose and scope
@@ -218,6 +218,20 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 2. **Detailed depth:** M12 to M16, ECNs, travel destinations, hardware price references.
 3. **Requirements engine:** library seeded from the template, project URS, URS/RFQ package export, Word questionnaire and in-app interview, manual spec entry, compliance matrix, Response Form, M17 to M19. Acceptance: tests 2 and 3.
 4. **Calculators, qualification and tracking:** TAKT, cycle time, PDA, 3P, FAT/SAT (M20); turnkey commercial items; Clockify actuals.
+
+## 13a. As built: stage 1 (branch `ce`, prerelease 1.11.0-ce.1)
+
+- **Profile:** `models.CE` ("ce", Convenient Enterprises) in `PROFILES`; settings, terms library and logo seeded from `seed/ce/` into `profiles/ce/`. Payment rule `fixed_fee`, deposit 10%, license warning off, global variables for the rates and terms wording (eng_rate, travel_rate, lodging_rate, mileage_rate, free_zone, sourcing_fee, revision_rounds, termination_notice). Performer "Convenient Enterprises" (income CE) added once to the shared Performers list (`Settings.migrations` marker "ce-performer").
+- **Catalog (`ce_catalog.py`, marker "ce-stage1"):** sections 4000 Engineering (fixed fee, `billing: fixed`), 4100 Technical support and 4200 Travel (time and materials, `billing: estimate`); items 4010 to 4230 (design package, PLC, HMI, robot programming, SISTEMA, lump sum, no-charge requirements intake 4090, onsite, remote, out-of-scope, travel time, lodging, mileage); rates ce_eng $125, ce_travel $62.50, ce_lodging $300 (EA, so no new unit prints on KS/CW unit tables), ce_mileage $0.725/MI. Section gains `billing` (new field, allowed by the contract).
+- **Billing (`ce.py`):** fee lines are ordinary lines; a section's billing says fixed fee or estimate. Deposit = deposit % of the fixed-fee lines. Options are add-only alternates, printed with their own price and a total with the option, never in the base total.
+- **Proposal (`render/ce_document.py`, `ce_proposal.typ`):** the terms library modules in heading order (Intro on page 1, then Scope, Deliverables, Material, Labor, Exclusions, Time Table, Cost, Terms, Termination, Acceptance). `{cost_table}` prints the fee lines grouped by section (fixed fee / estimate, billed at actual), totals, deposit and options; `{signatures}` prints both parties' blocks. Variables available: {fixed_fee}, {estimate_total}, {deposit_amount}, {deposit_pct}, {fixed_balance}, {total_price}. TBD placeholders in the seed text block Issue until filled. `build_document` hands CE projects to it, and the document names its own template.
+- **Estimate (`ce_estimate.typ`):** same cost data as an itemized document (bill to, estimate #, date, valid until, total, deposit requested), options listed under the total, note from Settings > Proposals (`estimate_note`). Exported with every proposal export and on Issue; also Preview / Export estimate in the editor menu.
+- **Branding:** `models.Brand` (layout classic/band, text color, accent, header band color, body and heading font, spaced headings, logo width, footer) per company in Settings > Company > Brand. `Settings.brand` is None for existing KS and CW settings, which keeps their exact look (`default_brand`); CE's seed sets the band layout, black and grays, IBM Plex Sans (OFL, bundled), spaced headings. `common.typ` reads the brand for every document (header band on every page for "band"); `proposal.typ` reads text color, font, logo width and footer. Render regression: all KS and CW documents pixel-identical before and after (22 pages).
+- **Editor for CE:** tabs Lines, Variables, Options, Proposal text (modules with TBD open), Issues, Income; no Sub quotes, no Change orders & ledger (ECNs are stage 2), no Changes or SOV page options, no appendix images. Totals strip: Fixed fee, T&M estimate, Total, each option (+amount, total with option), Deposit.
+- **Income:** CE column in the Income tab, Income summary and CSV. CE income = Convenient Enterprises lines except lodging and mileage (reimbursed). Estimate only.
+- **Updates:** a version with a dash (1.11.0-ce.1) reads all releases including prereleases; stable versions read releases/latest only. The workflow publishes a tag with a dash as a prerelease. Version order: 1.10.1 < 1.11.0-ce.1 < 1.11.0-ce.2 < 1.11.0.
+- **Not in stage 1:** Changes from previous revision page and appendix images for CE; ECNs; travel destinations; hours buildup.
+- **Acceptance:** test 1 is automated (`tests/test_ce.py`, `tests/ce_mgm.py`): fixed fee $10,000.00, estimate $2,956.25, total $12,956.25, option +$1,000.00 (total with option $13,956.25), deposit $1,000.00. Test 4 (1 hour) needs Nick's timing on a real proposal.
 
 ## 14. Defaults chosen (no preference given)
 

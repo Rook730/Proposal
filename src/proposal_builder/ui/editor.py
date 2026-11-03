@@ -15,7 +15,7 @@ from pydantic import ValidationError
 
 from ..buildsheet import old_prices
 from ..calc import Results, calculate, payment_schedule, referenced, render, undefined_references, variable_map
-from ..models import Performer, PriceSource, Variable, bases_for, basis_label, profile_name
+from ..models import CE, Performer, PriceSource, Variable, bases_for, basis_label, profile_name
 from ..proposal import (
     Alternate,
     Line,
@@ -100,6 +100,9 @@ class Editor:
         return calculate(self.rev, self.settings, self.cat.stock_classes, self.project)
 
     def variables(self) -> dict[str, str]:
+        if self.project.profile == CE:      # includes fixed fee, deposit and totals used in its terms
+            from ..render.ce_document import ce_variables
+            return ce_variables(self.project, self.rev, self.settings, self.cat, self.results)
         return variable_map(self.project, self.rev, self.settings)
 
     @property
@@ -139,6 +142,15 @@ class Editor:
     def is_cw(self) -> bool:
         return self.settings.pricing is not None
 
+    @property
+    def alt_word(self) -> str:
+        return "Option" if self.is_ce else "Alt"
+
+    @property
+    def is_ce(self) -> bool:
+        """Convenient Enterprises: narrative modules, fee lines, options; no percent items or closeout ledger."""
+        return self.project.profile == CE
+
     def section_options(self) -> dict[int, str]:
         """Sections a line can go in: this proposal's pieces, then the company's catalog sections."""
         return {**{p.number: p.name for p in self.rev.pieces},
@@ -155,8 +167,8 @@ class Editor:
         with ui.tabs().props("dense inline-label align=left no-caps").classes("w-full border-b") as tabs:
             t_lines = ui.tab("Lines", icon="list")
             t_vars = ui.tab("Variables", icon="data_object")
-            t_alts = ui.tab("Alternates", icon="call_split")
-            t_terms = ui.tab("Terms & options", icon="article")
+            t_alts = ui.tab("Options" if self.is_ce else "Alternates", icon="call_split")
+            t_terms = ui.tab("Proposal text" if self.is_ce else "Terms & options", icon="article")
             t_issues = ui.tab("Issues", icon="report")
             with t_issues:
                 self.issue_badge = ui.badge("").classes("ml-1")
@@ -164,7 +176,7 @@ class Editor:
             self.t_lines, self.t_vars, self.t_alts, self.t_terms = t_lines, t_vars, t_alts, t_terms
             self._update_issue_badge()
             t_income = ui.tab("Income", icon="savings")
-            t_quotes = ui.tab("Sub quotes", icon="request_quote")
+            t_quotes = None if self.is_ce else ui.tab("Sub quotes", icon="request_quote")
         with ui.tab_panels(tabs, value=t_lines).classes("w-full"):
             with ui.tab_panel(t_lines).classes("p-0 pt-2"):
                 self.lines_tab()
@@ -178,8 +190,9 @@ class Editor:
                 self.issues_panel()
             with ui.tab_panel(t_income):
                 self.income_panel()
-            with ui.tab_panel(t_quotes):
-                self.quotes_panel()
+            if t_quotes is not None:
+                with ui.tab_panel(t_quotes):
+                    self.quotes_panel()
 
     # ------------------------------------------------------------ sub quotes
     def _pdf_dir(self) -> Path:
@@ -305,7 +318,12 @@ class Editor:
         from ..closeout import accepted_revision, build_ledger, contract_context
         from ..income import contract_report, estimate_report
         s, ps, num = self.settings, self.st.projects, self.project.number
-        if self.is_cw:
+        if self.is_ce:
+            ui.label("What Convenient Enterprises keeps on this project, before your own business expenses: "
+                     "engineering, support and travel time. Lodging, mileage and lines performed by others pass "
+                     "through. Estimate only for now. Never printed.") \
+                .classes("text-xs text-gray-500 mb-2")
+        elif self.is_cw:
             ui.label("What Convenient Woodworking keeps on this project, before your own business expenses: every "
                      "line less the materials and outsourced work on its build sheet, plus any rush fee. Sales tax, "
                      "and lines performed by others, pass through. Never printed.") \
@@ -318,7 +336,12 @@ class Editor:
                 .classes("text-xs text-gray-500 mb-2")
         revs = [self.rev if r == self.rev.rev else ps.load_revision(num, r) for r in self.revs]
         acc = accepted_revision(revs)
-        if acc is not None:
+        if acc is not None and self.is_ce:
+            from ..calc import calculate
+            ar = calculate(acc, s, self.cat.stock_classes, self.project)
+            rep = estimate_report(acc, ar, ar.base, s)
+            ui.label(f"Contract: Rev {acc.rev} (accepted).").classes("text-sm font-semibold")
+        elif acc is not None:
             contract = contract_context(acc, s, self.cat.stock_classes, self.project)
             ledger = build_ledger(contract, ps.load_change_orders(num), ps.load_reconciliation(num))
             rep = contract_report(ledger, s)
@@ -348,6 +371,7 @@ class Editor:
         cols = [{"name": "item", "label": "Income", "field": "item", "align": "left"},
                 {"name": "ks", "label": "Kept Spec", "field": "ks", "align": "right"},
                 {"name": "cw", "label": "Convenient Woodworking", "field": "cw", "align": "right"},
+                {"name": "ce", "label": "Convenient Enterprises", "field": "ce", "align": "right"},
                 {"name": "all", "label": "Combined", "field": "all", "align": "right"},
                 {"name": "note", "label": "", "field": "note", "align": "left",
                  "style": "white-space:normal;max-width:380px", "classes": "text-xs text-gray-500"}]
@@ -355,12 +379,12 @@ class Editor:
         for g in rep.groups:
             v = getattr(g, kind)
             rows.append({"item": g.name, "ks": m(v) if g.entity == "KS" else "", "cw": m(v) if g.entity == "CW" else "",
-                         "all": m(v), "note": g.note})
+                         "ce": m(v) if g.entity == "CE" else "", "all": m(v), "note": g.note})
         rows.append({"item": "Total income", "ks": m(rep.total(kind, "KS")), "cw": m(rep.total(kind, "CW")),
-                     "all": m(rep.total(kind)), "note": ""})
+                     "ce": m(rep.total(kind, "CE")), "all": m(rep.total(kind)), "note": ""})
         price = rep.contract_price if kind == "estimate" else rep.final_price
         rows.append({"item": "Share of price", "ks": pct(rep.share(kind, "KS")), "cw": pct(rep.share(kind, "CW")),
-                     "all": pct(rep.share(kind)),
+                     "ce": pct(rep.share(kind, "CE")), "all": pct(rep.share(kind)),
                      "note": ("of Total Price " if kind == "estimate" else "of final cost ") + m(price)})
         ui.table(columns=cols, rows=rows, row_key="item").props("dense flat bordered").classes("w-full max-w-[1100px]")
         if has_act and rep.lines_without_actuals:
@@ -438,10 +462,14 @@ class Editor:
                 with ui.menu():
                     ui.menu_item("Project info", on_click=self.project_dialog)
                     ui.menu_item("Export PDF", on_click=self.export_pdf)
+                    if self.is_ce:
+                        ui.menu_item("Preview estimate", on_click=self.preview_estimate)
+                        ui.menu_item("Export estimate", on_click=self.export_estimate)
                     if self.is_cw:
                         ui.menu_item("Purchase list", on_click=self.purchase_dialog)
-                    ui.menu_item("Change orders" if self.is_cw else "Change orders & ledger",
-                                 on_click=lambda: ui.navigate.to(f"/project/{p.number}/closeout"))
+                    if not self.is_ce:      # Convenient Enterprises change orders (ECNs) come in stage 2
+                        ui.menu_item("Change orders" if self.is_cw else "Change orders & ledger",
+                                     on_click=lambda: ui.navigate.to(f"/project/{p.number}/closeout"))
         if self.locked:
             with ui.row().classes("w-full items-center gap-2 px-3 py-1 rounded pb-warnbox"):
                 ui.icon("lock", color="orange-9")
@@ -482,6 +510,9 @@ class Editor:
                             ui.label(sub).classes("text-[11px] text-gray-500 whitespace-nowrap")
                 if on_click:
                     c.on("click", on_click)
+            if self.is_ce:
+                self._ce_figures(fig)
+                return self._finish_totals(fig)
             fig("Subtotal", money(r.base.subtotal))
             if not self.is_cw or r.base.percent_items:
                 fig("Percent items", money(r.base.percent_total),
@@ -504,13 +535,29 @@ class Editor:
                 fig("Deposit", money(ps["deposit"]), f"balance {money(ps['balance'])}")
             else:
                 fig("Deposit", money(ps["deposit"]), f"retainage {money(ps['retainage'])}")
-            errors, warns = self.issue_counts()
-            if errors or warns:
-                parts = ([f"{errors} error{'s' if errors != 1 else ''}"] if errors else []) + \
-                        ([f"{warns} warning{'s' if warns != 1 else ''}"] if warns else [])
-                fig("Issues", ", ".join(parts), "", color="red" if errors else "amber",
-                    on_click=lambda: self.tabs.set_value(self.t_issues))
+            self._finish_totals(fig)
+
+    def _finish_totals(self, fig) -> None:
+        errors, warns = self.issue_counts()
+        if errors or warns:
+            parts = ([f"{errors} error{'s' if errors != 1 else ''}"] if errors else []) + \
+                    ([f"{warns} warning{'s' if warns != 1 else ''}"] if warns else [])
+            fig("Issues", ", ".join(parts), "", color="red" if errors else "amber",
+                on_click=lambda: self.tabs.set_value(self.t_issues))
         self._update_issue_badge()
+
+    def _ce_figures(self, fig) -> None:
+        """Convenient Enterprises: fixed fee, time and materials estimate, total, options, deposit."""
+        from .. import ce
+        r = self.results
+        pay = ce.payments(r.base, self.settings, self.cat)
+        fig("Fixed fee", money(pay.fixed))
+        fig("T&M estimate", money(pay.estimate))
+        fig("Total", money(r.base.total))
+        for o in ce.options(self.rev, r):
+            fig(f"Option {o.number}", f"{'+' if o.amount >= 0 else '-'}{money(abs(o.amount))}",
+                f"total {money(o.total_with)}", bg=f"pb-altbg{o.number}")
+        fig("Deposit", money(pay.deposit), f"{pay.deposit_pct * 100:.0f}% of fixed fee")
 
     def _update_issue_badge(self) -> None:
         badge = getattr(self, "issue_badge", None)
@@ -898,7 +945,8 @@ class Editor:
                                   + (" for 1" if it.price_source is PriceSource.BUILT and price is not None else ""),
                          "description": it.description})
         with self.host, ui.dialog().props("maximized=false") as dlg, ui.card().classes("w-[1100px] max-w-full"):
-            ui.label("Add from catalog" + (f" to Alt {alternate}" if alternate else "")).classes("text-lg font-semibold")
+            ui.label("Add from catalog" + (f" to {self.alt_word} {alternate}" if alternate else "")) \
+                .classes("text-lg font-semibold")
             piece_now = self.rev.piece(self.section_filter) if self.section_filter else None
             ui.label((f"Tick one or more items. They are added to {piece_now.name}; " if piece_now else
                       "Tick one or more items. Each becomes a line in its own section; ")
@@ -938,7 +986,8 @@ class Editor:
                 dlg.close()
                 self.mark_edited(added[-1] if added else None)
                 self.save()
-                ui.notify(f"Added {', '.join(added)}" + (f" to Alt {alternate}" if alternate else ""), type="positive")
+                ui.notify(f"Added {', '.join(added)}" + (f" to {self.alt_word} {alternate}" if alternate else ""),
+                          type="positive")
                 if alternate and len(added) == 1:
                     self.line_dialog(self.rev.line(added[0]))     # fill in the alternate's details right away
 
@@ -1473,8 +1522,12 @@ class Editor:
     @ui.refreshable_method
     def alternates_panel(self) -> None:
         r = self.results
-        ui.label("Alternates").classes("font-semibold")
-        ui.label("Each alternate removes base lines, adds its own lines, or both. Add lines here (or set Belongs to "
+        ce_opts = self.is_ce
+        ui.label("Options" if ce_opts else "Alternates").classes("font-semibold")
+        ui.label("Each option adds its own lines (e.g. SISTEMA verification). It prints with its own price and a "
+                 "total with the option, and never counts in the proposal total. The client adds options at approval "
+                 "(Finalize)." if ce_opts else
+                 "Each alternate removes base lines, adds its own lines, or both. Add lines here (or set Belongs to "
                  "in any line's form). Totals recompute percent items on each alternate's own subtotal.") \
             .classes("text-xs text-gray-500")
         base_lines = {ln.id: f"{ln.id} {ln.title} ({money(r.lines[ln.id].cost)})"
@@ -1484,12 +1537,15 @@ class Editor:
             sc = r.alternates.get(alt.number)
             with ui.card().classes("w-full").style(f"border-left:6px solid {ALT_COLORS.get(alt.number, '#ccc')}"):
                 with ui.row().classes("w-full items-center"):
-                    ui.label(f"Alt {alt.number}").classes("text-lg font-semibold")
-                    ui.label(alt.kind(bool(adds))).classes("text-xs uppercase text-gray-500")
+                    ui.label(f"{'Option' if ce_opts else 'Alt'} {alt.number}").classes("text-lg font-semibold")
+                    if not ce_opts:
+                        ui.label(alt.kind(bool(adds))).classes("text-xs uppercase text-gray-500")
                     ui.space()
                     if sc:
                         d = r.delta(alt.number)
-                        ui.label(f"Subtotal {money(sc.subtotal)}  |  Total {money(sc.total)}  |  "
+                        ui.label(f"{'+' if d >= 0 else '-'}{money(abs(d))}  |  Total with option {money(sc.total)}"
+                                 if ce_opts else
+                                 f"Subtotal {money(sc.subtotal)}  |  Total {money(sc.total)}  |  "
                                  f"{'+' if d >= 0 else '-'}{money(abs(d))} vs base").classes("text-sm")
                         od = sc.owner_supplied - r.base.owner_supplied
                         if od:
@@ -1500,15 +1556,17 @@ class Editor:
                         ui.button(icon="delete", on_click=lambda a=alt: self._remove_alt(a)) \
                             .props("flat dense round color=negative")
                 with ui.grid(columns=3).classes("w-full gap-x-3"):
-                    ui.input("Name", value=alt.name, placeholder="e.g. Quartz countertops") \
+                    ui.input("Name", value=alt.name,
+                             placeholder="e.g. SISTEMA verification" if ce_opts else "e.g. Quartz countertops") \
                         .props("dense readonly" if self.locked else "dense") \
                         .on_value_change(lambda e, a=alt: (setattr(a, "name", e.value or ""), self._save_quiet()))
                     ui.input("Description (prints)", value=alt.description).props("dense readonly" if self.locked else "dense").classes("col-span-2") \
                         .on_value_change(lambda e, a=alt: (setattr(a, "description", e.value or ""), self._save_quiet()))
-                ui.select(base_lines, multiple=True, value=[x for x in alt.removes if x in base_lines],
-                          label="Removes these base lines",
-                          on_change=lambda e, a=alt: (setattr(a, "removes", list(e.value or [])), self.save())) \
-                    .props("dense use-chips" + (" readonly" if self.locked else "")).classes("w-full")
+                if not ce_opts:
+                    ui.select(base_lines, multiple=True, value=[x for x in alt.removes if x in base_lines],
+                              label="Removes these base lines",
+                              on_change=lambda e, a=alt: (setattr(a, "removes", list(e.value or [])), self.save())) \
+                        .props("dense use-chips" + (" readonly" if self.locked else "")).classes("w-full")
                 with ui.row().classes("w-full items-center gap-2 flex-wrap"):
                     ui.label("Adds:").classes("text-sm")
                     if not adds:
@@ -1525,14 +1583,16 @@ class Editor:
                                   on_click=lambda a=alt: self.custom_line(alternate=a.number, section=next(
                                       (self.rev.line(x).section for x in a.removes if self.rev.line(x)), None))) \
                             .props("dense outline")
-                        ui.button("Copy removed lines", icon="content_copy",
-                                  on_click=lambda a=alt: self._copy_removed(a)).props("dense flat") \
-                            .tooltip("Start this alternate's version of each removed base line as an editable copy")
+                        if not ce_opts:
+                            ui.button("Copy removed lines", icon="content_copy",
+                                      on_click=lambda a=alt: self._copy_removed(a)).props("dense flat") \
+                                .tooltip("Start this alternate's version of each removed base line as an editable copy")
                     ui.label("Click a line to edit it; the x deletes it.").classes("text-xs text-gray-500")
         if len(self.rev.alternates) < MAX_ALTERNATES and not self.locked:
-            ui.button("Add alternate", icon="add", on_click=self._add_alt).props("outline dense")
+            ui.button("Add option" if ce_opts else "Add alternate", icon="add", on_click=self._add_alt) \
+                .props("outline dense")
         nums = sorted(a.number for a in self.rev.alternates)
-        if len(nums) >= 2:
+        if len(nums) >= 2 and not ce_opts:
             ui.label("Combinations").classes("font-semibold mt-3")
             ui.label("Each pair of alternates is offered together unless you turn it off here (for choices where "
                      "the client picks one or the other). Combinations print as their own Total Price lines.") \
@@ -1566,7 +1626,7 @@ class Editor:
                                        on_change=lambda e, a=a, b=b: set_pair(a, b, e.value)).props("dense")
                         if self.locked:
                             sw.disable()
-        if r.combinations:
+        if r.combinations and not ce_opts:
             ui.table(columns=[{"name": "n", "label": "Combination", "field": "n", "align": "left"},
                               {"name": "s", "label": "Subtotal", "field": "s", "align": "right"},
                               {"name": "t", "label": "Total", "field": "t", "align": "right"}],
@@ -1936,8 +1996,15 @@ class Editor:
         folder = self.st.projects.project_dir(self.project.number) / "pdf"
         folder.mkdir(exist_ok=True)
         path = folder / pdf_filename(self.project, self.rev)
+        est_path = None
         try:
             path.write_bytes(pdf)
+            if self.is_ce:         # the Estimate goes out with every Convenient Enterprises proposal
+                from ..render.ce_document import build_estimate_document, estimate_filename
+                est = await run.io_bound(compile_document, build_estimate_document(
+                    self.project, self.rev, self.settings, self.cat, self.results), self._logo(), "pdf")
+                est_path = folder / estimate_filename(self.project, self.rev)
+                est_path.write_bytes(est)
         except PermissionError:
             ui.notify(f"{path.name} is open in another program. Close it and export again.", type="negative")
             if after_issue:
@@ -1948,15 +2015,37 @@ class Editor:
             ui.label(f"Rev {self.rev.rev} issued. PDF saved" if after_issue else "PDF saved") \
                 .classes("text-lg font-semibold")
             ui.label(str(path)).classes("text-xs break-all")
+            if est_path is not None:
+                ui.label(f"Estimate: {est_path.name}").classes("text-xs break-all")
             with ui.row():
                 if sys.platform == "win32":
                     ui.button("Open PDF", icon="open_in_new", on_click=lambda: os.startfile(path))  # noqa: S606
+                    if est_path is not None:
+                        ui.button("Open estimate", icon="open_in_new",
+                                  on_click=lambda: os.startfile(est_path)).props("outline")  # noqa: S606
                     ui.button("Open folder", icon="folder",
                               on_click=lambda: os.startfile(path.parent)).props("outline")  # noqa: S606
                 else:
                     ui.button("Download", icon="download", on_click=lambda: ui.download.content(pdf, path.name))
                 ui.button("Close", on_click=lambda: (dlg.close(), reload() if reload else None)).props("flat")
         dlg.open()
+
+    # ------------------------------------------------------------ estimate (CE)
+    def _estimate_doc(self) -> dict:
+        from ..render.ce_document import build_estimate_document
+        return build_estimate_document(self.project, self.rev, self.settings, self.cat, self.results)
+
+    async def preview_estimate(self) -> None:
+        from ..render.ce_document import estimate_filename
+        from .pdf_ui import preview_pdf
+        await preview_pdf(self._estimate_doc(), "ce_estimate.typ", f"Preview: {estimate_filename(self.project, self.rev)}",
+                          self._logo())
+
+    async def export_estimate(self) -> None:
+        from ..render.ce_document import estimate_filename
+        from .pdf_ui import export_pdf
+        await export_pdf(self._estimate_doc(), "ce_estimate.typ", estimate_filename(self.project, self.rev),
+                         self._pdf_dir(), self._logo())
 
     # ------------------------------------------------------------ purchase list (CW)
     def purchase_dialog(self) -> None:
@@ -2121,7 +2210,12 @@ class Editor:
     @ui.refreshable_method
     def terms_panel(self) -> None:
         rev, lib = self.rev, self.library
-        with ui.card().classes("w-full"):
+        if self.is_ce:
+            ui.label("The proposal's text, module by module. Lines marked TBD need your words before the revision "
+                     "can be issued. {cost_table} prints the fee lines and options; {signatures} prints both "
+                     "signature blocks.").classes("text-xs text-gray-500")
+        with ui.card().classes("w-full") as opts_card:
+            opts_card.set_visibility(not self.is_ce)
             ui.label("Document options").classes("font-semibold")
             with ui.row().classes("gap-6"):
                 sw1 = ui.switch("Print 'Changes from previous revision' page", value=rev.print_changes,
@@ -2133,7 +2227,8 @@ class Editor:
                     sw2.disable()
         if self.is_cw:
             self.pricing_card()
-        self.images_card()
+        if not self.is_ce:
+            self.images_card()
         ui.label("Terms and text in this proposal. Edits here change only this revision; the Terms library "
                  "(Catalog > Terms library) is untouched.").classes("text-xs text-gray-500 mt-3")
         headings = list(lib.headings) + sorted({b.heading for b in rev.blocks} - set(lib.headings))
@@ -2144,8 +2239,11 @@ class Editor:
             on_count = sum(b.on for b in blocks)
             n_upd = sum(b.library_status(lib_ids[b.id].title, lib_ids[b.id].body) in ("library", "both")
                         for b in blocks if b.id in lib_ids)
+            n_tbd = sum("TBD" in b.body for b in blocks if b.on)
             with ui.expansion(f"{heading} ({on_count} of {len(blocks)} on"
-                              + (f"; {n_upd} library update{'s' if n_upd != 1 else ''})" if n_upd else ")")) \
+                              + (f"; {n_upd} library update{'s' if n_upd != 1 else ''}" if n_upd else "")
+                              + (f"; {n_tbd} to fill in" if n_tbd else "") + ")",
+                              value=bool(n_tbd) and self.is_ce) \
                     .classes("w-full border rounded mb-2"):
                 for b in blocks:
                     with ui.row().classes("w-full items-start no-wrap gap-3 py-1 border-b"):
@@ -2328,7 +2426,8 @@ class Editor:
         chosen: dict[int, bool] = {a.number: False for a in alts}
         with self.host, ui.dialog() as dlg, ui.card().classes("w-[620px] max-w-full"):
             ui.label(f"Finalize Rev {self.rev.rev}").classes("text-lg font-semibold")
-            ui.label("Creates Rev 2.0, the final revision for signature. It is base only: the alternates the "
+            word = "options" if self.is_ce else "alternates"
+            ui.label(f"Creates Rev 2.0, the final revision for signature. It is base only: the {word} the "
                      "client chose are merged into the base and the rest are dropped. Review it, issue it, "
                      "then Mark accepted once it is signed.").classes("text-sm")
             result = ui.label().classes("text-sm font-semibold")
@@ -2346,10 +2445,11 @@ class Editor:
                 result.classes(replace="text-sm font-semibold")
 
             for a in alts:
-                ui.checkbox(f"Alt {a.number}: {a.name}  ({money(self.results.alternates[a.number].total)} alone)",
+                ui.checkbox(f"{self.alt_word} {a.number}: {a.name}  "
+                            f"({money(self.results.alternates[a.number].total)} alone)",
                             on_change=lambda e, n=a.number: (chosen.__setitem__(n, e.value), update()))
             if not alts:
-                ui.label("No alternates; the base proposal becomes the contract.").classes("text-sm")
+                ui.label(f"No {word}; the base proposal becomes the contract.").classes("text-sm")
             update()
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button("Cancel", on_click=lambda: dlg.submit(None)).props("flat")

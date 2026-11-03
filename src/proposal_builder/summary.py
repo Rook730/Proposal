@@ -15,7 +15,7 @@ from decimal import Decimal
 
 from .calc import calculate
 from .closeout import accepted_revision, build_ledger, contract_context
-from .income import CW, KS, IncomeReport, contract_report, estimate_report
+from .income import CE, CW, KS, IncomeReport, contract_report, estimate_report
 from .models import Catalog, Settings
 from .proposal import WON_STATUSES, Project, ProjectStatus, Revision
 
@@ -64,6 +64,11 @@ def project_income(ps, project: Project, settings: Settings, catalog: Catalog) -
     revs = [ps.load_revision(project.number, r) for r in names]
     acc = accepted_revision(revs)
     when, basis = _project_date(project, revs, acc)
+    if settings.payment_rule == "fixed_fee":      # Convenient Enterprises: estimate only, no closeout ledger
+        rev = acc or revs[-1]
+        res = calculate(rev, settings, catalog.stock_classes, project)
+        return ProjectIncome(project, when, basis, res.base.total, estimate_report(rev, res, res.base, settings),
+                             acc.rev if acc else None)
     if acc is not None:
         contract = contract_context(acc, settings, catalog.stock_classes, project)
         ledger = build_ledger(contract, ps.load_change_orders(project.number),
@@ -129,13 +134,15 @@ def to_csv(rows: list[ProjectIncome], kind: str) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["Project", "Client", "Name", "Status", "Date", "Date basis", "Total Price",
-                f"Kept Spec ({kind})", f"Convenient Woodworking ({kind})", f"Combined ({kind})", "Share"])
+                f"Kept Spec ({kind})", f"Convenient Woodworking ({kind})", f"Convenient Enterprises ({kind})",
+                f"Combined ({kind})", "Share"])
     for r in rows:
         k = kind if (kind == "estimate" or r.report.actual_total is not None) else "estimate"
         share = r.share(k)
         w.writerow([r.project.number, r.project.client_name, r.project.project_name, r.project.status.value,
                     r.when.isoformat(), r.basis, f"{r.total_price:.2f}",
-                    f"{r.amount(k, KS):.2f}", f"{r.amount(k, CW):.2f}", f"{r.amount(k):.2f}",
+                    f"{r.amount(k, KS):.2f}", f"{r.amount(k, CW):.2f}", f"{r.amount(k, CE):.2f}",
+                    f"{r.amount(k):.2f}",
                     f"{share * 100:.1f}%" if share is not None else ""])
     return buf.getvalue()
 

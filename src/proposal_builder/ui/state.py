@@ -10,6 +10,17 @@ from ..models import KS, PROFILES, Boilerplate, Catalog, Settings
 from ..store import DataStore, ProjectStore, resolve_data_dir, share_settings
 
 
+def add_ce_performer(settings) -> bool:
+    """Data folders from before Convenient Enterprises get its performer once (shared Performers list)."""
+    from ..models import Performer, PerformerDef
+    if "ce-performer" in settings.migrations:
+        return False
+    if settings.performer(Performer.CE.value) is None:
+        settings.performers.insert(2, PerformerDef(name=Performer.CE.value, income="CE"))
+    settings.migrations.append("ce-performer")
+    return True
+
+
 @dataclass
 class AppState:
     store: DataStore
@@ -36,6 +47,11 @@ class AppState:
         from .. import cw_catalog
         if cw_catalog.apply_all(self.catalog):   # Convenient Woodworking sections, items, prices (each once)
             cat_changed = True
+        from .. import ce_catalog
+        if ce_catalog.apply(self.catalog):       # Convenient Enterprises sections, items and rates (once)
+            cat_changed = True
+        if add_ce_performer(self.settings):
+            self.store.save_settings(self.settings)
         if cat_changed:
             self.store.save_catalog(self.catalog)
         if bp_changed:

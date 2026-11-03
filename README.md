@@ -1,6 +1,6 @@
 # Proposal
 
-Proposal Builder for Kept Spec Advisors and Convenient Woodworking (Convenient Enterprises LLC). Standalone Windows app that replaces the Excel proposal workflow: catalog, proposals with revisions and alternates, change orders, and whole-project reconciliation, exported to PDF.
+Proposal Builder for Kept Spec Advisors, Convenient Woodworking and Convenient Enterprises (Convenient Enterprises LLC). Standalone Windows app that replaces the Excel proposal workflow: catalog, proposals with revisions and alternates, change orders, and whole-project reconciliation, exported to PDF.
 
 Requirements: [docs/requirements.md](docs/requirements.md)
 
@@ -42,6 +42,7 @@ Push a version tag (`git tag v1.0.1 && git push origin v1.0.1`). The GitHub Acti
 
 - **Companies**: every project belongs to Kept Spec Advisors or Convenient Woodworking (picked at New project, never changed). The catalog is shared and each section says which company uses it; Settings and the Terms library have a Company switch.
 - **Convenient Woodworking**: New piece (sections panel) for each table, cabinet or box; lines priced Built open a build sheet (materials from Catalog > Price references, hours by phase, overhead, profit, rounding). Save as template reuses a piece. Rush fee and sales tax county are under Terms & options; the deposit rule and tax counties under Settings > Proposals.
+- **Convenient Enterprises** (engineering): New project, company Convenient Enterprises. Add fee lines from the 4000 sections (fixed fee) and 4100 / 4200 (time and materials, printed as an estimate), add options on the Options tab (never in the total), and fill in the text on the Proposal text tab (TBD marks what needs your words; it blocks Issue). Export and Issue save the proposal and the Estimate for the client's PO. Settings > Company > Brand sets each company's look.
 - **Projects**: New project starts blank (Kept Spec: percent items only) or as a copy of an existing project of the same company. "Import from Excel" converts a proposal sheet from the old workbook (e.g. "26005 Proposal").
 - **Editor**: tick sections on the left (order arrows set print order), add lines from the catalog, edit title, performer, unit, qty and price in the grid, double-click an ID, notes or cost cell for the full line form.
 - **Line form**: detail notes with {variables}, quantity bound to a variable or computed from a takeoff and stock lengths, price from a rate, allowance tier, fixed value or variable, flags, internal fields, and "Pull update" when the catalog changed.

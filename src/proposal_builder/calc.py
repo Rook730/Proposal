@@ -26,9 +26,11 @@ from .proposal import Line, Project, Revision
 
 CENT = Decimal("0.01")
 VAR_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
-SPECIAL_PLACEHOLDERS = {"units_table", "rates_table"}   # rendered by the document layer
+# rendered by the document layer (cost_table and signatures: Convenient Enterprises proposals)
+SPECIAL_PLACEHOLDERS = {"units_table", "rates_table", "cost_table", "signatures"}
 DOCUMENT_VARIABLES = {"total_price", "subtotal", "deposit_amount", "progress_amount", "retainage_amount",
-                      "balance_amount", "sales_tax", "rush_amount"}
+                      "balance_amount", "sales_tax", "rush_amount",
+                      "fixed_fee", "estimate_total", "fixed_balance"}      # Convenient Enterprises
 
 
 def money(v: Decimal) -> Decimal:

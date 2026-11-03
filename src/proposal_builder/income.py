@@ -25,8 +25,9 @@ from .models import Performer, Settings
 from .proposal import Revision
 
 ZERO = Decimal(0)
-KS, CW = "KS", "CW"                     # which side of the business a group belongs to
-ENTITY_NAME = {KS: Performer.KEPT_SPEC.value, CW: Performer.CW.value}
+KS, CW, CE = "KS", "CW", "CE"           # which side of the business a group belongs to
+ENTITY_NAME = {KS: Performer.KEPT_SPEC.value, CW: Performer.CW.value, CE: Performer.CE.value}
+CE_PASS_THROUGH_RATES = ("ce_lodging", "ce_mileage")     # reimbursed costs, not income
 
 
 @dataclass
@@ -114,7 +115,30 @@ def cw_estimate_report(rev: Revision, results: Results, scenario: Scenario, sett
                         contract_price=scenario.pre_tax, final_price=None)
 
 
+def ce_estimate_report(rev: Revision, results: Results, scenario: Scenario, settings: Settings) -> IncomeReport:
+    """Convenient Enterprises: engineering, support and travel time performed by Convenient Enterprises.
+    Lodging and mileage are reimbursed costs; lines performed by others pass through. Estimate only (actual
+    hours come later, from time tracking)."""
+    included = set(scenario.line_ids)
+    own = set(settings.income_performers(CE)) | {Performer.CE.value}
+    lines, passed = [], ZERO
+    for ln in rev.lines:
+        if ln.id not in included or ln.is_percent or ln.owner_furnished:
+            continue
+        cost = results.lines[ln.id].cost
+        if ln.performer in own and ln.rate_key not in CE_PASS_THROUGH_RATES:
+            lines.append(IncomeLine(ln.id, ln.title, cost))
+        else:
+            passed += cost
+    groups = [IncomeGroup(f"{ENTITY_NAME[CE]} work", sum((x.estimate for x in lines), ZERO), lines=lines, entity=CE,
+                          note=f"Lodging, mileage and others' lines pass through (${passed:,.2f})" if passed else "")]
+    return IncomeReport(groups=groups, estimate_total=groups[0].estimate, actual_total=None,
+                        contract_price=scenario.total, final_price=None)
+
+
 def estimate_report(rev: Revision, results: Results, scenario: Scenario, settings: Settings) -> IncomeReport:
+    if settings.payment_rule == "fixed_fee":
+        return ce_estimate_report(rev, results, scenario, settings)
     if settings.pricing is not None:
         return cw_estimate_report(rev, results, scenario, settings)
     included = set(scenario.line_ids)

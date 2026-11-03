@@ -74,6 +74,29 @@ def run_self_test() -> tuple[bool, str]:
                                        ds.path(cw_settings.company.logo_path), template="purchase.typ")
             assert buy_pdf[:4] == b"%PDF", "purchase list PDF"
             lines.append(f"cw purchase list {pl.total()}, pdf {len(buy_pdf)} bytes")
+            # Convenient Enterprises: fee lines, an option, its proposal and estimate (header band, Plex font)
+            from . import ce_catalog
+            from .proposal import Alternate
+            from .render.ce_document import build_estimate_document
+            ce_catalog.apply(catalog)
+            ce_settings, ce_bp = ds.load_settings("ce"), ds.load_boilerplate("ce")
+            ce_project = Project(number="99997", client_name="Self Test", project_name="Cell", profile="ce")
+            ce_rev = Revision(blocks=default_blocks(ce_bp.blocks))
+            for code, qty, alt in ((4010, 80, None), (4110, 16, None), (4210, "2.5", None), (4050, 8, 1)):
+                it = catalog.item(code)
+                ln = line_from_item(it, catalog, ce_rev.new_line_id(it.section))
+                ln.qty, ln.alternate = Decimal(qty), alt
+                ce_rev.add_line(ln)
+            ce_rev.alternates.append(Alternate(number=1, name="SISTEMA"))
+            ce_rev.sections = [4000, 4100, 4200]
+            ce_res = calculate(ce_rev, ce_settings, catalog.stock_classes, ce_project)
+            assert ce_res.base.total == Decimal("12156.25"), ce_res.base.total
+            assert ce_res.alternates[1].total == Decimal("13156.25"), ce_res.alternates[1].total
+            ce_logo = ds.path(ce_settings.company.logo_path)
+            ce_pdf = compile_document(build_document(ce_project, ce_rev, ce_settings, catalog, ce_bp), ce_logo)
+            est_pdf = compile_document(build_estimate_document(ce_project, ce_rev, ce_settings, catalog), ce_logo)
+            assert ce_pdf[:4] == b"%PDF" and est_pdf[:4] == b"%PDF", "CE proposal / estimate PDF"
+            lines.append(f"ce total {ce_res.base.total}, proposal {len(ce_pdf)} bytes, estimate {len(est_pdf)} bytes")
             # appendix images: Pillow scales a photo down; the PDF prints it
             import io
             from PIL import Image

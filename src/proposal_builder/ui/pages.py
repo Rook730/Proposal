@@ -544,6 +544,53 @@ def profile_switch(path: str, profile: str) -> str:
     return profile
 
 
+def brand_card(s, save) -> None:
+    """Settings > Company: how this company's documents look (every PDF it produces)."""
+    from ..models import BRAND_FONTS, BRAND_LAYOUTS, default_brand
+    with ui.card().classes("w-[560px] mt-3"):
+        ui.label("Brand").classes("font-semibold")
+        ui.label("Used by every document this company produces: proposals, change orders, ledgers, quotes, "
+                 "purchase lists and estimates. Colors are hex codes such as #1F3A5F.").classes("text-xs text-gray-500")
+        b = default_brand(s).model_copy()
+
+        def set_(attr, conv=lambda v: v):
+            def handler(e):
+                try:
+                    setattr(b, attr, conv(e.value))
+                    s.brand = b.model_copy()
+                except (ValidationError, ValueError, TypeError) as err:
+                    ui.notify(f"Not saved: {err}", type="negative")
+                    return
+                save()
+            return handler
+
+        def color_ok(v: str) -> str:
+            v = (v or "").strip()
+            if not re.fullmatch(r"#[0-9A-Fa-f]{6}", v):
+                raise ValueError("use a color like #1F3A5F")
+            return v
+
+        ui.select(BRAND_LAYOUTS, value=b.layout, label="Layout").props("dense").classes("w-full") \
+            .on_value_change(set_("layout"))
+        with ui.grid(columns=3).classes("w-full gap-x-4"):
+            ui.input("Text color", value=b.ink).props("dense").on_value_change(set_("ink", color_ok))
+            ui.input("Accent (title bands)", value=b.accent).props("dense").on_value_change(set_("accent", color_ok))
+            ui.input("Header band", value=b.header_fill).props("dense").on_value_change(set_("header_fill", color_ok))
+            ui.select(list(BRAND_FONTS), value=b.font, label="Body font").props("dense") \
+                .on_value_change(set_("font"))
+            ui.select({"": "Same as body", **{f: f for f in BRAND_FONTS}}, value=b.heading_font,
+                      label="Heading font").props("dense").on_value_change(set_("heading_font"))
+            ui.number("Logo width (proposal)", value=float(b.logo_width_in), format="%.2f") \
+                .props('dense suffix="in"').on_value_change(set_("logo_width_in", lambda x: Decimal(str(x or 3.1))))
+        ui.switch("Headings in spaced capitals (S C O P E)", value=b.spaced_headings) \
+            .on_value_change(set_("spaced_headings"))
+        ui.input("Footer small print (every page)", value=b.footer).props("dense").classes("w-full") \
+            .on_value_change(set_("footer"))
+        if s.brand is None:
+            ui.label("Not set yet: the company's original look is shown. Changing any field saves it.") \
+                .classes("text-xs text-gray-500")
+
+
 @ui.page("/settings")
 def settings_page(profile: str = KS) -> None:
     layout("Settings")
@@ -582,6 +629,7 @@ def settings_page(profile: str = KS) -> None:
                                     ("Phone", "phone"), ("Email", "email"), ("Logo file (in data folder)", "logo_path")]:
                     ui.input(label, value=getattr(c, attr)).props("dense").classes("w-full") \
                         .on_value_change(bind(c, attr))
+            brand_card(s, lambda: st.save_settings(profile))
 
         with ui.tab_panel(t_prop):
             with ui.card().classes("w-[560px]"):
@@ -592,11 +640,13 @@ def settings_page(profile: str = KS) -> None:
                         .on_value_change(bind(base, "next_proposal_seq", int))
                 ui.label().bind_text_from(base, "next_proposal_seq",
                                           lambda _: f"Next number: {base.next_proposal_number()} "
-                                                    "(one sequence for both companies)") \
+                                                    "(one sequence for all companies)") \
                     .classes("text-xs text-gray-500")
                 cw = s.payment_rule == "deposit"
+                ce_rule = s.payment_rule == "fixed_fee"
                 with ui.grid(columns=2).classes("w-full gap-x-4"):
-                    ui.number("Deposit (at or over the threshold)" if cw else "Deposit",
+                    ui.number("Deposit (at or over the threshold)" if cw else
+                              "Deposit (of the fixed fee)" if ce_rule else "Deposit",
                               value=float(s.deposit_pct * 100)).props('dense suffix="%"') \
                         .on_value_change(bind(s, "deposit_pct", pct))
                     if cw:
@@ -605,14 +655,14 @@ def settings_page(profile: str = KS) -> None:
                         ui.number("Deposit threshold (Total Price)", value=float(s.deposit_threshold), format="%.0f") \
                             .props('dense prefix="$"').on_value_change(
                                 bind(s, "deposit_threshold", lambda x: Decimal(str(x or 0))))
-                    else:
+                    elif not ce_rule:
                         ui.number("Retainage", value=float(s.retainage_pct * 100)).props('dense suffix="%"') \
                             .on_value_change(bind(s, "retainage_pct", pct))
                     ui.number("Stick goods waste (shared)", value=float(base.default_waste_pct * 100)) \
                         .props('dense suffix="%"').on_value_change(bind(base, "default_waste_pct", pct))
                     ui.number("Proposal validity", value=s.validity_days, format="%d").props('dense suffix="days"') \
                         .on_value_change(bind(s, "validity_days", int))
-                    if not cw:
+                    if not cw and not ce_rule:
                         ui.number("License threshold warning", value=float(s.license_threshold), format="%.0f") \
                             .props('dense prefix="$"').classes("col-span-2") \
                             .on_value_change(bind(s, "license_threshold", lambda x: Decimal(str(x or 0))))
@@ -631,6 +681,12 @@ def settings_page(profile: str = KS) -> None:
                             .props("dense").on_value_change(bind(s, "storage_grace_days", lambda x: int(x or 0)))
                     ui.label("Printed in the terms block Client property in our care ({storage_rate}, {storage_min}, "
                              "{storage_grace_days}).").classes("text-xs text-gray-500")
+                elif ce_rule:
+                    ui.label("Deposit is taken on the fixed-fee lines (sections billed as fixed fee); the rest of the "
+                             "fixed fee is invoiced by milestone and time and materials weekly at actual.") \
+                        .classes("text-xs text-gray-500")
+                    ui.textarea("Note printed under the Estimate", value=s.estimate_note) \
+                        .props("dense autogrow").classes("w-full").on_value_change(bind(s, "estimate_note"))
                 else:
                     ui.label("Issues tab and change orders warn when a total including owner-supplied items reaches "
                              "this amount. 0 turns the warning off.").classes("text-xs text-gray-500")
@@ -698,7 +754,7 @@ def settings_page(profile: str = KS) -> None:
                     .props("dense autogrow").classes("w-full mt-2").on_value_change(bind(s, "comparison_note"))
 
         with ui.tab_panel(t_lists):
-            ui.label("Dropdown choices used across the app, shared by both companies. Type and press Enter to add; "
+            ui.label("Dropdown choices used across the app, shared by all companies. Type and press Enter to add; "
                      "click the x to remove. Removing a choice does not change records that already use it.") \
                 .classes("text-xs text-gray-500")
             with ui.card().classes("w-full max-w-[1100px]"):

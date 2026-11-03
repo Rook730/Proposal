@@ -55,9 +55,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.release_tag || github.ref_name }}
-        run: >
-          gh release create "$env:TAG" --target "${{ github.sha }}"
-          "dist/Proposal Builder.exe#Proposal Builder.exe"
-          "dist/Proposal-Builder-folder.zip"
-          --title "Proposal Builder $env:TAG"
-          --notes-file docs/RELEASE_NOTES.md
+        # a tag with a dash (v1.11.0-ce.1) is a branch build: published as a prerelease, which stable builds
+        # never see (they read releases/latest)
+        run: |
+          $pre = @()
+          if ($env:TAG -like "*-*") { $pre = @("--prerelease") }
+          gh release create "$env:TAG" --target "${{ github.sha }}" `
+            "dist/Proposal Builder.exe#Proposal Builder.exe" `
+            "dist/Proposal-Builder-folder.zip" `
+            --title "Proposal Builder $env:TAG" `
+            --notes-file docs/RELEASE_NOTES.md @pre

@@ -15,7 +15,7 @@ from importlib import resources
 from pathlib import Path
 
 from ..calc import Results, calculate, deposit_pct, payment_schedule, render, variable_map
-from ..models import Boilerplate, Catalog, Performer, PriceSource, Settings, default_performers
+from ..models import CE, Boilerplate, Catalog, Performer, PriceSource, Settings, default_brand, default_performers
 from ..proposal import Line, Project, Revision
 from .markup import escape, md_to_typst
 
@@ -129,6 +129,9 @@ def _sov(rev: Revision, res: Results, catalog: Catalog) -> dict:
 def build_document(project: Project, rev: Revision, settings: Settings, catalog: Catalog,
                    boilerplate: Boilerplate, results: Results | None = None, diff=None,
                    image_dir: Path | None = None) -> dict:
+    if project.profile == CE:      # Convenient Enterprises: narrative modules and a cost table
+        from .ce_document import build_ce_document
+        return build_ce_document(project, rev, settings, catalog, boilerplate, results)
     res = results or calculate(rev, settings, catalog.stock_classes, project)
     v = variable_map(project, rev, settings)
     v.update(document_variables(res, settings))
@@ -317,7 +320,7 @@ def _finish(project: Project, rev: Revision, settings: Settings, catalog: Catalo
     c = settings.company
     return {
         "company": {"name": c.dba, "legal": c.legal_name, "address": c.address, "phone": c.phone,
-                    "email": c.email, "logo": "logo.png" if c.logo_path else ""},
+                    "email": c.email, "logo": "logo.png" if c.logo_path else "", "brand": brand_data(settings)},
         "proposal": {"number": project.number, "date": rev.proposal_date.strftime("%Y.%m.%d"),
                      "revision": rev.rev},
         "client": {"name": project.client_name, "address": project.site_address, "project": project.project_name,
@@ -346,8 +349,12 @@ def _assets():
 
 def compile_document(doc: dict, logo: Path | None, fmt: str = "pdf", ppi: int = 110,
                      template: str = "proposal.typ"):
-    """Return PDF bytes, or a list of PNG bytes (one per page) for fmt='png'."""
+    """Return PDF bytes, or a list of PNG bytes (one per page) for fmt='png'. A document may name its own
+    template (doc["template"], e.g. the Convenient Enterprises proposal); it wins over the default."""
     import typst
+
+    if template == "proposal.typ" and doc.get("template"):
+        template = doc["template"]
 
     assets = _assets()
     with tempfile.TemporaryDirectory(prefix="proposal-") as tmp:
@@ -390,7 +397,14 @@ def company_block(settings: Settings) -> dict:
     c = settings.company
     return {"name": c.dba, "legal": c.legal_name, "address": c.address, "phone": c.phone,
             "email": c.email, "logo": "logo.png" if c.logo_path else "",
-            "accent": "#A87B20" if settings.pricing is not None else ""}   # Convenient Woodworking dark gold
+            "accent": default_brand(settings).accent, "brand": brand_data(settings)}
+
+
+def brand_data(settings: Settings) -> dict:
+    """The company's brand as the Typst templates read it (company.brand in data.json)."""
+    b = default_brand(settings).model_dump(mode="json")
+    b["logo_width_in"] = float(b["logo_width_in"])
+    return b
 
 
 def pdf_filename(project: Project, rev: Revision) -> str:

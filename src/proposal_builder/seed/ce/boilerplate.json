@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "headings": [
+    "Intro",
+    "Scope",
+    "Deliverables",
+    "Material",
+    "Labor",
+    "Exclusions",
+    "Time Table",
+    "Cost",
+    "Terms",
+    "Termination",
+    "Acceptance"
+  ],
+  "blocks": [
+    {
+      "id": "cover",
+      "heading": "Intro",
+      "title": "",
+      "body": "Thank you for the opportunity to quote engineering services for the {project_name}. TBD: one or two sentences on what this proposal covers, and what is outside this phase and can be quoted separately.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "parties",
+      "heading": "Intro",
+      "title": "",
+      "body": "For the purposes of this proposal and any resulting agreement, {client_name} is referred to as the Client and {company_legal_name} is referred to as the Consultant.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "machine",
+      "heading": "Scope",
+      "title": "Machine and process",
+      "body": "TBD: describe the machine, the process, the existing controls and the problem to solve.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "objective",
+      "heading": "Scope",
+      "title": "Objective",
+      "body": "TBD: the goal of this engagement.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "engineering",
+      "heading": "Scope",
+      "title": "Engineering scope",
+      "body": "Design will comply with OSHA requirements and NFPA 79, and follow ISO 13849-1 and ANSI B11.19 methodology where applicable. Safety functions will be designed to achieve the Performance Level established by the Client's machine safety audit and risk assessment.\n\n- TBD: scope item",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "consultant",
+      "heading": "Deliverables",
+      "title": "Consultant deliverables",
+      "body": "1. Control system design, including sensor and valve changes, compliant with OSHA and NFPA 79 and consistent with ISO 13849-1, ISO 4414 and ANSI B11.19 where applicable.\n2. Pneumatic schematic documenting the final valve configuration and air circuits.\n3. Wiring schematic documenting the final safety control system configuration.\n4. Wiring schematic documenting the final PLC configuration.\n5. Bill of materials, including the safety control system and valves.\n6. PLC programming as needed to integrate the changes.\n7. Digital and physical printed ladder copy of the final PLC program version.\n8. Advisory review of the Client's calculations and safety audit/risk assessment. This review is advisory and does not constitute PE-stamped calculations or a certification.\n9. Remote support (beyond the above scope) plus onsite days at the Client's plant as listed under Cost.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "client",
+      "heading": "Deliverables",
+      "title": "Client responsibilities",
+      "body": "1. Perform the machine safety audit and risk assessment (using the templates provided by the Consultant or an equivalent document) prior to design finalization, to establish the required Performance Level.\n2. Purchase and install all new valves, electrical parts and sensors, including wiring.\n3. Provide mechanical fabrication, including guarding and sensor mounts.\n4. Provide a BOM of the existing controls and pneumatic parts, and a sketch of the existing pneumatics and PLC wiring. *This sketch is a prerequisite to the start of design work.*\n5. Provide parts and staff for machine run-off qualification.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "material",
+      "heading": "Material",
+      "title": "",
+      "body": "All hardware is purchased and installed by the Client per the BOM provided by the Consultant. The Consultant provides part numbers and specifications; no hardware is procured by the Consultant under this engagement. If the Client later requests the Consultant to procure specific components, those are passed through at invoiced cost plus a {sourcing_fee} sourcing and handling fee, by separate agreement.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "labor",
+      "heading": "Labor",
+      "title": "",
+      "body": "Engineering design, documentation, PLC programming and technical support are provided as described in Scope and Deliverables. Any work outside this scope, or beyond the agreed hours, is billed at the standard rate of {eng_rate} per hour with prior written approval.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "ecn",
+      "heading": "Labor",
+      "title": "Engineering Change Notices (ECNs)",
+      "body": "Design or configuration changes may be initiated by either the Consultant or the Client. An ECN may be issued by either party in any format, provided the change is documented in writing and acknowledged by both parties before the affected work proceeds. Where an ECN adds scope or hours beyond this proposal, it is handled under the Change Orders term and billed at standard rates unless otherwise agreed upon.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "revisions",
+      "heading": "Labor",
+      "title": "Revisions",
+      "body": "The fixed fee includes up to {revision_rounds} rounds of revisions to the design deliverables based on Client feedback or preference. Corrections required to address defects or malfunctions in the Consultant's own work are not counted against this limit and are performed at no additional charge. Revisions requested beyond that, or changes that alter the agreed scope, require a change order and are billed at standard rates.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "exclusions",
+      "heading": "Exclusions",
+      "title": "",
+      "body": "- PE-stamped calculations, certified risk assessments, or third-party safety validation. The Consultant is not a licensed Professional Engineer, and all safety, calculation and risk-assessment reviews provided under this agreement are advisory.\n- Machine upgrades beyond the scope described here.\n- Add-on work outside this scope, quoted separately at the time or billed hourly.\n- Spec changes after design sign-off, handled by written change order before work continues.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "timetable",
+      "heading": "Time Table",
+      "title": "",
+      "body": "The engagement begins upon proposal approval and receipt of deposit. TBD: what design work waits on (Client inputs).\n\n- Design, documentation and PLC programming proceed in parallel where practical; remote programming is completed prior to onsite validation.\n- Design finalization is gated on the Client's completed machine safety audit and risk assessment (Performance Level determination).\n- Onsite support is scheduled with the Client and coordinated around machine and labor availability. Days may be non-consecutive.\n\nThe Consultant will coordinate onsite scheduling with the Client in advance to confirm date and site access.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "cost-table",
+      "heading": "Cost",
+      "title": "",
+      "body": "{cost_table}",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "travel",
+      "heading": "Cost",
+      "title": "",
+      "body": "Travel is billed separately: one-way travel time at half the standard rate ({travel_rate}/hr), lodging at {lodging_rate}/night if an overnight stay is required, and mileage beyond {free_zone} of 224 Rutledge Rd at {mileage_rate}/mi. Onsite visits are batched to minimize trips.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "payment",
+      "heading": "Cost",
+      "title": "Payment terms",
+      "body": "- A {deposit_pct} deposit of the fixed fee ({deposit_amount}) is due at proposal approval to begin the engagement.\n- The remaining fixed fee is invoiced by milestone as the fixed-fee deliverables are completed.\n- All hourly work (technical support, travel, and any approved out-of-scope work) is invoiced weekly, itemized by task.\n\nA separate Estimate (mirroring this proposal) accompanies this document for the Client's records and PO generation.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "ip",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Intellectual property:** The Client owns the finished PLC program, configuration and design documentation delivered for this project. The Consultant retains ownership of its pre-existing and generalized code libraries, function blocks, templates and engineering tools used in development, and may reuse them on future projects. The Client receives a perpetual license to use those elements as embedded in the delivered system.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "change-orders",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Change orders:** Work beyond the defined scope, or spec changes after design sign-off, require a written change order (documented by ECN per the Labor section) describing added scope, cost and schedule impact before work continues. Additional work is billed at {eng_rate}/hr.",
+      "default_on": true,
+      "order": 20
+    },
+    {
+      "id": "standard-of-care",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Standard of care:** The Consultant will perform services in a professional and workmanlike manner consistent with generally accepted controls-engineering and machine-safety practice. The Consultant is not a licensed Professional Engineer. Safety reviews, calculation reviews and risk-assessment reviews provided under this agreement are advisory. The machine safety audit, the risk assessment, the determination of the required Performance Level, and the final run-off qualification and acceptance of the machine remain with the Client. This is an engineering and advisory service and does not guarantee a specific cycle time or throughput, which depend on mechanical condition and installation performed by the Client.",
+      "default_on": true,
+      "order": 30
+    },
+    {
+      "id": "liability",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Limitation of liability:** To the fullest extent permitted by law, the Consultant's liability for any claim arising out of this agreement is limited to the total fees paid under this agreement. The Consultant is not liable for indirect, incidental or consequential damages.",
+      "default_on": true,
+      "order": 40
+    },
+    {
+      "id": "insurance",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Insurance:** The Consultant carries General Liability and Professional / E&O coverage. Certificate of insurance available on request.",
+      "default_on": true,
+      "order": 50
+    },
+    {
+      "id": "confidentiality",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Confidentiality:** Both parties will keep proprietary process, design and business information shared during this engagement confidential, and use it solely for this project.",
+      "default_on": true,
+      "order": 60
+    },
+    {
+      "id": "validity",
+      "heading": "Terms",
+      "title": "",
+      "body": "**Validity:** This proposal is valid for {validity_days} days from the date of submission above.",
+      "default_on": true,
+      "order": 70
+    },
+    {
+      "id": "termination",
+      "heading": "Termination",
+      "title": "",
+      "body": "Either party may terminate this agreement prior to completion with {termination_notice} days' written notice. On termination, the Client will pay for all work completed through the termination date: any fixed-fee milestones already delivered are due in full, and work in progress on the current milestone is billed at {eng_rate}/hr for hours expended, not to exceed the remaining fixed-fee balance. Time-and-materials work (technical support and travel) is billed through the termination date. The {deposit_pct} deposit is applied against amounts due and is non-refundable to the extent work has been performed. Upon payment of amounts due, the Consultant will deliver all project documents and files in their current state, as-is and without further revision. Each party will return or dispose of the other's confidential materials on request.",
+      "default_on": true,
+      "order": 10
+    },
+    {
+      "id": "acceptance",
+      "heading": "Acceptance",
+      "title": "",
+      "body": "{signatures}",
+      "default_on": true,
+      "order": 10
+    }
+  ],
+  "migrations": []
+}

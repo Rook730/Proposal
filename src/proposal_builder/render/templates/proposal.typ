@@ -7,7 +7,8 @@
 
 #let d = json("data.json")
 
-#let ink = rgb("#222B3A")
+#let brand = (ink: "#222B3A", font: "Carlito", logo_width_in: 3.1, footer: "") + d.company.at("brand", default: (:))
+#let ink = rgb(brand.ink)
 #let muted = luma(110)
 #let rule-c = luma(185)
 #let pct-fill = luma(228)
@@ -18,10 +19,12 @@
 #set page(
   paper: "us-letter",
   margin: (x: 0.6in, top: 0.6in, bottom: 0.75in),
-  footer: context align(center, text(8pt, fill: muted,
-    counter(page).display("1 of 1", both: true))),
+  footer: context {
+    align(center, text(8pt, fill: muted, counter(page).display("1 of 1", both: true)))
+    if brand.footer != "" { align(center, text(7.5pt, fill: muted, brand.footer)) }
+  },
 )
-#set text(font: "Carlito", size: 10pt, fill: ink)
+#set text(font: brand.font, size: 10pt, fill: ink)
 #set par(justify: false, leading: 0.55em, spacing: 0.9em)
 #set list(indent: 0.6em, body-indent: 0.5em, spacing: 0.45em)
 #set enum(indent: 0.6em, body-indent: 0.5em, spacing: 0.45em)
@@ -146,7 +149,7 @@
 // ------------------------------------------------------------------ page 1
 
 #if d.company.logo != "" {
-  align(center, image(d.company.logo, width: 3.1in))
+  align(center, image(d.company.logo, width: brand.logo_width_in * 1in))
 } else {
   align(center, text(24pt, weight: "bold", d.company.name))
 }

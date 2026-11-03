@@ -1,5 +1,6 @@
-"""1.10.1 forward compatibility: a data folder written by a newer version (e.g. the CE branch) must stay
-readable here, and nothing this version saves may drop or change what the newer version wrote."""
+"""1.10.1 forward compatibility: a data folder written by a newer version must stay readable here, and nothing
+this version saves may drop or change what the newer version wrote. Company "zz" stands for a company this
+version does not know (it was "ce" before Convenient Enterprises became a profile)."""
 
 import hashlib
 import json
@@ -16,8 +17,8 @@ from proposal_builder.store import DataStore, ForeignProjectError, ProjectStore
 from proposal_builder.summary import all_project_income
 from proposal_builder.ui.state import AppState
 
-CE_SECTION = {"number": 4000, "name": "Controls engineering", "key": "CTL", "profile": "ce", "brand": "x"}
-CE_ITEM = {"code": 4010, "section": 4000, "title": "PLC programming", "price_source": "fee",
+ZZ_SECTION = {"number": 5000, "name": "Controls engineering", "key": "CTL", "profile": "zz", "brand": "x"}
+ZZ_ITEM = {"code": 5010, "section": 5000, "title": "PLC programming", "price_source": "fee",
            "fee_kind": "fixed", "hours": "80"}
 
 
@@ -48,13 +49,13 @@ def folder(tmp_path: Path) -> Path:
     ps.create(p, rev)
 
     s = _read(root / "settings.json")
-    s["brand"] = {"primary": "#000000", "heading_style": "band"}
+    s["future_brand"] = {"primary": "#000000", "heading_style": "band"}
     s["company"]["website"] = "keptspec.com"
     _write(root / "settings.json", s)
 
     c = _read(root / "catalog.json")
-    c["sections"].append(CE_SECTION)
-    c["items"].append(CE_ITEM)
+    c["sections"].append(ZZ_SECTION)
+    c["items"].append(ZZ_ITEM)
     c["units"][0]["category"] = "time"
     c["task_templates"] = [{"key": "plc", "hours": 8}]
     _write(root / "catalog.json", c)
@@ -71,9 +72,9 @@ def folder(tmp_path: Path) -> Path:
     rv["lines"][0]["category"] = "engineering"
     _write(d / "rev_1.0.json", rv)
 
-    _write(root / "profiles/ce/settings.json", {"company": {"dba": "Convenient Enterprises"}, "rate": "125"})
+    _write(root / "profiles/zz/settings.json", {"company": {"dba": "Convenient Enterprises"}, "rate": "125"})
     ce = root / "projects/26011_MGM_Brakes_Tandem_Jig"
-    _write(ce / "project.json", {"number": "26011", "profile": "ce", "client_name": "MGM Brakes",
+    _write(ce / "project.json", {"number": "26011", "profile": "zz", "client_name": "MGM Brakes",
                                  "project_name": "Tandem Jig", "status": "Awaiting PO", "customer_id": "c1"})
     _write(ce / "rev_1.0.json", {"rev": "1.0", "fees": [{"kind": "fixed", "amount": "10000"}]})
     return root
@@ -89,7 +90,7 @@ def test_code_stays_strict():
 
 def test_unknown_fields_survive_load_edit_save(folder: Path):
     st = AppState(DataStore(folder))
-    assert st.settings.unknown_fields["brand"]["primary"] == "#000000"
+    assert st.settings.unknown_fields["future_brand"]["primary"] == "#000000"
     st.settings.validity_days = 45
     st.save_settings()
     st.catalog.units[0].description = "Day"
@@ -106,7 +107,7 @@ def test_unknown_fields_survive_load_edit_save(folder: Path):
     ps.save_revision("26010", rev)
 
     s = _read(folder / "settings.json")
-    assert s["validity_days"] == 45 and s["brand"]["heading_style"] == "band"
+    assert s["validity_days"] == 45 and s["future_brand"]["heading_style"] == "band"
     assert s["company"]["website"] == "keptspec.com"
     c = _read(folder / "catalog.json")
     assert c["units"][0] == {**c["units"][0], "category": "time", "description": "Day"}
@@ -129,31 +130,31 @@ def test_new_revision_copy_keeps_unknown_fields(folder: Path):
 def test_foreign_catalog_sections_hidden_and_kept(folder: Path):
     st = AppState(DataStore(folder))
     cat = st.catalog
-    assert all(s.number != 4000 for s in cat.sections)
-    assert cat.item(4010) is None
-    assert all(i.code != 4010 for prof in (KS, CW) for i in cat.items_for(prof))
-    assert 4010 in cat.reserved_codes() and 4000 in cat.reserved_section_numbers()
+    assert all(s.number != 5000 for s in cat.sections)
+    assert cat.item(5010) is None
+    assert all(i.code != 5010 for prof in (KS, CW) for i in cat.items_for(prof))
+    assert 5010 in cat.reserved_codes() and 5000 in cat.reserved_section_numbers()
     cat.sections.append(Section(number=1500, name="Extra", key="X"))
     st.save_catalog()
     c = _read(folder / "catalog.json")
-    assert CE_SECTION in c["sections"] and CE_ITEM in c["items"]
+    assert ZZ_SECTION in c["sections"] and ZZ_ITEM in c["items"]
     assert "foreign_sections" not in c and "foreign_items" not in c
     again = Catalog.model_validate_json((folder / "catalog.json").read_text(encoding="utf-8"))
     assert len(again.foreign_items) == 1 and any(s.number == 1500 for s in again.sections)
 
 
 def test_foreign_code_counts_as_duplicate():
-    cat = Catalog.model_validate({"sections": [CE_SECTION, {"number": 100, "name": "G", "key": "G"}],
-                                  "items": [CE_ITEM, {"code": 4010, "section": 100, "title": "Clash",
+    cat = Catalog.model_validate({"sections": [ZZ_SECTION, {"number": 100, "name": "G", "key": "G"}],
+                                  "items": [ZZ_ITEM, {"code": 5010, "section": 100, "title": "Clash",
                                                       "price_source": "fixed", "price": "1"}]})
-    assert "duplicate item code 4010" in cat.validate_refs()
+    assert "duplicate item code 5010" in cat.validate_refs()
 
 
 def test_foreign_projects_listed_but_never_opened(folder: Path):
     ps = ProjectStore(DataStore(folder))
     assert [p.number for p in ps.list_projects()] == ["26010"]
     foreign = ps.list_foreign_projects()
-    assert [d["number"] for d in foreign] == ["26011"] and foreign[0]["profile"] == "ce"
+    assert [d["number"] for d in foreign] == ["26011"] and foreign[0]["profile"] == "zz"
     with pytest.raises(ForeignProjectError):
         ps.load_project("26011")
     with pytest.raises(ForeignProjectError):
@@ -175,10 +176,10 @@ def test_foreign_files_untouched_by_normal_use(folder: Path):
     st.save_customers()
     all_project_income(st.projects, st.settings, st.catalog, st.settings_for)
     after = _digest(folder)
-    ce = [k for k in before if k.startswith(("projects/26011", "profiles/ce/"))]
+    ce = [k for k in before if k.startswith(("projects/26011", "profiles/zz/"))]
     assert ce and all(after[k] == before[k] for k in ce)
     c = _read(folder / "catalog.json")
-    assert CE_SECTION in c["sections"] and CE_ITEM in c["items"]
+    assert ZZ_SECTION in c["sections"] and ZZ_ITEM in c["items"]
 
 
 def test_income_ignores_foreign_projects(folder: Path):
@@ -195,5 +196,5 @@ def test_change_order_log_keeps_unknown_fields():
 def test_customer_book_and_settings_extras_roundtrip():
     book = CustomerBook.model_validate({"customers": [{"id": "a", "name": "A", "tier": 2}]})
     assert json.loads(book.model_dump_json())["customers"][0]["tier"] == 2
-    s = Settings.model_validate({"brand": {"primary": "#123456"}})
-    assert json.loads(s.model_dump_json())["brand"] == {"primary": "#123456"}
+    s = Settings.model_validate({"future_brand": {"primary": "#123456"}})
+    assert json.loads(s.model_dump_json())["future_brand"] == {"primary": "#123456"}

@@ -6,7 +6,7 @@ from datetime import date, timedelta
 
 from nicegui import run, ui
 
-from ..income import CW, KS
+from ..income import CE, CW, KS
 from ..proposal import WON_STATUSES, ProjectStatus
 from ..summary import all_project_income, in_window, pipeline, to_csv
 from .state import get_state
@@ -62,31 +62,35 @@ async def summary_page() -> None:
             kk = k if (k == "estimate" or r.report.actual_total is not None) else "estimate"
             return r.amount(kk, entity), kk
 
-        data, tot = [], {"price": 0, "base": 0, KS: 0, CW: 0, "all": 0}
+        data, tot = [], {"price": 0, "base": 0, KS: 0, CW: 0, CE: 0, "all": 0}
         for r in sorted(shown, key=lambda r: (r.when, r.project.number)):
             ks, kk = amt(r, KS)
             cw, _ = amt(r, CW)
+            cee, _ = amt(r, CE)
             al, _ = amt(r)
             share = r.share(kk)
             data.append({"number": r.project.number, "client": r.project.client_name,
                          "name": r.project.project_name, "status": r.project.status.value,
                          "date": fmt_date(r.when) + ("" if r.basis == "accepted" else f" ({r.basis})"),
-                         "price": _m(r.total_price), "ks": _m(ks), "cw": _m(cw), "all": _m(al),
+                         "price": _m(r.total_price), "ks": _m(ks), "cw": _m(cw), "ce": _m(cee), "all": _m(al),
                          "share": _p(share), "basis": "" if kk == k else "estimate"})
             tot["price"] += r.total_price
             tot["base"] += (r.report.final_price if kk == "actual" else r.report.contract_price) or 0
             tot[KS] += ks
             tot[CW] += cw
+            tot[CE] += cee
             tot["all"] += al
         base = tot["base"]   # Total Price for estimates, final cost for actuals (matches each row's share)
         pinned = [{"number": "Total", "client": f"{len(data)} project" + ("" if len(data) == 1 else "s"),
-                   "price": _m(tot["price"]), "ks": _m(tot[KS]), "cw": _m(tot[CW]), "all": _m(tot["all"]),
+                   "price": _m(tot["price"]), "ks": _m(tot[KS]), "cw": _m(tot[CW]), "ce": _m(tot[CE]),
+                   "all": _m(tot["all"]),
                    "share": _p(tot["all"] / base if base else None)}] if data else []
 
         with ui.row().classes("gap-3 my-3"):
             for label, value, sub in (
                     ("Kept Spec", _m(tot[KS]), _p(tot[KS] / base if base else None) + " of price"),
                     ("Convenient Woodworking", _m(tot[CW]), _p(tot[CW] / base if base else None) + " of price"),
+                    ("Convenient Enterprises", _m(tot[CE]), _p(tot[CE] / base if base else None) + " of price"),
                     ("Combined", _m(tot["all"]), _p(tot["all"] / base if base else None) + f" of {_m(base)}")):
                 with ui.card().classes("px-4 py-2 gap-0"):
                     ui.label(label).classes("text-xs uppercase text-gray-500")
@@ -109,6 +113,7 @@ async def summary_page() -> None:
                 {"field": "price", "headerName": "Total Price", "width": 125, "type": "rightAligned"},
                 {"field": "ks", "headerName": "Kept Spec", "width": 120, "type": "rightAligned"},
                 {"field": "cw", "headerName": "Conv. Woodworking", "width": 150, "type": "rightAligned"},
+                {"field": "ce", "headerName": "Conv. Enterprises", "width": 145, "type": "rightAligned"},
                 {"field": "all", "headerName": "Combined", "width": 120, "type": "rightAligned"},
                 {"field": "share", "headerName": "Share", "width": 80, "type": "rightAligned"},
                 {"field": "basis", "headerName": "", "width": 85, "headerTooltip": "Shown as estimate: not accepted"},

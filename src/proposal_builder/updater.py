@@ -23,6 +23,7 @@ from . import __version__
 
 REPO = "Rook730/Proposal"
 API_LATEST = f"https://api.github.com/repos/{REPO}/releases/latest"
+API_RELEASES = f"https://api.github.com/repos/{REPO}/releases?per_page=20"
 RELEASES_PAGE = f"https://github.com/{REPO}/releases/latest"
 TIMEOUT = 8
 
@@ -37,15 +38,25 @@ class Release:
 
 
 def parse_version(v: str) -> tuple[int, ...]:
+    """"1.11.0" -> (1, 11, 0, 1, 0); a prerelease "1.11.0-ce.2" -> (1, 11, 0, 0, 2), so it sorts before the
+    release it leads up to and after the one before."""
+    base, _, pre = v.strip().lstrip("vV").partition("-")
     parts = []
-    for p in v.strip().lstrip("vV").split("."):
+    for p in base.split("."):
         digits = "".join(ch for ch in p if ch.isdigit())
         parts.append(int(digits) if digits else 0)
-    return tuple(parts)
+    parts = (parts + [0, 0, 0])[:3]
+    pre_n = int("".join(ch for ch in pre if ch.isdigit()) or 0)
+    return tuple(parts) + ((0, pre_n) if pre else (1, 0))
 
 
 def is_newer(candidate: str, current: str = __version__) -> bool:
     return parse_version(candidate) > parse_version(current)
+
+
+def is_prerelease(version: str = __version__) -> bool:
+    """Branch builds (e.g. "1.11.0-ce.1") follow prereleases; stable builds only see full releases."""
+    return "-" in version
 
 
 def release_from_json(data: dict) -> Release:
@@ -58,10 +69,22 @@ def release_from_json(data: dict) -> Release:
 
 
 def latest_release() -> Release:
-    req = urllib.request.Request(API_LATEST, headers={"Accept": "application/vnd.github+json",
-                                                      "User-Agent": f"ProposalBuilder/{__version__}"})
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": f"ProposalBuilder/{__version__}"}
+    if is_prerelease():
+        req = urllib.request.Request(API_RELEASES, headers=headers)
+        with urllib.request.urlopen(req, timeout=TIMEOUT) as r:  # noqa: S310  fixed https URL
+            return newest_release(json.load(r))
+    req = urllib.request.Request(API_LATEST, headers=headers)
     with urllib.request.urlopen(req, timeout=TIMEOUT) as r:  # noqa: S310  fixed https URL
         return release_from_json(json.load(r))
+
+
+def newest_release(items: list[dict]) -> Release:
+    """Newest of a release list, prereleases included (drafts skipped)."""
+    rels = [release_from_json(d) for d in items if not d.get("draft")]
+    if not rels:
+        raise ValueError("no releases")
+    return max(rels, key=lambda r: parse_version(r.version))
 
 
 # ---------------------------------------------------------------- self-replacement

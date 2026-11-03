@@ -1,0 +1,182 @@
+{
+  "schema_version": 1,
+  "company": {
+    "legal_name": "Convenient Enterprises LLC",
+    "dba": "Convenient Enterprises",
+    "address": "224 Rutledge Rd, Fletcher NC 28732",
+    "phone": "423.218.6067",
+    "email": "nick@convenient.enterprises",
+    "logo_path": "profiles/ce/logo.svg"
+  },
+  "brand": {
+    "layout": "band",
+    "ink": "#1A1A1A",
+    "accent": "#000000",
+    "header_fill": "#C8C7CB",
+    "font": "IBM Plex Sans",
+    "heading_font": "IBM Plex Sans",
+    "spaced_headings": true,
+    "logo_width_in": "2.6",
+    "footer": ""
+  },
+  "proposal_year": 26,
+  "next_proposal_seq": 6,
+  "default_waste_pct": "0.10",
+  "deposit_pct": "0.10",
+  "retainage_pct": "0",
+  "validity_days": 30,
+  "dark_mode": false,
+  "performers": [
+    {
+      "name": "Kept Spec Advisors",
+      "note": "",
+      "income": "KS"
+    },
+    {
+      "name": "Convenient Woodworking",
+      "note": "Performed by Convenient Woodworking.",
+      "income": "CW"
+    },
+    {
+      "name": "Convenient Enterprises",
+      "note": "",
+      "income": "CE"
+    },
+    {
+      "name": "Licensed Sub",
+      "note": "Performed by a licensed subcontractor.",
+      "income": ""
+    },
+    {
+      "name": "Client (owner-furnished)",
+      "note": "Owner-furnished.",
+      "income": ""
+    }
+  ],
+  "lists": {
+    "co_actions": [
+      "Add",
+      "Delete",
+      "Modify"
+    ],
+    "contact_roles": [
+      "Owner",
+      "Spouse",
+      "Property manager",
+      "Tenant",
+      "Designer",
+      "Realtor"
+    ],
+    "lead_sources": [
+      "Referral",
+      "Website",
+      "Repeat client",
+      "Google",
+      "Social media",
+      "Sign / yard sign"
+    ],
+    "trades": [
+      "Electrical",
+      "Plumbing",
+      "HVAC",
+      "Gas",
+      "Drywall",
+      "Painting",
+      "Flooring",
+      "Tile",
+      "Framing",
+      "Insulation",
+      "Countertops",
+      "Glass",
+      "Finish carpentry",
+      "Roofing"
+    ],
+    "quote_scopes": [
+      "Electrical",
+      "Plumbing",
+      "HVAC",
+      "Painting",
+      "Flooring",
+      "Tile",
+      "Drywall",
+      "Countertops"
+    ],
+    "address_labels": [
+      "Home",
+      "Site",
+      "Mailing",
+      "Rental",
+      "Office"
+    ]
+  },
+  "license_threshold": "0",
+  "rfq_note": "Please quote the items below for the project listed. Include part numbers, lead time and any exclusions. Send your quote to {company_email}.",
+  "comparison_note": "Quotes are the suppliers' prices for the items listed.",
+  "global_variables": [
+    {
+      "name": "eng_rate",
+      "value": "$125",
+      "unit": "/hr",
+      "description": "Engineering and support rate"
+    },
+    {
+      "name": "travel_rate",
+      "value": "$62.50",
+      "unit": "/hr",
+      "description": "Travel time (half the standard rate)"
+    },
+    {
+      "name": "lodging_rate",
+      "value": "$300",
+      "unit": "/night",
+      "description": "Lodging when an overnight stay is needed"
+    },
+    {
+      "name": "mileage_rate",
+      "value": "$0.725",
+      "unit": "/mi",
+      "description": "Mileage beyond the free zone (IRS rate)"
+    },
+    {
+      "name": "free_zone",
+      "value": "one hour",
+      "unit": "",
+      "description": "Travel zone around 224 Rutledge Rd with no mileage charge"
+    },
+    {
+      "name": "sourcing_fee",
+      "value": "10%",
+      "unit": "",
+      "description": "Fee on hardware the Consultant procures"
+    },
+    {
+      "name": "revision_rounds",
+      "value": "three (3)",
+      "unit": "",
+      "description": "Design revision rounds in the fixed fee"
+    },
+    {
+      "name": "termination_notice",
+      "value": "five (5)",
+      "unit": "",
+      "description": "Days of written notice to terminate"
+    }
+  ],
+  "spelling_words": [],
+  "co_markup_codes": [],
+  "contingency_code": 0,
+  "co_management_code": 0,
+  "co_management_rate_key": "",
+  "recommended_by": "Convenient Enterprises - Nick Matney",
+  "payment_rule": "fixed_fee",
+  "deposit_threshold": "0",
+  "deposit_pct_small": "0",
+  "pricing": null,
+  "tax_counties": [],
+  "new_projects_taxable": false,
+  "storage_rate": "2.00",
+  "storage_min": "25",
+  "storage_grace_days": 15,
+  "estimate_note": "Convenient Woodworking and Kept Spec Advisors are trade names of Convenient Enterprises LLC. When paying by check, please remit payment to Convenient Enterprises LLC.",
+  "migrations": []
+}

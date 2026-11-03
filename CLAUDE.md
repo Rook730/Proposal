@@ -12,6 +12,7 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 - src/proposal_builder/revisions.py: issue / new revision / finalize (2.0) / mark accepted; revision diffs.
 - src/proposal_builder/closeout.py: change orders (pricing, contingency draws) and the final ledger math.
 - src/proposal_builder/import_proposal.py: import a KS template proposal sheet as a project.
+- src/proposal_builder/ce.py: Convenient Enterprises billing (fixed fee vs estimate by Section.billing, deposit, options). ce_catalog.py: its one-time catalog additions (sections and codes 4000 to 4900). render/ce_document.py + templates/ce_proposal.typ, ce_estimate.typ: its proposal and estimate.
 - src/proposal_builder/render/: document.py builds print data and compiles; templates/ holds proposal.typ, co.typ, ledger.typ (+ common.typ); closeout_docs.py builds CO and ledger data; markup.py converts note Markdown to Typst; fonts/ bundles Carlito (OFL, Calibri metrics).
 - src/proposal_builder/ui/: NiceGUI pages (projects.py, editor.py, closeout.py, pages.py for catalog). Run with `python -m proposal_builder --browser`.
 - tests/fixtures/26005_anon.json: anonymized 26005 import; acceptance totals 41,186.59 / 38,199.69.
@@ -21,7 +22,8 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 ## Conventions
 - Catalog edits must never change saved proposals (snapshot rule, spec 4.9).
 - Two companies (spec section 16, docs/cw-requirements.md): a project's settings and terms come from `st.settings_for(project.profile)` / `st.boilerplate_for(project.profile)`, never `st.settings` directly (that is Kept Spec plus the shared values). Catalog lists offered in a project use `catalog.sections_for(profile)` / `items_for(profile)`.
-- CE profile: docs/ce-requirements.md (source of truth for the ce branch). On this branch, shared files must follow the shared-file contract in its section 2 so 1.10.1 can still read them.
+- CE profile: docs/ce-requirements.md (source of truth for the ce branch; as built in section 13a). On this branch, shared files must follow the shared-file contract in its section 2 so 1.10.1 can still read them.
+- Branding: documents take colors, fonts and layout from `default_brand(settings)` (company.brand in data.json). KS and CW must stay pixel-identical unless their brand is changed; check with a before/after render of their documents.
 - Forward compatibility: saved models subclass `base.SavedModel` (never plain BaseModel); projects and catalog sections of an unknown company are listed or kept raw, never opened or rewritten (store.ForeignProjectError, Catalog.foreign_*).
 - User-facing text: no em dashes.
 - Tests: `python -m pytest -q`. Importer parity test needs PROPOSAL_XLSX=<path to workbook>.
