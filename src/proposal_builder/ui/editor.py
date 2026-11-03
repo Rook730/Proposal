@@ -169,11 +169,13 @@ class Editor:
             t_vars = ui.tab("Variables", icon="data_object")
             t_alts = ui.tab("Options" if self.is_ce else "Alternates", icon="call_split")
             t_terms = ui.tab("Proposal text" if self.is_ce else "Terms & options", icon="article")
+            t_plan = ui.tab("Project plan", icon="event_note") if self.is_ce else None
             t_issues = ui.tab("Issues", icon="report")
             with t_issues:
                 self.issue_badge = ui.badge("").classes("ml-1")
             self.tabs, self.t_issues = tabs, t_issues
             self.t_lines, self.t_vars, self.t_alts, self.t_terms = t_lines, t_vars, t_alts, t_terms
+            self.t_plan = t_plan
             self._update_issue_badge()
             t_income = ui.tab("Income", icon="savings")
             t_quotes = None if self.is_ce else ui.tab("Sub quotes", icon="request_quote")
@@ -186,6 +188,9 @@ class Editor:
                 self.alternates_panel()
             with ui.tab_panel(t_terms):
                 self.terms_panel()
+            if t_plan is not None:
+                with ui.tab_panel(t_plan):
+                    self.plan_panel()
             with ui.tab_panel(t_issues):
                 self.issues_panel()
             with ui.tab_panel(t_income):
@@ -467,9 +472,8 @@ class Editor:
                         ui.menu_item("Export estimate", on_click=self.export_estimate)
                     if self.is_cw:
                         ui.menu_item("Purchase list", on_click=self.purchase_dialog)
-                    if not self.is_ce:      # Convenient Enterprises change orders (ECNs) come in stage 2
-                        ui.menu_item("Change orders" if self.is_cw else "Change orders & ledger",
-                                     on_click=lambda: ui.navigate.to(f"/project/{p.number}/closeout"))
+                    ui.menu_item("ECNs" if self.is_ce else "Change orders" if self.is_cw else "Change orders & ledger",
+                                 on_click=lambda: ui.navigate.to(f"/project/{p.number}/closeout"))
         if self.locked:
             with ui.row().classes("w-full items-center gap-2 px-3 py-1 rounded pb-warnbox"):
                 ui.icon("lock", color="orange-9")
@@ -1139,13 +1143,17 @@ class Editor:
 
                 ui.separator()
                 # ---- quantity: one source at a time
-                qmode0 = "variable" if work.qty_var else ("takeoff" if work.takeoff is not None else "typed")
+                qmode0 = "tasks" if work.tasks else (
+                    "variable" if work.qty_var else ("takeoff" if work.takeoff is not None else "typed"))
+                tasks_work = [t.model_copy() for t in work.tasks]
                 qty_box = ui.column().classes("w-full gap-1")
                 with qty_box:
                     with ui.row().classes("items-center gap-3"):
                         ui.label("Quantity").classes("font-semibold text-sm")
-                        qmode = ui.toggle({"typed": "Typed", "variable": "Variable", "takeoff": "Takeoff (stick goods)"},
-                                          value=qmode0).props("dense no-caps")
+                        qmodes = {"typed": "Typed", "variable": "Variable", "takeoff": "Takeoff (stick goods)"}
+                        if self.is_ce:
+                            qmodes = {"typed": "Typed", "tasks": "Hours buildup", "variable": "Variable"}
+                        qmode = ui.toggle(qmodes, value=qmode0).props("dense no-caps")
                     with ui.grid(columns=6).classes("w-full gap-x-3 items-end"):
                         qty = ui.number("Qty", value=_num(work.qty)).props("dense")
                         qty_var = ui.select({"": "-", **{n: n for n in var_names}}, label="Variable",
@@ -1158,6 +1166,38 @@ class Editor:
                                           value=_num(work.waste_pct * 100) if work.waste_pct is not None else None) \
                             .props("dense")
                         stock_lbl = ui.label().classes("text-xs text-gray-600 col-span-3")
+                    with ui.column().classes("w-full gap-1") as tasks_box:
+                        tasks_lbl = ui.label().classes("text-xs text-gray-600")
+
+                        def tasks_changed(dirty: bool = True) -> None:
+                            total = sum((t.hours for t in tasks_work), Decimal(0))
+                            tasks_lbl.set_text(f"Internal, never printed. Quantity = {total.normalize():f} hours "
+                                               f"({len(tasks_work)} task{'s' if len(tasks_work) != 1 else ''}).")
+                            if dirty:
+                                mark_dirty()
+                        from ..ce_models import TaskHours
+                        if self.is_ce:
+                            tmpl = {t.name: f"{t.name} ({t.hours.normalize():f} h)" for t in self.settings.task_templates}
+                            add_row = ui.row().classes("items-end gap-2 w-full")
+                            add_row.set_visibility(not self.locked)
+                            with add_row:
+                                pick = ui.select(tmpl, multiple=True, label="Add tasks from templates") \
+                                    .props("dense use-chips").classes("grow")
+
+                                def add_tasks() -> None:
+                                    by = {t.name: t for t in self.settings.task_templates}
+                                    for name in pick.value or []:
+                                        t = by[name]
+                                        tasks_work.append(TaskHours(name=t.name, hours=t.hours))
+                                    pick.set_value([])
+                                    task_grid.refresh()
+                                    tasks_changed()
+                                ui.button("Add", icon="playlist_add", on_click=add_tasks).props("dense outline")
+                            task_grid = EditableGrid(lambda: tasks_work,
+                                                     [Col("name", "Task", flex=2), Col("hours", "Hours", "number", width=90),
+                                                      Col("note", "Note (internal)", flex=2)],
+                                                     tasks_changed, lambda: TaskHours(name="New task"),
+                                                     height="22vh", readonly=self.locked)
 
                 # ---- price: fields for the chosen basis only
                 price_box = ui.column().classes("w-full gap-1 mt-2")
@@ -1256,6 +1296,9 @@ class Editor:
                     qty_box.set_visibility(not pct and not notinc)
                     price_box.set_visibility(not notinc)
                     m = qmode.value
+                    tasks_box.set_visibility(m == "tasks")
+                    if m == "tasks":
+                        tasks_changed(dirty=False)
                     qty.set_visibility(m == "typed")
                     qty_var.set_visibility(m == "variable")
                     for el in (takeoff, stock, waste, stock_lbl):
@@ -1379,7 +1422,9 @@ class Editor:
                         sub_name=(self.st.contractors.get(sub_sel.value).company if sub_sel.value else ""),
                         alternate=int(alt.value) or None, print_general=print_general.value,
                         notes=notes.value or "",
-                        qty=to_decimal(qty.value) if qty.value not in (None, "") else Decimal(0),
+                        qty=(sum((t.hours for t in tasks_work), Decimal(0)) if m == "tasks" else
+                             to_decimal(qty.value) if qty.value not in (None, "") else Decimal(0)),
+                        tasks=[t.model_copy() for t in tasks_work] if m == "tasks" else [],
                         qty_var=(qty_var.value or None) if m == "variable" else None,
                         takeoff=to_decimal(takeoff.value) if m == "takeoff" else None,
                         stock_class=(stock.value or None) if m == "takeoff" else None,
@@ -1814,6 +1859,9 @@ class Editor:
                 out.append(("info", f"Variable '{pv.name}' is not used anywhere", ("tab", "variables")))
         from ..preflight import content_checks
         out += content_checks(self.project, self.rev, self.results, self.st.customers)
+        if self.is_ce:
+            from .. import ce
+            out += ce.checks(self.rev, self.results.base, self.settings, self.cat, self.library)
         return out
 
     def spelling(self) -> list:
@@ -1868,8 +1916,8 @@ class Editor:
             if b is not None:
                 self._block_dialog(b, b.heading)
         elif kind == "tab":
-            self.tabs.set_value({"variables": self.t_vars, "alternates": self.t_alts,
-                                 "terms": self.t_terms}.get(ref, self.t_lines))
+            self.tabs.set_value({"variables": self.t_vars, "alternates": self.t_alts, "terms": self.t_terms,
+                                 "plan": self.t_plan or self.t_lines}.get(ref, self.t_lines))
         elif kind == "section":
             self.tabs.set_value(self.t_lines)
             self._filter(int(ref))
@@ -2028,6 +2076,144 @@ class Editor:
                 else:
                     ui.button("Download", icon="download", on_click=lambda: ui.download.content(pdf, path.name))
                 ui.button("Close", on_click=lambda: (dlg.close(), reload() if reload else None)).props("flat")
+        dlg.open()
+
+    # ------------------------------------------------------------ project plan (CE, Detailed depth)
+    def _ce_new_id(self, section: int, code: int | None = None) -> str:
+        return self.new_id(section, code)
+
+    def _bom_saved(self) -> None:
+        from .. import ce
+        ce.sync_hardware_line(self.rev, self.cat, self.settings, self._ce_new_id)
+        self.save()
+
+    def _set_depth(self, depth: str) -> None:
+        from .. import ce
+        if self.locked or depth == (self.rev.depth or "letter"):
+            return
+        ce.set_depth(self.rev, depth, self.library, self.settings)
+        self.save()
+        self.plan_panel.refresh()
+        self.terms_panel.refresh()
+        ui.notify("Detailed: bill of materials, schedule, milestone payments and assumptions print."
+                  if depth == "detailed" else "Letter: the Detailed tables and assumptions are off.", type="info")
+
+    @ui.refreshable_method
+    def plan_panel(self) -> None:
+        from .. import ce
+        from ..ce_models import BUYERS, DEPTHS, BomItem, Milestone, Phase
+        rev, ro = self.rev, self.locked
+        with ui.row().classes("items-center gap-3"):
+            ui.label("Depth").classes("font-semibold")
+            ui.toggle(DEPTHS, value=rev.depth or "letter", on_change=lambda e: self._set_depth(e.value)) \
+                .props("dense no-caps" + (" disable" if ro else ""))
+            ui.label("Letter prints the narrative and cost. Detailed also prints the bill of materials, schedule, "
+                     "milestone payments and assumptions (turn any of them off on the Proposal text tab).") \
+                .classes("text-xs text-gray-500")
+        with ui.row().classes("gap-2 mt-2"):
+            if not ro:
+                ui.button("Add trip", icon="directions_car", on_click=self.trip_dialog).props("dense outline")
+            ui.label("Travel time, lodging and mileage lines for trips to a destination (Settings > Proposals).") \
+                .classes("text-xs text-gray-500 self-center")
+
+        ui.label("Bill of materials").classes("font-semibold mt-4")
+        ui.label(f"Client-bought items print for reference. Consultant-bought items are billed through one hardware "
+                 f"line at invoiced cost plus {self.settings.sourcing_fee_pct * 100:.0f}% sourcing fee (kept in step "
+                 "automatically). Unit cost is internal; the proposal prints no hardware prices.") \
+            .classes("text-xs text-gray-500")
+        refs = self.cat.prices.hardware
+        if refs and not ro:
+            with ui.row().classes("items-end gap-2 w-full"):
+                pick = ui.select({h.id: " ".join(x for x in (h.name, h.manufacturer, h.model, h.part_number) if x)
+                                  for h in refs}, multiple=True,
+                                 label="Add from price references").props("dense use-chips").classes("w-[520px]")
+
+                def add_refs() -> None:
+                    by = {h.id: h for h in refs}
+                    for hid in pick.value or []:
+                        h = by[hid]
+                        rev.bom.append(BomItem(manufacturer=h.manufacturer, model=h.model, part_number=h.part_number,
+                                               description=h.name, unit=h.unit, unit_cost=h.price,
+                                               supplier=h.supplier, lead_time=h.lead_time, price_ref=h.id))
+                    pick.set_value([])
+                    self._bom_saved()
+                    self.plan_panel.refresh()
+                ui.button("Add", icon="playlist_add", on_click=add_refs).props("dense outline")
+        EditableGrid(lambda: rev.bom,
+                     [Col("manufacturer", "Make", width=110), Col("model", "Model", width=120),
+                      Col("part_number", "Part number", width=120), Col("description", "Description", flex=2),
+                      Col("qty", "Qty", "number", width=70), Col("unit", "Unit", width=70),
+                      Col("unit_cost", "Unit cost", "money", width=100), Col("supplier", "Supplier", width=110),
+                      Col("lead_time", "Lead time", width=90),
+                      Col("buyer", "Bought by", "lookup", width=170, lookup=BUYERS)],
+                     self._bom_saved, lambda: BomItem(), height="28vh", readonly=ro)
+
+        r = self.results
+        rows, left = ce.milestone_schedule(rev, r.base, self.settings, self.cat)
+        ui.label("Milestone payments").classes("font-semibold mt-4")
+        ui.label(f"Shares of the fixed fee ({money(ce.payments(r.base, self.settings, self.cat).fixed)}). The deposit "
+                 f"({self.settings.deposit_pct * 100:.0f}%, Settings) comes first; deposit plus milestones should be "
+                 "100%.").classes("text-xs text-gray-500")
+        if left:
+            ui.label(f"Deposit and milestones add up to {(1 - left) * 100:.1f}%, not 100%.") \
+                .classes("text-sm text-orange-700")
+        else:
+            ui.label("  |  ".join(f"{x.name} {money(x.amount)}" for x in rows)).classes("text-sm")
+
+        def ms_saved() -> None:
+            self.save()
+            self.plan_panel.refresh()
+        EditableGrid(lambda: rev.milestones,
+                     [Col("name", "Invoice", flex=1), Col("trigger", "When (prints)", flex=2),
+                      Col("pct", "Share of fixed fee (%)", "pct", width=170)],
+                     ms_saved, lambda: Milestone(name="Milestone"), height="22vh", readonly=ro)
+
+        ui.label("Schedule").classes("font-semibold mt-4")
+        ui.label("Phases in weeks after approval; overlapping phases are fine. Prints as a bar chart.") \
+            .classes("text-xs text-gray-500")
+        EditableGrid(lambda: rev.phases,
+                     [Col("name", "Phase", flex=1), Col("start_week", "Starts (week)", "number", width=120),
+                      Col("weeks", "Weeks", "number", width=90), Col("gate", "Waits on (prints)", flex=2)],
+                     self.save, lambda: Phase(name="Phase", start_week=max(
+                         (p.start_week + p.weeks for p in rev.phases), default=Decimal(0))),
+                     height="22vh", readonly=ro)
+
+    def trip_dialog(self) -> None:
+        from .. import ce
+        dests = self.settings.destinations
+        if not dests:
+            ui.notify("Add travel destinations in Settings > Proposals (Convenient Enterprises) first.", type="warning")
+            return
+        with self.host, ui.dialog() as dlg, ui.card().classes("w-[480px]"):
+            ui.label("Add trip").classes("text-lg font-semibold")
+            dest = ui.select({d.name: f"{d.name} ({d.one_way_hours.normalize():f} h one way)" for d in dests},
+                             value=dests[0].name, label="Destination").props("dense").classes("w-full")
+            with ui.row().classes("gap-3"):
+                trips = ui.number("Trips", value=1, format="%d", min=1).props("dense")
+                nights = ui.number("Lodging nights", value=1 if dests[0].overnight else 0, format="%d", min=0) \
+                    .props("dense")
+            note = ui.label().classes("text-xs text-gray-500")
+
+            def upd(_=None) -> None:
+                d = next(x for x in dests if x.name == dest.value)
+                note.set_text(f"Travel time {d.one_way_hours.normalize():f} h one way per trip at the travel rate"
+                              + (f"; mileage {d.round_trip_miles.normalize():f} mi round trip beyond the free zone per "
+                                 "trip." if d.round_trip_miles else "; no mileage (none entered for this destination)."))
+            dest.on_value_change(upd)
+            upd()
+
+            def add() -> None:
+                d = next(x for x in dests if x.name == dest.value)
+                made = ce.trip_lines(self.rev, self.cat, d, int(trips.value or 1), int(nights.value or 0),
+                                     self._ce_new_id)
+                dlg.close()
+                if made:
+                    self.mark_edited(made[-1].id)
+                    self.save()
+                    ui.notify(f"Added {', '.join(ln.id for ln in made)}", type="positive")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=dlg.close).props("flat")
+                ui.button("Add lines", icon="add", on_click=add)
         dlg.open()
 
     # ------------------------------------------------------------ estimate (CE)

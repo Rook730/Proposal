@@ -79,6 +79,7 @@ def run_self_test() -> tuple[bool, str]:
             from .proposal import Alternate
             from .render.ce_document import build_estimate_document
             ce_catalog.apply(catalog)
+            ce_catalog.apply_stage2(catalog)
             ce_settings, ce_bp = ds.load_settings("ce"), ds.load_boilerplate("ce")
             ce_project = Project(number="99997", client_name="Self Test", project_name="Cell", profile="ce")
             ce_rev = Revision(blocks=default_blocks(ce_bp.blocks))
@@ -97,6 +98,20 @@ def run_self_test() -> tuple[bool, str]:
             est_pdf = compile_document(build_estimate_document(ce_project, ce_rev, ce_settings, catalog), ce_logo)
             assert ce_pdf[:4] == b"%PDF" and est_pdf[:4] == b"%PDF", "CE proposal / estimate PDF"
             lines.append(f"ce total {ce_res.base.total}, proposal {len(ce_pdf)} bytes, estimate {len(est_pdf)} bytes")
+            # Detailed depth: consultant-bought hardware line, milestone schedule, BOM and timeline tables
+            from . import ce
+            from .ce_models import CONSULTANT, DETAILED, BomItem
+            ce.set_depth(ce_rev, DETAILED, ce_bp, ce_settings)
+            ce_rev.bom = [BomItem(description="Safety relay", manufacturer="Test", model="T1", qty=Decimal(2),
+                                  unit_cost=Decimal(500), buyer=CONSULTANT)]
+            ce.sync_hardware_line(ce_rev, catalog, ce_settings, lambda sec, code: ce_rev.new_line_id(sec))
+            ce_res = calculate(ce_rev, ce_settings, catalog.stock_classes, ce_project)
+            assert ce_res.base.total == Decimal("13256.25"), ce_res.base.total
+            rows, left = ce.milestone_schedule(ce_rev, ce_res.base, ce_settings, catalog)
+            assert left == 0 and sum(r.amount for r in rows) == ce.split(ce_res.base, catalog).fixed, "milestones"
+            det_pdf = compile_document(build_document(ce_project, ce_rev, ce_settings, catalog, ce_bp), ce_logo)
+            assert det_pdf[:4] == b"%PDF", "CE detailed proposal PDF"
+            lines.append(f"ce detailed total {ce_res.base.total}, proposal {len(det_pdf)} bytes")
             # appendix images: Pillow scales a photo down; the PDF prints it
             import io
             from PIL import Image

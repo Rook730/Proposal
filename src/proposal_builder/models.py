@@ -14,6 +14,7 @@ from pydantic import Field, model_serializer, model_validator
 
 from .base import SavedModel
 from .buildsheet import BuildSheet, PricingPolicy
+from .ce_models import Milestone, Phase, TaskTemplate, TravelDestination
 
 SCHEMA_VERSION = 1
 
@@ -216,6 +217,9 @@ class HardwarePrice(_Model):
     id: str
     name: str
     part_number: str = ""
+    manufacturer: str = ""             # Convenient Enterprises BOM (make / model) and lead time
+    model: str = ""
+    lead_time: str = ""
     supplier: str = ""
     unit: str = "EA"
     price: Decimal = Decimal(0)
@@ -566,6 +570,12 @@ class Settings(_Model):
     storage_min: Decimal = Decimal("25")
     storage_grace_days: int = 15
     estimate_note: str = ""        # printed under the Estimate (Convenient Enterprises); may use {variables}
+    # Convenient Enterprises (ce_models.py): starting points copied into new Detailed proposals
+    sourcing_fee_pct: Decimal = Decimal("0.10")     # on hardware the Consultant procures
+    task_templates: list[TaskTemplate] = Field(default_factory=list)
+    destinations: list[TravelDestination] = Field(default_factory=list)
+    milestone_template: list[Milestone] = Field(default_factory=list)
+    phase_template: list[Phase] = Field(default_factory=list)
     migrations: list[str] = Field(default_factory=list)     # one-time settings changes already applied
 
     def tax_rate(self, county: str) -> Decimal | None:

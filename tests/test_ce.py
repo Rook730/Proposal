@@ -57,7 +57,7 @@ def test_brand_defaults_keep_old_looks():
 
 def test_ce_catalog_and_performer(st: AppState):
     cat = st.catalog
-    assert [s.number for s in cat.sections_for(CE)] == [4000, 4100, 4200]
+    assert [s.number for s in cat.sections_for(CE)] == [4000, 4100, 4200, 4300]
     assert all(s.number < 4000 or s.number > 4900 for s in cat.sections_for(KS) + cat.sections_for(CW))
     assert {i.code for i in cat.items_for(CE)} >= {4010, 4050, 4090, 4110, 4120, 4210, 4220, 4230}
     assert cat.rate("ce_eng").rate == 125 and cat.rate("ce_travel").rate == D("62.50")

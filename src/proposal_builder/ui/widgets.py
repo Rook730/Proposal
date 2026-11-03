@@ -279,7 +279,7 @@ def no_rows(text: str) -> str:
 class Col:
     field: str
     header: str
-    kind: str = "text"                  # text | number | money | bool | select | list | strlist | date | lookup
+    kind: str = "text"                  # text | number | pct | money | bool | select | list | strlist | date | lookup
     options: list[str] = field(default_factory=list)
     width: int | None = None
     flex: int | None = None
@@ -366,8 +366,10 @@ class EditableGrid:
             d["flex"] = c.flex
         if c.cell_class:
             d["cellClassRules"] = {f":{cls}": fn for cls, fn in c.cell_class.items()}
-        if c.kind == "number":
+        if c.kind in ("number", "pct"):
             d["cellDataType"] = "number"
+            if c.kind == "pct":
+                d["type"] = "rightAligned"
         elif c.kind == "money":
             d["cellDataType"] = "number"
             d["type"] = "rightAligned"
@@ -396,6 +398,8 @@ class EditableGrid:
                 v = getattr(m, c.field)
                 if c.kind == "lookup":
                     r[c.field] = c.lookup.get(v, "") if v else ""
+                elif c.kind == "pct":           # stored as a fraction, shown and typed as percent
+                    r[c.field] = float(v * 100) if v is not None else None
                 else:
                     r[c.field] = ", ".join(str(x) for x in v) if c.kind in ("list", "strlist") else to_json(v)
             rows.append(r)
@@ -408,6 +412,9 @@ class EditableGrid:
     def _convert(self, c: Col, v: Any) -> Any:
         if c.kind in ("number", "money"):
             return to_decimal(v)
+        if c.kind == "pct":
+            d = to_decimal(v)
+            return d / 100 if d is not None else Decimal(0)
         if c.kind == "list":
             return [to_decimal(x) for x in str(v or "").split(",") if x.strip()]
         if c.kind == "strlist":

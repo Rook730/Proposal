@@ -7,7 +7,7 @@ from datetime import date
 from decimal import Decimal
 
 from ..closeout import ChangeOrder, COFunding, Contract, COPricing, Ledger, Reconciliation
-from ..models import Settings
+from ..models import CE, Settings
 from ..proposal import Project
 from .document import company_block, fmt_pct, performer_note
 from .markup import escape, md_to_typst
@@ -39,11 +39,13 @@ def _with_performer(item, settings=None) -> str:
 
 def change_order_document(project: Project, contract: Contract, co: ChangeOrder, pricing: COPricing,
                           settings: Settings) -> dict:
-    rows = [("Cost change", m(pricing.cost_delta), ""),
-            (f"Overhead and profit ({fmt_pct(contract.markup_pct)})", m(pricing.markup), "")]
+    ecn = project.profile == CE        # Convenient Enterprises: Engineering Change Notice, no markup
+    rows = [("Change in fee" if ecn else "Cost change", m(pricing.cost_delta), "")]
+    if contract.markup_pct or not ecn:
+        rows.append((f"Overhead and profit ({fmt_pct(contract.markup_pct)})", m(pricing.markup), ""))
     if pricing.tax:
         rows.append((f"Sales tax ({fmt_pct(contract.tax_rate)})", m(pricing.tax), ""))
-    rows.append(("Change order price", m(pricing.price), "bold"))
+    rows.append(("ECN price" if ecn else "Change order price", m(pricing.price), "bold"))
     if co.funding is COFunding.CONTINGENCY:
         rows.append(("Covered by contingency", m(-pricing.from_contingency), ""))
         rows.append(("Contingency remaining after this change order", m(pricing.contingency_after), ""))
@@ -65,10 +67,15 @@ def change_order_document(project: Project, contract: Contract, co: ChangeOrder,
         "company": company_block(settings),
         **_header(project, contract),
         "co": {
+            "doc_title": "Engineering Change Notice" if ecn else "Change Order",
+            "number_label": "ECN No.:" if ecn else "Change Order No.:",
             "number": co.number, "title": co.title, "requested": co.requested.strftime("%Y.%m.%d"),
             "approved": co.approved.strftime("%Y.%m.%d") if co.approved else "",
             "items": [{"description": md_to_typst(i.description), "action": str(i.action),
-                       "change": _with_performer(i, settings), "lines": ", ".join(i.line_ids),
+                       "change": _with_performer(i, settings) + (
+                           " \\ " + escape(f"{i.hours.normalize():f} HR at ${i.rate:,.2f}") if ecn and i.hours is not None
+                           and i.rate is not None else ""),
+                       "lines": ", ".join(i.line_ids),
                        "original": m(i.original_cost), "final": m(i.final_cost)} for i in co.items],
             "pricing": [{"label": a, "amount": b, "style": c} for a, b, c in rows],
             "sections": sections,

@@ -27,7 +27,8 @@ from .proposal import Line, Project, Revision
 CENT = Decimal("0.01")
 VAR_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 # rendered by the document layer (cost_table and signatures: Convenient Enterprises proposals)
-SPECIAL_PLACEHOLDERS = {"units_table", "rates_table", "cost_table", "signatures"}
+SPECIAL_PLACEHOLDERS = {"units_table", "rates_table", "cost_table", "signatures",
+                        "bom_table", "milestone_table", "timeline_table"}      # Convenient Enterprises
 DOCUMENT_VARIABLES = {"total_price", "subtotal", "deposit_amount", "progress_amount", "retainage_amount",
                       "balance_amount", "sales_tax", "rush_amount",
                       "fixed_fee", "estimate_total", "fixed_balance"}      # Convenient Enterprises
@@ -232,7 +233,9 @@ def line_result(ln: Line, variables: dict[str, str], settings: Settings,
     errors: list[str] = []
     stock = None
     qty = ln.qty
-    if ln.qty_var:
+    if ln.tasks:                      # hours buildup (Convenient Enterprises): the tasks' hours
+        qty = sum((t.hours for t in ln.tasks), Decimal(0))
+    elif ln.qty_var:
         try:
             qty = numeric(variables[ln.qty_var])
         except KeyError:

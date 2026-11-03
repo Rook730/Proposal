@@ -19,6 +19,8 @@ from .document import _line_body, brand_data, fmt_pct, fmt_qty
 from .markup import md_to_typst
 
 COST_TABLE, SIGNATURES = "{cost_table}", "{signatures}"
+# Detailed depth tables (stage 2): block body -> kind
+TABLES = {"{bom_table}": "bom", "{milestone_table}": "milestones", "{timeline_table}": "timeline"}
 BILLING_LABEL = {ce.FIXED: "Fixed fee", ce.ESTIMATE: "Estimate, billed at actual"}
 
 
@@ -73,6 +75,31 @@ def cost_data(project: Project, rev: Revision, settings: Settings, catalog: Cata
     return {"groups": groups, "totals": totals, "options": opts}
 
 
+def bom_data(rev: Revision) -> list[dict]:
+    from ..ce_models import BUYERS, CONSULTANT
+    return [{"item": " ".join(x for x in (b.manufacturer, b.model) if x) or b.description,
+             "description": b.description if (b.manufacturer or b.model) else "",
+             "pn": b.part_number, "qty": fmt_qty(b.qty), "unit": b.unit, "supplier": b.supplier,
+             "lead": b.lead_time, "buyer": "Consultant" if b.buyer == CONSULTANT else BUYERS.get(b.buyer, b.buyer)}
+            for b in rev.bom]
+
+
+def milestone_data(rev: Revision, res: Results, settings: Settings, catalog: Catalog) -> dict:
+    rows, left = ce.milestone_schedule(rev, res.base, settings, catalog)
+    pay = ce.payments(res.base, settings, catalog)
+    return {"rows": [{"name": r.name, "trigger": r.trigger, "pct": fmt_pct(r.pct), "amount": _money(r.amount)}
+                     for r in rows],
+            "fixed": _money(pay.fixed), "complete": left == 0}
+
+
+def timeline_data(rev: Revision) -> dict:
+    end = max((p.start_week + p.weeks for p in rev.phases), default=Decimal(0))
+    return {"weeks": float(end), "label": fmt_qty(end),
+            "rows": [{"name": p.name, "start": float(p.start_week), "weeks": float(p.weeks),
+                      "span": f"Weeks {fmt_qty(p.start_week)} to {fmt_qty(p.start_week + p.weeks)}", "gate": p.gate}
+                     for p in rev.phases]}
+
+
 def _client(project: Project) -> dict:
     return {"name": project.client_name, "attention": project.attention, "address": project.site_address,
             "project": project.project_name, "po": project.po_number}
@@ -96,6 +123,8 @@ def build_ce_document(project: Project, rev: Revision, settings: Settings, catal
             item = {"title": b.title, "kind": "cost"}
         elif b.body.strip() == SIGNATURES:
             item = {"title": b.title, "kind": "signatures"}
+        elif b.body.strip() in TABLES:
+            item = {"title": b.title, "kind": TABLES[b.body.strip()]}
         else:
             item = {"title": b.title, "kind": "text", "body": md_to_typst(render(b.body, v))}
         by_heading.setdefault(b.heading, []).append(item)
@@ -109,6 +138,9 @@ def build_ce_document(project: Project, rev: Revision, settings: Settings, catal
         "intro": by_heading.get("Intro", []),
         "modules": modules,
         "cost": cost_data(project, rev, settings, catalog, res, v),
+        "bom": bom_data(rev),
+        "milestones": milestone_data(rev, res, settings, catalog),
+        "timeline": timeline_data(rev),
         "signatures": {"client": project.client_name or "Client",
                        "company": settings.company.dba or settings.company.legal_name},
     }

@@ -7,6 +7,7 @@
     "Material",
     "Labor",
     "Exclusions",
+    "Assumptions",
     "Time Table",
     "Cost",
     "Terms",
@@ -213,7 +214,41 @@
       "body": "{signatures}",
       "default_on": true,
       "order": 10
+    },
+    {
+      "id": "bom",
+      "heading": "Material",
+      "title": "Bill of materials",
+      "body": "{bom_table}",
+      "default_on": false,
+      "order": 20
+    },
+    {
+      "id": "timeline",
+      "heading": "Time Table",
+      "title": "Schedule",
+      "body": "{timeline_table}",
+      "default_on": false,
+      "order": 20
+    },
+    {
+      "id": "milestones",
+      "heading": "Cost",
+      "title": "Milestone payments",
+      "body": "{milestone_table}",
+      "default_on": false,
+      "order": 25
+    },
+    {
+      "id": "assumptions",
+      "heading": "Assumptions",
+      "title": "",
+      "body": "- The existing machine is mechanically sound and its current controls documentation is accurate.\n- Client staff and the machine are available for the onsite days as scheduled.\n- TBD: project-specific assumptions and risks.",
+      "default_on": false,
+      "order": 10
     }
   ],
-  "migrations": []
+  "migrations": [
+    "ce-stage2"
+  ]
 }

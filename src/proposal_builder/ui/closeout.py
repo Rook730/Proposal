@@ -27,7 +27,7 @@ from ..closeout import (
     contract_context,
     price_change_orders,
 )
-from ..models import Performer
+from ..models import CE, Performer
 from .pdf_ui import export_pdf, preview_pdf
 from .crm_pages import project_contractor_ids, vendor_names
 from ..crm import insurance_warnings
@@ -60,7 +60,12 @@ class Closeout:
         if self.rev is not None:
             self.contract = contract_context(self.rev, self.settings, self.st.catalog.stock_classes, self.project)
         self.ledger = self._ledger()
-        self.cw = self.settings.pricing is not None     # Convenient Woodworking: change orders only
+        # Convenient Enterprises: Engineering Change Notices (no markup, hours x rate)
+        self.ce = self.project.profile == CE
+        self.cw = self.settings.pricing is not None or self.ce   # change orders only (no ledger)
+        self.co_word = "ECN" if self.ce else "change order"
+        ce_rate = self.st.catalog.rate("ce_eng")
+        self.ce_rate = ce_rate.rate if ce_rate else Decimal(125)
 
     # ------------------------------------------------------------ plumbing
     def _ledger(self):
@@ -95,7 +100,7 @@ class Closeout:
     # ------------------------------------------------------------ page
     def build(self) -> None:
         p = self.project
-        page = "change orders" if self.cw else "change orders & ledger"
+        page = "ECNs" if self.ce else "change orders" if self.cw else "change orders & ledger"
         layout(f"{p.number} {page}", drawer=False)
         with ui.row().classes("w-full items-center gap-4"):
             ui.button(icon="arrow_back", on_click=lambda: ui.navigate.to(f"/project/{p.number}")) \
@@ -106,7 +111,7 @@ class Closeout:
         if self.contract is None:
             with ui.card().classes("mt-4"):
                 ui.label("No accepted revision yet.").classes("font-semibold")
-                ui.label(f"{'Change orders work' if self.cw else 'Change orders and the ledger work'} from the "
+                ui.label(f"{'ECNs work' if self.ce else 'Change orders work' if self.cw else 'Change orders and the ledger work'} from the "
                          "accepted contract. In the proposal editor: "
                          "issue the final revision (Finalize, then issue 2.0) and use Mark accepted once the client "
                          "signs.").classes("text-sm")
@@ -189,8 +194,8 @@ class Closeout:
             tile("Contract", money(c.total), f"Rev {c.rev.rev}")
             if self.cw:
                 pending = [o for o in self.log.orders if o.status in (COStatus.DRAFT, COStatus.ISSUED)]
-                tile("Approved change orders", money(lg.co_billed), f"{len(lg.approved)} approved")
-                tile("Contract with change orders", money(c.total + lg.co_billed))
+                tile(f"Approved {self.co_word}s", money(lg.co_billed), f"{len(lg.approved)} approved")
+                tile(f"Contract with {self.co_word}s", money(c.total + lg.co_billed))
                 if pending:
                     tile("Not yet approved", str(len(pending)), "draft or issued", color="amber")
                 return
@@ -211,8 +216,13 @@ class Closeout:
         c = self.contract
         with ui.row().classes("gap-2 items-center mb-2"):
             if not self.closed:
-                ui.button("New change order", icon="add", on_click=self.new_co).props("dense")
-            if self.cw:
+                ui.button(f"New {self.co_word}", icon="add", on_click=self.new_co).props("dense")
+            if self.ce:
+                ui.label(f"An ECN records a design or configuration change acknowledged in writing by both parties. "
+                         f"Price = the change in fee (no markup). Give hours and a rate (default "
+                         f"{money(self.ce_rate)}/HR) and the final cost is the original cost plus hours x rate. "
+                         "Only approved ECNs count.").classes("text-xs text-gray-500")
+            elif self.cw:
                 tax = f" + sales tax ({c.tax_rate * 100:.2f}%)" if c.tax_rate else ""
                 ui.label(f"Price = cost change x (1 + {c.markup_pct * 100:.0f}% overhead and profit){tax}. "
                          "Enter the cost change from the build sheet (materials, outsourced work and hours at the "
@@ -259,7 +269,7 @@ class Closeout:
                          "contingency": money(pr.from_contingency), "billed": money(pr.billed)})
         hide = {"contingency", "mgmt"} if self.cw else set()
         g = ui.aggrid({
-            "columnDefs": [c for c in [{"field": "number", "headerName": "CO #", "width": 110},
+            "columnDefs": [c for c in [{"field": "number", "headerName": "ECN #" if self.ce else "CO #", "width": 110},
                            {"field": "title", "headerName": "Title", "flex": 1},
                            {"field": "status", "headerName": "Status", "width": 100},
                            {"field": "funding", "headerName": "Funding", "width": 170},
@@ -273,7 +283,7 @@ class Closeout:
             "rowData": rows, "rowHeight": 32, "headerHeight": 36,
         }, auto_size_columns=False).classes("w-full").style("height:50vh")
         g.on("cellDoubleClicked", lambda e: self.co_dialog(self.log.get(e.args["data"]["number"])))
-        ui.label("Double-click a change order to open it.").classes("text-xs text-gray-500")
+        ui.label(f"Double-click {'an ECN' if self.ce else 'a change order'} to open it.").classes("text-xs text-gray-500")
 
     def new_co(self) -> None:
         """Open a blank change order; it is added to the log only when saved."""
@@ -290,7 +300,9 @@ class Closeout:
         ro = "dense readonly" if locked else "dense"
         with ui.dialog() as dlg, ui.card().classes("w-[1100px] max-w-full"):
             with ui.row().classes("w-full items-center"):
-                ui.label(f"{'New change order' if new else 'Change order'} {co.number}").classes("text-lg font-semibold")
+                word = "ECN" if self.ce else "change order"
+                ui.label(f"{'New ' + word if new else word[0].upper() + word[1:]} {co.number}") \
+                    .classes("text-lg font-semibold")
                 ui.badge(co.status.value, color={"Draft": "grey-7", "Issued": "blue-8", "Approved": "green-8",
                                                   "Rejected": "red-8"}[co.status.value])
                 ui.space()
@@ -308,13 +320,20 @@ class Closeout:
                 hours = ui.number("Management hours (scoping, pricing, paperwork)",
                                   value=float(work.mgmt_hours) if work.mgmt_hours else None).props(ro)
                 hours.set_visibility(not self.cw)
-            ui.label("Itemized changes at cost (materials, outsourced work and hours at the shop rate). "
+            ui.label("Itemized changes: hours x rate, or the fee change typed as original and final cost. "
+                     "Lines: proposal line IDs this change touches, comma separated." if self.ce else
+                     "Itemized changes at cost (materials, outsourced work and hours at the shop rate). "
                      "Lines: proposal line IDs this change touches, comma separated." if self.cw else
                      "Itemized changes at direct cost (no management time; log that as hours above). "
                      "Lines: proposal line IDs this change touches, comma separated.") \
                 .classes("text-xs text-gray-500")
 
             def recompute() -> None:
+                if self.ce:
+                    for it in work.items:
+                        if it.hours is not None and it.rate is None:
+                            it.rate = self.ce_rate
+                        it.apply_hours()
                 try:
                     tmp = self.log.model_copy(deep=True)
                     if new:
@@ -343,6 +362,8 @@ class Closeout:
             if not self.cw:
                 cols.append(Col("contractor_id", "Contractor", "lookup", width=170,
                                 lookup={c.id: c.company for c in self.st.contractors.sorted()}))
+            if self.ce:
+                cols += [Col("hours", "Hours", "number", width=95), Col("rate", "Rate", "money", width=90)]
             cols += [Col("original_cost", "Original cost", "money", width=120),
                      Col("final_cost", "Final cost", "money", width=110)]
             EditableGrid(lambda: work.items, cols,
@@ -415,11 +436,11 @@ class Closeout:
                     ui.button("Delete", icon="delete", on_click=delete).props("flat color=negative")
                 with ui.button_group().props("outline"):
                     ui.button("Preview", icon="visibility",
-                              on_click=lambda: self._preview(doc(), "co.typ", f"Change order {co.number}")) \
+                              on_click=lambda: self._preview(doc(), "co.typ", f"{'ECN' if self.ce else 'Change order'} {co.number}")) \
                         .props("outline")
                     ui.button("Export PDF", icon="picture_as_pdf",
                               on_click=lambda: self._export(doc(), "co.typ",
-                                                            safe_name(f"{co.number}_Change_Order.pdf"))).props("outline")
+                                                            safe_name(f"{co.number}_{'ECN' if self.ce else 'Change_Order'}.pdf"))).props("outline")
                 ui.space()
                 ui.button("Close" if locked else "Cancel", on_click=dlg.close).props("flat")
                 if not locked:

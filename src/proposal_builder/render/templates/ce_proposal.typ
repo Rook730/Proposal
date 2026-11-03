@@ -59,6 +59,43 @@
   }
 }
 
+// ------------------------------------------------------------------ Detailed depth tables
+
+#let small-head(..cells) = cells.pos().map(x => text(8.5pt, weight: "bold", x))
+#let rules = (x, y) => (bottom: if y == 0 { 0.8pt + ink } else { 0.4pt + rule-c })
+
+#let bom-table(rows) = if rows.len() == 0 { text(fill: muted, style: "italic")[No items listed.] } else {
+  grid(columns: (1fr, 1.05in, 0.45in, 0.95in, 0.75in, 0.8in), inset: (x: 4pt, y: 4pt), stroke: rules,
+    ..small-head([Item], [Part number], align(right)[Qty], [Supplier], [Lead time], [Bought by]),
+    ..rows.map(r => (
+      [#r.item #if r.description != "" { linebreak(); text(8.5pt, fill: muted, r.description) }],
+      text(8.5pt, r.pn), align(right, r.qty + " " + r.unit), text(8.5pt, r.supplier), text(8.5pt, r.lead),
+      text(8.5pt, r.buyer))).flatten())
+}
+
+#let milestone-table(m) = block(breakable: false, grid(columns: (1.6in, 1fr, 0.6in, 1in), inset: (x: 4pt, y: 4pt),
+  stroke: rules,
+  ..small-head([Invoice], [When], align(right)[Share], align(right)[Amount]),
+  ..m.rows.map(r => (text(weight: "medium", r.name), text(8.5pt, r.trigger), align(right, r.pct),
+                     align(right, r.amount))).flatten(),
+  grid.cell(colspan: 3, align(right, text(weight: "bold")[Fixed fee])), align(right, text(weight: "bold", m.fixed)),
+))
+
+#let timeline-chart(t) = if t.rows.len() == 0 { [] } else {
+  let total = calc.max(t.weeks, 1)
+  block(breakable: false, grid(columns: (1.9in, 1fr), inset: (x: 4pt, y: 4pt), stroke: rules,
+    ..small-head([Phase], [Weeks after approval (#t.label total)]),
+    ..t.rows.map(r => (
+      [#text(weight: "medium", r.name) \ #text(8pt, fill: muted, r.span)],
+      [#box(width: 100%, height: 0.16in, {
+         place(left + horizon, dx: r.start / total * 100%,
+               rect(width: calc.max(r.weeks / total, 0.01) * 100%, height: 0.16in, fill: luma(150), stroke: none))
+       })
+       #if r.gate != "" { linebreak(); text(8pt, fill: muted, style: "italic")[Waits on: #r.gate] }],
+    )).flatten(),
+  ))
+}
+
 // ------------------------------------------------------------------ signatures
 
 #let sign-block(who) = block(breakable: false, above: 1.6em, {
@@ -72,6 +109,9 @@
 #let block-item(b) = {
   if b.title != "" { sub-head(b.title) }
   if b.kind == "cost" { cost-table(d.cost) }
+  else if b.kind == "bom" { bom-table(d.bom) }
+  else if b.kind == "milestones" { milestone-table(d.milestones) }
+  else if b.kind == "timeline" { timeline-chart(d.timeline) }
   else if b.kind == "signatures" {
     sign-block(d.signatures.client + " (Client):")
     v(10pt)

@@ -12,7 +12,16 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from .models import CE, Catalog, CatalogItem, Performer, PriceSource, Rate, Section, Unit
+from .models import (
+    CE,
+    Catalog,
+    CatalogItem,
+    Performer,
+    PriceSource,
+    Rate,
+    Section,
+    Unit,
+)
 
 MARKER = "ce-stage1"
 D = Decimal
@@ -72,4 +81,77 @@ def apply(catalog: Catalog) -> bool:
     catalog.items += [i.model_copy(deep=True) for i in ITEMS if i.code not in have]
     catalog.items.sort(key=lambda i: i.code)
     catalog.migrations.append(MARKER)
+    return True
+
+
+# ---------------------------------------------------------------- stage 2 (Detailed depth)
+
+STAGE2 = "ce-stage2"
+HARDWARE_SECTION = 4300
+HARDWARE_CODE = 4310
+STAGE2_SECTIONS = [Section(number=HARDWARE_SECTION, name="Hardware (procured by the Consultant)", key="CEHardware",
+                           profile=CE, billing="estimate")]
+STAGE2_ITEMS = [CatalogItem(code=HARDWARE_CODE, section=HARDWARE_SECTION, title="Hardware procured by the Consultant",
+                            unit="LS", price=D(0), performer=PERF,
+                            description="Billed at invoiced cost plus the sourcing fee. Items marked Consultant in "
+                                        "the bill of materials.")]
+
+# Library blocks for Detailed depth (off in Letter depth; the depth switch turns them on): heading, id, title, body, order
+DETAILED_BLOCKS = [
+    ("Material", "bom", "Bill of materials", "{bom_table}", 20),
+    ("Time Table", "timeline", "Schedule", "{timeline_table}", 20),
+    ("Cost", "milestones", "Milestone payments", "{milestone_table}", 25),
+    ("Assumptions", "assumptions", "", (
+        "- The existing machine is mechanically sound and its current controls documentation is accurate.\n"
+        "- Client staff and the machine are available for the onsite days as scheduled.\n"
+        "- TBD: project-specific assumptions and risks."), 10),
+]
+DETAILED_IDS = tuple(b[1] for b in DETAILED_BLOCKS)
+
+
+def apply_stage2(catalog: Catalog) -> bool:
+    """Hardware section and its pass-through line item, once."""
+    if STAGE2 in catalog.migrations:
+        return False
+    have_sec = catalog.reserved_section_numbers()
+    catalog.sections += [s.model_copy() for s in STAGE2_SECTIONS if s.number not in have_sec]
+    catalog.sections.sort(key=lambda s: s.number)
+    have = catalog.reserved_codes()
+    catalog.items += [i.model_copy(deep=True) for i in STAGE2_ITEMS if i.code not in have]
+    catalog.items.sort(key=lambda i: i.code)
+    catalog.migrations.append(STAGE2)
+    return True
+
+
+def upgrade_library(bp) -> bool:
+    """Convenient Enterprises terms library: Detailed-depth blocks and the Assumptions heading, once."""
+    from .models import BoilerplateBlock
+    if STAGE2 in bp.migrations:
+        return False
+    if "Assumptions" not in bp.headings:
+        at = bp.headings.index("Time Table") if "Time Table" in bp.headings else len(bp.headings)
+        bp.headings.insert(at, "Assumptions")
+    have = {b.id for b in bp.blocks}
+    bp.blocks += [BoilerplateBlock(id=i, heading=h, title=t, body=body, default_on=False, order=o)
+                  for h, i, t, body, o in DETAILED_BLOCKS if i not in have]
+    bp.migrations.append(STAGE2)
+    return True
+
+
+def upgrade_settings(s) -> bool:
+    """Convenient Enterprises settings: task templates, travel destinations, milestone and schedule starting
+    points, once (left alone if the user has already filled them)."""
+    from .ce_models import (
+        default_destinations,
+        default_milestones,
+        default_phases,
+        default_task_templates,
+    )
+    if STAGE2 in s.migrations:
+        return False
+    s.task_templates = s.task_templates or default_task_templates()
+    s.destinations = s.destinations or default_destinations()
+    s.milestone_template = s.milestone_template or default_milestones()
+    s.phase_template = s.phase_template or default_phases()
+    s.migrations.append(STAGE2)
     return True

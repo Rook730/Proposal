@@ -126,12 +126,17 @@ def ce_estimate_report(rev: Revision, results: Results, scenario: Scenario, sett
         if ln.id not in included or ln.is_percent or ln.owner_furnished:
             continue
         cost = results.lines[ln.id].cost
-        if ln.performer in own and ln.rate_key not in CE_PASS_THROUGH_RATES:
+        if ln.code == 4310:            # hardware the Consultant buys: only the sourcing fee is income
+            from .ce import bom_consultant_cost
+            hw = min(bom_consultant_cost(rev), cost)
+            lines.append(IncomeLine(ln.id, f"{ln.title} (sourcing fee)", cost - hw))
+            passed += hw
+        elif ln.performer in own and ln.rate_key not in CE_PASS_THROUGH_RATES:
             lines.append(IncomeLine(ln.id, ln.title, cost))
         else:
             passed += cost
     groups = [IncomeGroup(f"{ENTITY_NAME[CE]} work", sum((x.estimate for x in lines), ZERO), lines=lines, entity=CE,
-                          note=f"Lodging, mileage and others' lines pass through (${passed:,.2f})" if passed else "")]
+                          note=f"Lodging, mileage, hardware cost and others' lines pass through (${passed:,.2f})" if passed else "")]
     return IncomeReport(groups=groups, estimate_total=groups[0].estimate, actual_total=None,
                         contract_price=scenario.total, final_price=None)
 

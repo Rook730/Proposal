@@ -15,6 +15,7 @@ from typing import Iterable
 from pydantic import Field
 
 from .base import SavedModel
+from .ce_models import BomItem, Milestone, Phase, TaskHours
 from .buildsheet import BuildSheet
 from .models import (
     KS,
@@ -102,6 +103,7 @@ class Line(_Model):
     quote_ref: str = ""
     quote_amount: Decimal | None = None
     build: BuildSheet | None = None           # BUILT: internal cost build-up (never printed)
+    tasks: list[TaskHours] = Field(default_factory=list)   # hours buildup (CE, internal): qty = their sum
 
     @property
     def is_built(self) -> bool:
@@ -205,6 +207,11 @@ class Revision(_Model):
     tax_county: str = ""
     tax_rate: Decimal = Decimal(0)                             # snapshot of the county's rate
     images: list[ProposalImage] = Field(default_factory=list)  # appendix, in print order
+    # Convenient Enterprises, Detailed depth (ce_models.py)
+    depth: str = ""                                            # "letter" or "detailed"; "" = letter
+    bom: list[BomItem] = Field(default_factory=list)
+    milestones: list[Milestone] = Field(default_factory=list)
+    phases: list[Phase] = Field(default_factory=list)
 
     # -- sections
     def piece(self, number: int) -> PieceSection | None:

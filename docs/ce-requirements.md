@@ -1,6 +1,6 @@
 # Convenient Enterprises (engineering) profile: requirements draft
 
-Version 0.4 | 2026-11-03 | Owner: Nick (stage 0 released in 1.10.1; stage 1 built on `ce`)
+Version 0.5 | 2026-11-03 | Owner: Nick (stage 0 released in 1.10.1; stages 1 and 2 built on `ce`)
 Source: intake in the claude.ai Project "Automation Proposal Software" (URS_RFQ Template.docx, URS_Response_Form.docx, URS_RFQ Data workbooks, MGM Proposal_20260828_Rev1.0 and Estimate 2026-02). Open items are in section 15.
 
 ## 1. Purpose and scope
@@ -215,7 +215,7 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 
 0. **1.10.1 on main:** forward compatibility (section 2).
 1. **CE profile, branding, Letter depth:** profile plumbing, brand settings for all three companies, modules M1 to M11, cost model, Estimate PDF, CE terms library seeded from MGM, mileage as a fee line. Acceptance: tests 1 and 4. Then merge to `main`.
-2. **Detailed depth:** M12 to M16, ECNs, travel destinations, hardware price references.
+2. **Detailed depth:** M12 to M16, ECNs, travel destinations, hardware price references (as built: 13b).
 3. **Requirements engine:** library seeded from the template, project URS, URS/RFQ package export, Word questionnaire and in-app interview, manual spec entry, compliance matrix, Response Form, M17 to M19. Acceptance: tests 2 and 3.
 4. **Calculators, qualification and tracking:** TAKT, cycle time, PDA, 3P, FAT/SAT (M20); turnkey commercial items; Clockify actuals.
 
@@ -232,6 +232,19 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 - **Updates:** a version with a dash (1.11.0-ce.1) reads all releases including prereleases; stable versions read releases/latest only. The workflow publishes a tag with a dash as a prerelease. Version order: 1.10.1 < 1.11.0-ce.1 < 1.11.0-ce.2 < 1.11.0.
 - **Not in stage 1:** Changes from previous revision page and appendix images for CE; ECNs; travel destinations; hours buildup.
 - **Acceptance:** test 1 is automated (`tests/test_ce.py`, `tests/ce_mgm.py`): fixed fee $10,000.00, estimate $2,956.25, total $12,956.25, option +$1,000.00 (total with option $13,956.25), deposit $1,000.00. Test 4 (1 hour) needs Nick's timing on a real proposal.
+
+## 13b. As built: stage 2 (branch `ce`, prerelease 1.11.0-ce.2)
+
+- **Depth (`Revision.depth`):** Letter or Detailed, toggled on the Project plan tab (`ce.set_depth`). Detailed turns on four terms blocks (Material: Bill of materials `{bom_table}`; Time Table: Schedule `{timeline_table}`; Cost: Milestone payments `{milestone_table}`; Assumptions: bullets with a TBD) and copies the milestone and schedule starting points from Settings when the revision has none. Letter turns those blocks off; nothing is deleted. Folders from stage 1 get the blocks and the Assumptions heading once (`ce_catalog.upgrade_library`, marker "ce-stage2").
+- **M12 hours buildup:** line form, Quantity "Hours buildup" (CE only): tasks with hours and an internal note, added by hand or from Settings > Proposals > Task templates (16 seeded from MGM plus HMI, robot, vision, commissioning, training, documentation). Quantity = sum of task hours; the line's rate prices it. Never printed. Deviation from section 11: no role per task (one rate per line) and templates carry no implied client responsibilities or exclusions.
+- **M13 bill of materials (`Revision.bom`, `ce_models.BomItem`):** make, model, part number, description, qty, unit, unit cost, supplier, lead time, bought by (Client or Consultant). Prints make/model, part number, qty, supplier, lead time and buyer, never prices. Consultant-bought items are billed through one line, 4310 in new section 4300 Hardware (estimate billing): invoiced cost x (1 + sourcing fee, Settings, 10%), kept in step on every BOM edit and removed when no such items remain (`ce.sync_hardware_line`). Income counts only the sourcing fee. Rows can be added from Price references, which gained make, model and lead time.
+- **M14 milestone payments (`Revision.milestones`):** invoice, when (prints), share of the fixed fee. Deposit (Settings) is the first row; the last row takes any rounding cent. Seed: Design approval 40%, Documentation and program delivery 30%, Run-off 20%.
+- **M15 schedule (`Revision.phases`):** phase, start week, weeks, gate. Prints as a bar chart. Seed: Design 0+3, Documentation and programming 2+3, Onsite validation and run-off 5+1.
+- **Travel destinations (Settings > Proposals):** name, one-way hours, round-trip miles beyond the free zone, overnight. Project plan > Add trip makes the travel time (one way per trip, travel rate), lodging and mileage lines. Seed: Murphy, NC, 2.5 h, overnight, miles 0 (still to be entered).
+- **ECNs:** the change orders page for CE is titled ECNs; items take hours and a rate (default ce_eng) and the final cost follows (original + hours x rate, also when a saved file is read). No markup, no overhead and profit row; the PDF is an "Engineering Change Notice" with "ECN No." and "N HR at $rate" on each item, in the CE brand. Editor menu: ECNs.
+- **Issues (section 12, partly):** payment schedule not adding to 100%; Consultant-bought BOM item without a cost; BOM item of $1,000 or more without make and model (info); certification or guarantee wording (certify, stamped, guarantee, warranty, PE) in a block or line note beyond what the library text already says (the library's own disclaimers are not flagged); a block saying the Client buys all hardware while the BOM has Consultant-bought items.
+- **Checks:** 9 stage 2 tests (`tests/test_ce_stage2.py`); the self-test builds a Detailed proposal (total $13,256.25 with $1,100.00 hardware). KS and CW documents pixel-identical (22 pages, including change orders). A folder written by this build opened in 1.10.1: CE project listed and not opened, section 4300 and item 4310 kept, new fields on KS change orders, settings and price references kept through a 1.10.1 save; CE files untouched.
+- **Not in stage 2:** category tag per line; revision rounds used; deliverable and milestone status with invoice prompt; Clockify actuals (stage 4); hours per role.
 
 ## 14. Defaults chosen (no preference given)
 

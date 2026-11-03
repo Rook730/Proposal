@@ -409,8 +409,10 @@ def prices_page() -> None:
                          st.save_catalog, lambda: DimensionalPrice(id=new_id(), material=""), height="62vh")
         with ui.tab_panel(t_hw):
             EditableGrid(lambda: pr.hardware,
-                         [Col("name", "Name", width=200), Col("part_number", "Part #", width=110),
-                          Col("unit", "Unit", width=70), Col("price", "Price", "money", width=100), *sup],
+                         [Col("name", "Name", width=200), Col("manufacturer", "Make", width=110),
+                          Col("model", "Model", width=110), Col("part_number", "Part #", width=110),
+                          Col("unit", "Unit", width=70), Col("price", "Price", "money", width=100),
+                          Col("lead_time", "Lead time", width=90), *sup],
                          st.save_catalog, lambda: HardwarePrice(id=new_id(), name=""), height="62vh",
                          empty="No hardware yet. Use Add row.")
         with ui.tab_panel(t_fin):
@@ -542,6 +544,59 @@ def profile_switch(path: str, profile: str) -> str:
         ui.toggle(dict(PROFILES), value=profile,
                   on_change=lambda e: ui.navigate.to(f"{path}?profile={e.value}")).props("dense no-caps")
     return profile
+
+
+def ce_settings_cards(s, save) -> None:
+    """Settings > Proposals for Convenient Enterprises: sourcing fee, task templates, travel destinations and the
+    milestone and schedule starting points copied into new Detailed proposals."""
+    from ..ce_models import Milestone, Phase, TaskTemplate, TravelDestination
+
+    def num(label, attr, suffix="", conv=lambda x: Decimal(str(x or 0))):
+        def h(e):
+            try:
+                setattr(s, attr, conv(e.value))
+            except (ValidationError, ValueError) as err:
+                ui.notify(f"Not saved: {err}", type="negative")
+                return
+            save()
+        return h
+    with ui.row().classes("items-start gap-4 mt-3 w-full"):
+        with ui.card().classes("w-[560px]"):
+            ui.label("Task templates").classes("font-semibold")
+            ui.label("Offered in a line's hours buildup (line form, Quantity: Hours buildup). The deliverable wording "
+                     "is for your reference.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: s.task_templates,
+                         [Col("name", "Task", flex=2), Col("hours", "Hours", "number", width=80),
+                          Col("deliverable", "Deliverable wording", flex=3)],
+                         save, lambda: TaskTemplate(name="New task", hours=Decimal(1)), height="32vh")
+        with ui.card().classes("w-[560px]"):
+            ui.label("Travel destinations").classes("font-semibold")
+            ui.label("Used by Add trip (Project plan tab): one-way hours at the travel rate per trip, round-trip "
+                     "miles beyond the free zone per trip.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: s.destinations,
+                         [Col("name", "Destination", width=170), Col("one_way_hours", "One-way h", "number", width=95),
+                          Col("round_trip_miles", "Extra miles (RT)", "number", width=125),
+                          Col("overnight", "Overnight", "bool", width=95)],
+                         save, lambda: TravelDestination(name="New destination"), height="20vh")
+            ui.number("Sourcing fee on hardware the Consultant buys", value=float(s.sourcing_fee_pct * 100)) \
+                .props('dense suffix="%"').classes("w-80 mt-2") \
+                .on_value_change(num("", "sourcing_fee_pct", conv=lambda x: Decimal(str(x or 0)) / 100))
+    with ui.row().classes("items-start gap-4 mt-3 w-full"):
+        with ui.card().classes("w-[560px]"):
+            ui.label("Milestone payments (starting point)").classes("font-semibold")
+            ui.label("Copied into a proposal when it is switched to Detailed. Shares of the fixed fee after the "
+                     "deposit.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: s.milestone_template,
+                         [Col("name", "Invoice", flex=1), Col("trigger", "When", flex=2),
+                          Col("pct", "Share (%)", "pct", width=100)],
+                         save, lambda: Milestone(name="Milestone"), height="22vh")
+        with ui.card().classes("w-[560px]"):
+            ui.label("Schedule (starting point)").classes("font-semibold")
+            ui.label("Copied into a proposal when it is switched to Detailed.").classes("text-xs text-gray-500")
+            EditableGrid(lambda: s.phase_template,
+                         [Col("name", "Phase", flex=1), Col("start_week", "Starts (week)", "number", width=110),
+                          Col("weeks", "Weeks", "number", width=80), Col("gate", "Waits on", flex=2)],
+                         save, lambda: Phase(name="Phase"), height="22vh")
 
 
 def brand_card(s, save) -> None:
@@ -690,6 +745,8 @@ def settings_page(profile: str = KS) -> None:
                 else:
                     ui.label("Issues tab and change orders warn when a total including owner-supplied items reaches "
                              "this amount. 0 turns the warning off.").classes("text-xs text-gray-500")
+            if s.payment_rule == "fixed_fee":
+                ce_settings_cards(s, lambda: st.save_settings(profile))
             if s.pricing is not None:
                 pol = s.pricing
                 with ui.row().classes("items-start gap-4 mt-3"):

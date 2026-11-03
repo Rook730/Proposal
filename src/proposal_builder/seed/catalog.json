@@ -329,6 +329,13 @@
       "key": "CETravel",
       "profile": "ce",
       "billing": "estimate"
+    },
+    {
+      "number": 4300,
+      "name": "Hardware (procured by the Consultant)",
+      "key": "CEHardware",
+      "profile": "ce",
+      "billing": "estimate"
     }
   ],
   "items": [
@@ -3612,6 +3619,28 @@
       "internal_notes": "",
       "active": true,
       "build": null
+    },
+    {
+      "code": 4310,
+      "section": 4300,
+      "group": "",
+      "title": "Hardware procured by the Consultant",
+      "description": "Billed at invoiced cost plus the sourcing fee. Items marked Consultant in the bill of materials.",
+      "unit": "LS",
+      "price_source": "fixed",
+      "price": "0",
+      "rate_key": null,
+      "allowance_ids": [],
+      "default_tier": "high",
+      "performer": "Convenient Enterprises",
+      "stock_class": null,
+      "is_allowance": false,
+      "not_included": false,
+      "owner_furnished": false,
+      "credit_if_unused": false,
+      "internal_notes": "",
+      "active": true,
+      "build": null
     }
   ],
   "allowances": [
@@ -5047,6 +5076,9 @@
         "id": "mcm-1647a34",
         "name": "Handle",
         "part_number": "1647A34",
+        "manufacturer": "",
+        "model": "",
+        "lead_time": "",
         "supplier": "McMaster-Carr",
         "unit": "EA",
         "price": "8",
@@ -5057,6 +5089,9 @@
         "id": "mcm-1766a2",
         "name": "Latch",
         "part_number": "1766A2",
+        "manufacturer": "",
+        "model": "",
+        "lead_time": "",
         "supplier": "McMaster-Carr",
         "unit": "EA",
         "price": "10",
@@ -5067,6 +5102,9 @@
         "id": "mcm-1608a42",
         "name": "Piano hinge, 12\" length",
         "part_number": "1608A42",
+        "manufacturer": "",
+        "model": "",
+        "lead_time": "",
         "supplier": "McMaster-Carr",
         "unit": "EA",
         "price": "15",
@@ -5082,6 +5120,7 @@
     "cw-1.8.0",
     "cw-1.9.0-restoration",
     "cw-1.9.2-buy-whole",
-    "ce-stage1"
+    "ce-stage1",
+    "ce-stage2"
   ]
 }

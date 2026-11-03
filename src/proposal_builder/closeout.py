@@ -28,7 +28,7 @@ from datetime import date
 from decimal import Decimal
 from enum import Enum
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from .base import SavedModel
 from .calc import Results, calculate, money
@@ -73,6 +73,23 @@ class COItem(_Model):
     contractor_id: str | None = None       # crm.Contractor when a sub does the work
     original_cost: Decimal = ZERO
     final_cost: Decimal = ZERO
+    # Convenient Enterprises ECNs: hours x rate; when hours are given, final cost = original cost + hours x rate
+    hours: Decimal | None = None
+    rate: Decimal | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _hours_set_final(cls, data):
+        """Hours and rate given: the final cost follows them (also for files saved before the edit applied)."""
+        if isinstance(data, dict) and data.get("hours") is not None and data.get("rate") is not None:
+            data = dict(data)
+            final = Decimal(str(data.get("original_cost", 0))) + Decimal(str(data["hours"])) * Decimal(str(data["rate"]))
+            data["final_cost"] = final.quantize(Decimal("0.01"))
+        return data
+
+    def apply_hours(self) -> None:
+        if self.hours is not None and self.rate is not None:
+            self.final_cost = (self.original_cost + self.hours * self.rate).quantize(Decimal("0.01"))
 
     @property
     def delta(self) -> Decimal:

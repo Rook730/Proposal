@@ -187,3 +187,9 @@ Build sheet audit (all findings fixed):
 98. [x] Income: Convenient Enterprises column (Income tab, Income summary, CSV).
 99. [x] Branch builds (version with a dash) follow prereleases; the build workflow publishes such tags as prereleases.
 100. [x] Labels: "All companies" filter; numbering text says one sequence for all companies.
+101. [x] CE Detailed depth (Project plan tab): Letter / Detailed toggle; bill of materials with make, model, lead time and who buys; Consultant-bought hardware billed through one line at invoiced cost plus the sourcing fee; milestone payment schedule; schedule bar chart; Assumptions. Details in docs/ce-requirements.md section 13b.
+102. [x] CE hours buildup on a line (tasks and hours, from task templates); quantity is the total; never printed.
+103. [x] CE travel destinations and Add trip (travel time, lodging, mileage lines).
+104. [x] CE ECNs: change orders page as ECNs, hours x rate items, no markup, Engineering Change Notice PDF.
+105. [x] Price references (hardware) gain make, model and lead time.
+106. [x] CE Issues checks: payment schedule not 100%, BOM items without cost or make/model, certification wording, Material text contradicting the BOM.

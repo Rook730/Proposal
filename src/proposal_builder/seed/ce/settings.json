@@ -178,5 +178,135 @@
   "storage_min": "25",
   "storage_grace_days": 15,
   "estimate_note": "Convenient Woodworking and Kept Spec Advisors are trade names of Convenient Enterprises LLC. When paying by check, please remit payment to Convenient Enterprises LLC.",
-  "migrations": []
+  "sourcing_fee_pct": "0.10",
+  "task_templates": [
+    {
+      "name": "Safety control system design",
+      "hours": "24",
+      "deliverable": "Safety control system design, with safety relay and valve specification."
+    },
+    {
+      "name": "Pneumatic schematic",
+      "hours": "8",
+      "deliverable": "Pneumatic schematic documenting the final valve configuration and air circuits."
+    },
+    {
+      "name": "Safety wiring schematic",
+      "hours": "8",
+      "deliverable": "Wiring schematic documenting the final safety control system configuration."
+    },
+    {
+      "name": "PLC wiring schematic",
+      "hours": "6",
+      "deliverable": "Wiring schematic documenting the final PLC configuration."
+    },
+    {
+      "name": "Bill of materials",
+      "hours": "4",
+      "deliverable": "Bill of materials for the upfit."
+    },
+    {
+      "name": "PLC programming",
+      "hours": "20",
+      "deliverable": "PLC programming to integrate the changes."
+    },
+    {
+      "name": "HMI development",
+      "hours": "16",
+      "deliverable": "HMI screens for the new functions."
+    },
+    {
+      "name": "Robot programming",
+      "hours": "24",
+      "deliverable": "Robot programs for the new functions."
+    },
+    {
+      "name": "Vision setup",
+      "hours": "12",
+      "deliverable": "Vision tools and inspection setup."
+    },
+    {
+      "name": "Program delivery",
+      "hours": "2",
+      "deliverable": "Digital and printed copy of the final program."
+    },
+    {
+      "name": "Advisory review",
+      "hours": "4",
+      "deliverable": "Advisory review of the Client's calculations and risk assessment."
+    },
+    {
+      "name": "Risk assessment template",
+      "hours": "2",
+      "deliverable": ""
+    },
+    {
+      "name": "Commissioning",
+      "hours": "16",
+      "deliverable": ""
+    },
+    {
+      "name": "Training",
+      "hours": "4",
+      "deliverable": "Operator and maintenance training."
+    },
+    {
+      "name": "Documentation package",
+      "hours": "8",
+      "deliverable": "Manuals and as-built documentation."
+    },
+    {
+      "name": "Project management",
+      "hours": "4",
+      "deliverable": ""
+    }
+  ],
+  "destinations": [
+    {
+      "name": "Murphy, NC",
+      "one_way_hours": "2.5",
+      "round_trip_miles": "0",
+      "overnight": true
+    }
+  ],
+  "milestone_template": [
+    {
+      "name": "Design approval",
+      "trigger": "Design review approved by the Client",
+      "pct": "0.40"
+    },
+    {
+      "name": "Documentation and program delivery",
+      "trigger": "Schematics, BOM and program delivered",
+      "pct": "0.30"
+    },
+    {
+      "name": "Run-off",
+      "trigger": "Onsite validation and machine run-off",
+      "pct": "0.20"
+    }
+  ],
+  "phase_template": [
+    {
+      "name": "Design",
+      "start_week": "0",
+      "weeks": "3",
+      "gate": "Deposit and Client inputs received"
+    },
+    {
+      "name": "Documentation and programming",
+      "start_week": "2",
+      "weeks": "3",
+      "gate": ""
+    },
+    {
+      "name": "Onsite validation and run-off",
+      "start_week": "5",
+      "weeks": "1",
+      "gate": "Client hardware installed"
+    }
+  ],
+  "migrations": [
+    "ce-stage2"
+  ]
 }

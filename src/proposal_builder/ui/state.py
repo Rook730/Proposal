@@ -50,6 +50,8 @@ class AppState:
         from .. import ce_catalog
         if ce_catalog.apply(self.catalog):       # Convenient Enterprises sections, items and rates (once)
             cat_changed = True
+        if ce_catalog.apply_stage2(self.catalog):  # its hardware pass-through section (once)
+            cat_changed = True
         if add_ce_performer(self.settings):
             self.store.save_settings(self.settings)
         if cat_changed:
@@ -63,6 +65,11 @@ class AppState:
                 self.profile_boilerplate[key] = self.store.load_boilerplate(key)
                 if key == "cw" and cw_catalog.apply_terms(self.profile_boilerplate[key]):
                     self.store.save_boilerplate(self.profile_boilerplate[key], key)
+                if key == "ce":
+                    if ce_catalog.upgrade_library(self.profile_boilerplate[key]):
+                        self.store.save_boilerplate(self.profile_boilerplate[key], key)
+                    if ce_catalog.upgrade_settings(self.profile_settings[key]):
+                        self.store.save_settings(self.profile_settings[key], key)
         self.customers = self.store.load_book("customers.json", CustomerBook)
         self.contractors = self.store.load_book("contractors.json", ContractorBook)
         self.suppliers = self.store.load_book("suppliers.json", SupplierBook)

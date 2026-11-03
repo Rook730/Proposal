@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "proposal-builder"
-version = "1.11.0.dev1"
+version = "1.11.0.dev2"
 description = "Proposal Builder for Kept Spec Advisors, Convenient Woodworking and Convenient Enterprises"
 requires-python = ">=3.12"
 dependencies = [

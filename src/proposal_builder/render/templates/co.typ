@@ -1,9 +1,10 @@
 #import "common.typ": *
 #let d = json("data.json")
-#show: setup.with(title: "Change Order " + d.co.number)
+#let doc-title = d.co.at("doc_title", default: "Change Order")
+#show: setup.with(title: doc-title + " " + d.co.number)
 
-#letterhead(d.company, "Change Order")
-#info(d.client, d.proposal, extra: (("Change Order No.:", d.co.number), ("Requested Date:", d.co.requested),
+#letterhead(d.company, doc-title)
+#info(d.client, d.proposal, extra: ((d.co.at("number_label", default: "Change Order No.:"), d.co.number), ("Requested Date:", d.co.requested),
   ..if d.co.approved != "" { (("Approved:", d.co.approved),) } else { () }))
 #if d.co.title != "" { v(6pt); text(11pt, weight: "bold", d.co.title) }
 
