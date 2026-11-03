@@ -124,4 +124,6 @@ def default_task_templates() -> list[TaskTemplate]:
 
 
 def default_destinations() -> list[TravelDestination]:
-    return [TravelDestination(name="Murphy, NC", one_way_hours=D("2.5"), overnight=True)]
+    # 224 Rutledge Rd to Murphy: about 116 road miles; the one-hour zone ends near mile 61 (US 74 past
+    # Sylva), so about 55 miles each way, 110 round trip, are beyond it
+    return [TravelDestination(name="Murphy, NC", one_way_hours=D("2.5"), round_trip_miles=D(110), overnight=True)]

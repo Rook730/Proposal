@@ -131,7 +131,7 @@ Each narrative module is a terms-library-style block: library text with `{variab
 
 **Mileage** (decided 2026-11-03, same as CW): free within 1 hour of 224 Rutledge Rd; beyond that, round-trip miles beyond the zone x $0.725 (IRS 2026 rate, CE setting). Travel time stays at the CE travel rate above.
 
-**Travel destinations** (CE list): name, one-way hours, round-trip miles beyond the zone, overnight default. Seed: Murphy, NC, 2.5 h (miles to be entered).
+**Travel destinations** (CE list): name, one-way hours, round-trip miles beyond the zone, overnight default. Seed: Murphy, NC, 2.5 h, 110 round-trip miles beyond the zone (about 116 road miles from 224 Rutledge Rd; the one-hour zone ends near mile 61 on US 74 past Sylva).
 
 **Reused from KS/CW:** revisions (1.x, Finalize 2.0, accept), alternates as options, variables, Issues tab, customers and contacts, numbering, income (CE column).
 
@@ -240,7 +240,7 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 - **M13 bill of materials (`Revision.bom`, `ce_models.BomItem`):** make, model, part number, description, qty, unit, unit cost, supplier, lead time, bought by (Client or Consultant). Prints make/model, part number, qty, supplier, lead time and buyer, never prices. Consultant-bought items are billed through one line, 4310 in new section 4300 Hardware (estimate billing): invoiced cost x (1 + sourcing fee, Settings, 10%), kept in step on every BOM edit and removed when no such items remain (`ce.sync_hardware_line`). Income counts only the sourcing fee. Rows can be added from Price references, which gained make, model and lead time.
 - **M14 milestone payments (`Revision.milestones`):** invoice, when (prints), share of the fixed fee. Deposit (Settings) is the first row; the last row takes any rounding cent. Seed: Design approval 40%, Documentation and program delivery 30%, Run-off 20%.
 - **M15 schedule (`Revision.phases`):** phase, start week, weeks, gate. Prints as a bar chart. Seed: Design 0+3, Documentation and programming 2+3, Onsite validation and run-off 5+1.
-- **Travel destinations (Settings > Proposals):** name, one-way hours, round-trip miles beyond the free zone, overnight. Project plan > Add trip makes the travel time (one way per trip, travel rate), lodging and mileage lines. Seed: Murphy, NC, 2.5 h, overnight, miles 0 (still to be entered).
+- **Travel destinations (Settings > Proposals):** name, one-way hours, round-trip miles beyond the free zone, overnight. Project plan > Add trip makes the travel time (one way per trip, travel rate), lodging and mileage lines. Seed: Murphy, NC, 2.5 h, overnight, 110 round-trip miles beyond the zone ($79.75 per trip).
 - **ECNs:** the change orders page for CE is titled ECNs; items take hours and a rate (default ce_eng) and the final cost follows (original + hours x rate, also when a saved file is read). No markup, no overhead and profit row; the PDF is an "Engineering Change Notice" with "ECN No." and "N HR at $rate" on each item, in the CE brand. Editor menu: ECNs.
 - **Issues (section 12, partly):** payment schedule not adding to 100%; Consultant-bought BOM item without a cost; BOM item of $1,000 or more without make and model (info); certification or guarantee wording (certify, stamped, guarantee, warranty, PE) in a block or line note beyond what the library text already says (the library's own disclaimers are not flagged); a block saying the Client buys all hardware while the BOM has Consultant-bought items.
 - **Checks:** 9 stage 2 tests (`tests/test_ce_stage2.py`); the self-test builds a Detailed proposal (total $13,256.25 with $1,100.00 hardware). KS and CW documents pixel-identical (22 pages, including change orders). A folder written by this build opened in 1.10.1: CE project listed and not opened, section 4300 and item 4310 kept, new fields on KS change orders, settings and price references kept through a 1.10.1 save; CE files untouched.
@@ -260,6 +260,4 @@ Decided 2026-11-02: no automatic import. Client documents vary too much for a re
 5. URS responses always use our Response Form.
 6. TAKT 0.6 is a fudge factor (allowance factor, editable).
 7. Merge `ce` into `main` after stage 1.
-
-**Open**
-- Murphy, NC round-trip miles for the destination seed.
+8. Murphy, NC destination: 110 round-trip miles beyond the one-hour zone (estimated from about 116 road miles, 2 h 8 min; zone boundary near mile 61). Adjust in Settings > Proposals if a trip log says otherwise.

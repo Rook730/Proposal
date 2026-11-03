@@ -56,7 +56,7 @@ def _text(pdf: bytes) -> str:
 
 def test_seeded_templates_and_library(st: AppState):
     s, bp = st.settings_for(CE), st.boilerplate_for(CE)
-    assert s.task_templates and s.destinations[0].name == "Murphy, NC"
+    assert s.task_templates and s.destinations[0].name == "Murphy, NC" and s.destinations[0].round_trip_miles == 110
     assert sum((m.pct for m in s.milestone_template), D(0)) + s.deposit_pct == 1
     assert "Assumptions" in bp.headings
     assert {b.id for b in bp.blocks} >= set(ce_catalog.DETAILED_IDS)
