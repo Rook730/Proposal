@@ -22,7 +22,7 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 ## Conventions
 - Catalog edits must never change saved proposals (snapshot rule, spec 4.9).
 - Two companies (spec section 16, docs/cw-requirements.md): a project's settings and terms come from `st.settings_for(project.profile)` / `st.boilerplate_for(project.profile)`, never `st.settings` directly (that is Kept Spec plus the shared values). Catalog lists offered in a project use `catalog.sections_for(profile)` / `items_for(profile)`.
-- CE profile: docs/ce-requirements.md (source of truth for the ce branch; as built in section 13a). On this branch, shared files must follow the shared-file contract in its section 2 so 1.10.1 can still read them.
+- CE profile: docs/ce-requirements.md (source of truth for the ce branch; as built in sections 13a and 13b). On this branch, shared files must follow the shared-file contract in its section 2 so 1.10.1 can still read them.
 - Branding: documents take colors, fonts and layout from `default_brand(settings)` (company.brand in data.json). KS and CW must stay pixel-identical unless their brand is changed; check with a before/after render of their documents.
 - Forward compatibility: saved models subclass `base.SavedModel` (never plain BaseModel); projects and catalog sections of an unknown company are listed or kept raw, never opened or rewritten (store.ForeignProjectError, Catalog.foreign_*).
 - User-facing text: no em dashes.
