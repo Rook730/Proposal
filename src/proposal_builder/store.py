@@ -277,6 +277,20 @@ def share_settings(target: Settings, source: Settings) -> Settings:
 # ---------------------------------------------------------------- projects
 
 
+def foreign_company_label(profile) -> str:
+    return str(profile or "?").upper()
+
+
+def foreign_message(number: str, profile) -> str:
+    return (f"Project {number} belongs to company \"{foreign_company_label(profile)}\", which this version of "
+            "Proposal Builder does not know. It was created with a newer version: open it there. This version "
+            "lists it but never opens or changes it.")
+
+
+class ForeignProjectError(FileNotFoundError):
+    """The project belongs to a company this version does not know (created by a newer version)."""
+
+
 def _rev_key(rev: str) -> tuple[int, ...]:
     return tuple(int(p) for p in rev.split(".") if p.isdigit())
 
@@ -299,16 +313,44 @@ class ProjectStore:
                 return d
         return None
 
+    @staticmethod
+    def _raw(path: Path) -> dict | None:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return None
+        return data if isinstance(data, dict) else None
+
+    @staticmethod
+    def _is_foreign(data: dict) -> bool:
+        return data.get("profile", KS) not in PROFILES
+
     def list_projects(self):
+        """Projects of the companies this version knows. Projects of other companies (created by a newer
+        version) are left out of everything except the list page: see list_foreign_projects."""
         from .proposal import Project
         out = []
         if self.root.exists():
             for f in sorted(self.root.glob("*/project.json")):
+                data = self._raw(f)
+                if data is None or self._is_foreign(data):
+                    continue
                 try:
-                    out.append(Project.model_validate_json(f.read_text(encoding="utf-8")))
+                    out.append(Project.model_validate(data))
                 except ValueError:
                     continue
         return sorted(out, key=lambda p: p.number, reverse=True)
+
+    def list_foreign_projects(self) -> list[dict]:
+        """Raw project.json data of projects whose company this version does not know (never validated,
+        never saved by this version)."""
+        out = []
+        if self.root.exists():
+            for f in sorted(self.root.glob("*/project.json")):
+                data = self._raw(f)
+                if data is not None and self._is_foreign(data) and data.get("number"):
+                    out.append(data)
+        return sorted(out, key=lambda d: str(d.get("number")), reverse=True)
 
     def delete(self, number: str) -> Path:
         """Move a project folder to backups/deleted-projects/ (recoverable by moving it back)."""
@@ -335,12 +377,18 @@ class ProjectStore:
         d = self.project_dir(number)
         if d is None:
             raise FileNotFoundError(f"project {number} not found")
+        data = self._raw(d / "project.json")
+        if data is not None and self._is_foreign(data):
+            raise ForeignProjectError(foreign_message(number, data.get("profile")))
         return Project.model_validate_json((d / "project.json").read_text(encoding="utf-8"))
 
     def save_project(self, project, folder: Path | None = None) -> None:
         d = folder or self.project_dir(project.number)
         if d is None:
             raise FileNotFoundError(f"project {project.number} not found")
+        on_disk = self._raw(d / "project.json") if folder is None else None
+        if on_disk is not None and self._is_foreign(on_disk):
+            raise ForeignProjectError(foreign_message(project.number, on_disk.get("profile")))
         self._save(d / "project.json", project)
 
     def list_revisions(self, number: str) -> list[str]:
@@ -357,6 +405,9 @@ class ProjectStore:
             raise FileNotFoundError(f"project {number} has no revisions")
         rev = rev or revs[-1]
         d = self.project_dir(number)
+        data = self._raw(d / "project.json")
+        if data is not None and self._is_foreign(data):
+            raise ForeignProjectError(foreign_message(number, data.get("profile")))
         return Revision.model_validate_json((d / f"rev_{rev}.json").read_text(encoding="utf-8"))
 
     def save_revision(self, number: str, revision, allow_locked: bool = False) -> None:
@@ -364,6 +415,9 @@ class ProjectStore:
         d = self.project_dir(number)
         if d is None:
             raise FileNotFoundError(f"project {number} not found")
+        data = self._raw(d / "project.json")
+        if data is not None and self._is_foreign(data):
+            raise ForeignProjectError(foreign_message(number, data.get("profile")))
         path = d / f"rev_{revision.rev}.json"
         if path.exists() and not allow_locked:
             from .proposal import Revision

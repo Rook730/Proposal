@@ -11,16 +11,17 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
 
+from .base import SavedModel
 from .calc import calculate, render, variable_map
 from .crm import Contractor, ContractorBook, line_contractor, new_id
 from .models import Settings
 from .proposal import Line, Project, Revision
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class _Model(SavedModel):
+    """Saved to the data folder: unknown fields from newer versions are kept (base.py)."""
 
 
 class Quote(_Model):

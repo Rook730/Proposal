@@ -22,7 +22,9 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import Field
+
+from .base import SavedModel
 
 ZERO = Decimal(0)
 CENT = Decimal("0.01")
@@ -36,8 +38,8 @@ DEFAULT_PHASES = ["Design", "Milling", "Joinery and machining", "Assembly", "San
                   "Hardware and fitting", "Crating", "Delivery and install"]
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class _Model(SavedModel):
+    """Saved to the data folder: unknown fields from newer versions are kept (base.py)."""
 
 
 class RoughThickness(_Model):

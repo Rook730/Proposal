@@ -6,13 +6,13 @@ are stored as fractions (0.05 = 5%).
 
 from __future__ import annotations
 
+from datetime import date as Date
 from decimal import Decimal
 from enum import Enum
 
-from datetime import date as Date
+from pydantic import Field, model_serializer, model_validator
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
-
+from .base import SavedModel
 from .buildsheet import BuildSheet, PricingPolicy
 
 SCHEMA_VERSION = 1
@@ -30,8 +30,8 @@ def profile_name(key: str) -> str:
     return PROFILES.get(key, key)
 
 
-class _Model(BaseModel):
-    model_config = ConfigDict(validate_assignment=True, extra="forbid")
+class _Model(SavedModel):
+    """Saved to the data folder: unknown fields from newer versions are kept (base.py)."""
 
 
 # ---------------------------------------------------------------- enums
@@ -288,6 +288,45 @@ class Catalog(_Model):
     stock_classes: list[StockClass] = Field(default_factory=list)
     prices: PriceReferences = Field(default_factory=PriceReferences)
     migrations: list[str] = Field(default_factory=list)     # one-time catalog additions already applied
+    # Sections of a company this version does not know (written by a newer version) and the items in them.
+    # Kept exactly as read and written back after the known ones on save; never shown, offered or priced.
+    foreign_sections: list[dict] = Field(default_factory=list, exclude=True, repr=False)
+    foreign_items: list[dict] = Field(default_factory=list, exclude=True, repr=False)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _split_foreign(cls, data):
+        if not isinstance(data, dict) or not data.get("sections"):
+            return data
+        known = set(PROFILES) | {"both"}
+        secs = data["sections"]
+        foreign = {s.get("number") for s in secs if isinstance(s, dict) and s.get("profile", KS) not in known}
+        if not foreign:
+            return data
+        is_foreign = lambda x, key: isinstance(x, dict) and x.get(key) in foreign  # noqa: E731
+        items = data.get("items") or []
+        return {**data,
+                "sections": [x for x in secs if not is_foreign(x, "number")],
+                "items": [x for x in items if not is_foreign(x, "section")],
+                "foreign_sections": list(data.get("foreign_sections") or []) + [x for x in secs
+                                                                                if is_foreign(x, "number")],
+                "foreign_items": list(data.get("foreign_items") or []) + [x for x in items
+                                                                          if is_foreign(x, "section")]}
+
+    @model_serializer(mode="wrap")
+    def _join_foreign(self, handler):
+        out = handler(self)
+        if isinstance(out, dict) and (self.foreign_sections or self.foreign_items):
+            out["sections"] = list(out.get("sections", [])) + list(self.foreign_sections)
+            out["items"] = list(out.get("items", [])) + list(self.foreign_items)
+        return out
+
+    def reserved_codes(self) -> set[int]:
+        """Item codes in use, including items of companies this version does not know."""
+        return {i.code for i in self.items} | {i.get("code") for i in self.foreign_items}
+
+    def reserved_section_numbers(self) -> set[int]:
+        return {s.number for s in self.sections} | {s.get("number") for s in self.foreign_sections}
 
     # lookups
     def item(self, code: int) -> CatalogItem | None:
@@ -351,8 +390,8 @@ class Catalog(_Model):
     def validate_refs(self) -> list[str]:
         """Return human-readable integrity problems (empty list = clean)."""
         problems: list[str] = []
-        codes = [i.code for i in self.items]
-        for c in sorted({c for c in codes if codes.count(c) > 1}):
+        codes = [i.code for i in self.items] + [i.get("code") for i in self.foreign_items]
+        for c in sorted({c for c in codes if c is not None and codes.count(c) > 1}):
             problems.append(f"duplicate item code {c}")
         sec = {s.number for s in self.sections}
         units = {u.code for u in self.units}

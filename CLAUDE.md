@@ -3,6 +3,7 @@
 Requirements: docs/requirements.md (source of truth; update it when a decision changes).
 
 ## Layout
+- src/proposal_builder/base.py: SavedModel, the base of every saved model. Keeps unknown fields from newer versions (forward compatibility, 1.10.1); constructors and assignment stay strict.
 - src/proposal_builder/models.py: pydantic models. Money and percents are Decimal; percents stored as fractions.
 - src/proposal_builder/store.py: JSON file store (atomic writes, rotating backups in backups/).
 - src/proposal_builder/importer.py: one-time Excel import; regenerates src/proposal_builder/seed/*.json.
@@ -20,6 +21,7 @@ Requirements: docs/requirements.md (source of truth; update it when a decision c
 ## Conventions
 - Catalog edits must never change saved proposals (snapshot rule, spec 4.9).
 - Two companies (spec section 16, docs/cw-requirements.md): a project's settings and terms come from `st.settings_for(project.profile)` / `st.boilerplate_for(project.profile)`, never `st.settings` directly (that is Kept Spec plus the shared values). Catalog lists offered in a project use `catalog.sections_for(profile)` / `items_for(profile)`.
+- Forward compatibility: saved models subclass `base.SavedModel` (never plain BaseModel); projects and catalog sections of an unknown company are listed or kept raw, never opened or rewritten (store.ForeignProjectError, Catalog.foreign_*).
 - User-facing text: no em dashes.
 - Tests: `python -m pytest -q`. Importer parity test needs PROPOSAL_XLSX=<path to workbook>.
 - Release: see docs/HANDOFF.md (bump versions, push main, run build-windows.yml with release_tag).

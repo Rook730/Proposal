@@ -13,6 +13,7 @@ from ..calc import calculate
 from ..calc import DOCUMENT_VARIABLES, SPECIAL_PLACEHOLDERS, referenced, variable_map
 from ..models import KS, PROFILE_SHORT, PROFILES, PriceSource, Variable
 from ..proposal import WON_STATUSES, Project, ProjectStatus, Revision, default_blocks, line_from_item
+from ..store import ForeignProjectError, foreign_company_label, foreign_message
 from .state import get_state
 from .widgets import filter_box, layout, no_rows, page_title, toolbar
 
@@ -39,6 +40,17 @@ def _project_rows(show_archived: bool = False, company: str = "") -> list[dict]:
                      "address": p.site_address,
                      "status": p.status.value + (" (archived)" if p.archived_on else ""),
                      "rev": f"{revs[-1]} {state}" if revs else "", "total": total})
+    # projects of a company this version does not know (created by a newer version): listed, never opened
+    for d in st.projects.list_foreign_projects():
+        if d.get("archived_on") and not show_archived:
+            continue
+        if company:
+            continue
+        rows.append({"number": str(d.get("number")), "company": foreign_company_label(d.get("profile")),
+                     "client": str(d.get("client_name", "")), "project": str(d.get("project_name", "")),
+                     "address": str(d.get("site_address", "")),
+                     "status": f"{d.get('status', '')} (newer version)", "rev": "", "total": "",
+                     "foreign": True})
     return rows
 
 
@@ -176,7 +188,11 @@ def projects_page() -> None:
         if not rows:
             ui.notify("Select a project first (click its row).")
             return None
-        return st.projects.load_project(rows[0]["number"])
+        try:
+            return st.projects.load_project(rows[0]["number"])
+        except ForeignProjectError as e:
+            ui.notify(str(e), type="warning", multi_line=True)
+            return None
 
     async def archive() -> None:
         p = await selected()
@@ -261,10 +277,17 @@ def projects_page() -> None:
         "rowHeight": 34,
         "overlayNoRowsTemplate": no_rows("No projects yet. Use New project, or Import from Excel."),
     }, auto_size_columns=False).classes("w-full").style("height:calc(100vh - 230px)")
-    grid.on("cellDoubleClicked", lambda e: ui.navigate.to(f"/project/{e.args['data']['number']}"))
+    def open_row(e) -> None:
+        row = e.args["data"]
+        if row.get("foreign"):
+            ui.notify(foreign_message(row["number"], row["company"]), type="warning", multi_line=True)
+            return
+        ui.navigate.to(f"/project/{row['number']}")
+    grid.on("cellDoubleClicked", open_row)
 
     async def selection(_=None) -> None:
-        on = bool(await grid.get_selected_rows())
+        rows = await grid.get_selected_rows()
+        on = bool(rows) and not rows[0].get("foreign")
         arch_btn.set_enabled(on)
         del_btn.set_enabled(on)
     grid.on("selectionChanged", selection)

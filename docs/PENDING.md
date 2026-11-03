@@ -170,6 +170,8 @@ Build sheet audit (all findings fixed):
 87. [x] Change orders page for CW shows change orders only: no actual costs, payments, ledger, contingency or management hours. Funding is Client or No charge. CW change order PDFs use the dark gold band.
 88. [x] Price references older than 182 days (Settings, Build sheet pricing), or undated, are highlighted on Price references and flagged in the build sheet and the Issues tab.
 
-## Next release
+## Next release (1.10.1: forward compatibility for the CE branch)
 
-(nothing yet)
+89. [x] Files written by a newer version keep their new fields. Every saved model (settings, catalog, terms, customers, contractors, suppliers, projects, revisions, change orders, ledger, quotes, build sheets) keeps fields it does not know and writes them back unchanged on save. Code stays strict: a constructor keyword or attribute that is not a field is still an error (`base.py`).
+90. [x] Catalog sections of a company this version does not know (e.g. "ce"), and the items in them, are kept exactly as read, hidden everywhere (catalog pages, pickers, items_for) and written back on save. Their codes and section numbers count as taken (code check on the item form, duplicate check, next section number).
+91. [x] Projects of a company this version does not know are listed on the Projects page (company shown in capitals, status marked "(newer version)") but never opened, saved, archived or deleted here: double-click, the editor and change orders pages say so. They are left out of income, customer linking, contractor usage and Copy from. Their number stays taken. A customer with such a project cannot be deleted.
