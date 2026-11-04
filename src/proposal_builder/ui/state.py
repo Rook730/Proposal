@@ -149,7 +149,14 @@ class AppState:
     def requirements(self):
         """Convenient Enterprises requirement library, loaded on first use."""
         if getattr(self, "_requirements", None) is None:
+            from .. import store as store_mod
+            rel, marker = self.store.profile_file("ce", "requirements.json"), "ce-requirements"
+            if not self.store.path(rel).exists() and marker in self.settings.migrations:
+                self.store._wait_for([rel], store_mod.SYNC_WAIT_SECONDS)   # made on another PC: still downloading
             self._requirements = self.store.load_requirements()
+            if marker not in self.settings.migrations:
+                self.settings.migrations.append(marker)
+                self.store.save_settings(self.settings)
         return self._requirements
 
     def save_requirements(self) -> None:
@@ -159,6 +166,9 @@ class AppState:
 _state: AppState | None = None
 
 
+startup_error: Exception | None = None      # the data folder could not be opened at startup (see pages.index)
+
+
 def get_state() -> AppState:
     global _state
     if _state is None:
@@ -166,7 +176,16 @@ def get_state() -> AppState:
     return _state
 
 
-def set_data_dir(path: Path) -> AppState:
-    global _state
-    _state = AppState(DataStore(path))
+def open_data_dir(path: Path, wait: float | None = None) -> AppState:
+    """Open a data folder without making it current; raises if it cannot be read."""
+    store = DataStore(path)
+    if wait is not None:
+        store.initialize_from_seed(wait=wait)
+    return AppState(store)
+
+
+def set_data_dir(path: Path, state: AppState | None = None) -> AppState:
+    global _state, startup_error
+    _state = state or AppState(DataStore(path))
+    startup_error = None
     return _state

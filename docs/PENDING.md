@@ -199,3 +199,8 @@ Build sheet audit (all findings fixed):
 110. [x] CE URS/RFQ package and URS Response Form, Word and PDF.
 111. [x] CE URS response depth: compliance matrix, system description and commercial items in the proposal; category per line; requirements snapshot on Issue.
 112. [x] CE Issues checks for requirements: open interview questions, blanks in the URS, unanswered compliance, Deviate/Clarify without text, client revision to review, major components not listed.
+
+## Released in 2.0.1 (2026-11-03): data folders still syncing
+
+113. [x] Opening a data folder that Proton Drive (or another sync service) is still downloading: files the folder should already have are never recreated from the defaults (that raced the download and left "Name clash" copies); the app waits up to 20 seconds for them, then opens on a page that names the missing files, with Try again, Recreate from the defaults, Use another folder and Use the default folder. Before, startup crashed with a traceback.
+114. [x] Settings > App and data > Use this folder opens the folder first and changes the setting only if it opens (before, the setting was saved, the switch failed silently, and the next start crashed). Quotes from Explorer's "Copy as path" are removed.

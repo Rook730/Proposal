@@ -82,7 +82,11 @@ def main() -> None:
     from .ui import closeout, crm_pages, editor, pages, projects, requirements, summary_page  # noqa: F401  registers routes
     from .ui.state import get_state
 
-    get_state()  # create/seed the data folder before the first request
+    try:
+        get_state()  # create/seed the data folder before the first request
+    except Exception as e:  # noqa: BLE001  the app opens on a page that says why and offers a fix
+        from .ui import state as _st
+        _st.startup_error = e
 
     import threading
 

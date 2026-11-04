@@ -501,6 +501,8 @@ A toggle shows fields that never print:
 
 **2.0.0: Convenient Enterprises.** Third company (engineering): Letter, Detailed and URS-response proposals, Estimate, hours buildup, bill of materials, milestone payments, schedule, travel destinations, ECNs, the requirements engine (requirement library, project URS, interview and Word questionnaire, URS/RFQ package, compliance matrix, URS Response Form), and a brand per company for every document. Kept Spec and Convenient Woodworking documents are unchanged. Requirements and as-built notes in docs/ce-requirements.md (sections 13a to 13c); PENDING items 92 to 112. Merged from the `ce` branch (prereleases 1.11.0-ce.1 to ce.3).
 
+**2.0.1:** Data folders still syncing on a PC: missing files are waited for and reported on a recovery page, never recreated over the synced ones; changing the data folder takes effect only if the new folder opens. Details in docs/PENDING.md (items 113 and 114).
+
 ## 16. Company profiles (Convenient Woodworking)
 
 Decided 2026-10-25. One app, two companies: Kept Spec Advisors (project management: subs and trades on site) and Convenient Woodworking (building or restoring a physical thing). The full Convenient Woodworking requirements, including stages 2 to 4, are in docs/cw-requirements.md.

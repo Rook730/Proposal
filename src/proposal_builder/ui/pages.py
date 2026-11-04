@@ -6,7 +6,7 @@ import re
 from decimal import Decimal
 from pathlib import Path
 
-from nicegui import ui
+from nicegui import run, ui
 from pydantic import ValidationError
 
 from ..models import (
@@ -25,7 +25,7 @@ from ..models import (
 )
 from ..models import KS, PROFILES, SECTION_PROFILES
 from .state import get_state, set_data_dir
-from .widgets import keep_current, Col, EditableGrid, filter_box, layout, no_rows, page_title, to_decimal, toolbar, warn
+from .widgets import BRAND, keep_current, Col, EditableGrid, filter_box, layout, no_rows, page_title, to_decimal, toolbar, warn
 
 
 def md_breaks(text: str) -> str:
@@ -891,15 +891,27 @@ def settings_page(profile: str = KS) -> None:
                 ui.label(str(st.store.root)).classes("text-xs break-all")
                 folder = ui.input("Change to (point at your Proton Drive folder)").props("dense").classes("w-full")
 
-                def change() -> None:
-                    from ..store import save_data_dir
-                    p = Path(folder.value or "").expanduser()
-                    if not str(folder.value or "").strip():
+                async def change() -> None:
+                    from ..store import DataFolderError, save_data_dir
+                    from .state import open_data_dir
+                    raw = str(folder.value or "").strip().strip('"')      # Explorer "Copy as path" adds quotes
+                    if not raw:
                         ui.notify("Enter a folder path.")
                         return
+                    p = Path(raw).expanduser()
+                    n = ui.notification(f"Opening {p}...", spinner=True, timeout=None)
+                    try:      # open it first; the setting changes only if it works
+                        state = await run.io_bound(open_data_dir, p)
+                    except Exception as e:  # noqa: BLE001
+                        n.dismiss()
+                        msg = str(e) if isinstance(e, DataFolderError) else f"{type(e).__name__}: {e}"
+                        ui.notify(f"Data folder not changed. {msg}", type="negative", multi_line=True,
+                                  timeout=0, close_button=True)
+                        return
+                    n.dismiss()
                     save_data_dir(p)
-                    set_data_dir(p)
-                    ui.notify(f"Data folder set to {p}. Seed files copied if it was empty.")
+                    set_data_dir(p, state)
+                    ui.notify(f"Data folder set to {p}.")
                     ui.navigate.reload()
 
                 ui.button("Use this folder", on_click=change).props("dense outline")
@@ -928,4 +940,56 @@ def settings_page(profile: str = KS) -> None:
 
 @ui.page("/")
 def index() -> None:
+    from . import state as st_mod
+    if st_mod.startup_error is not None:
+        data_folder_problem(st_mod.startup_error)
+        return
     ui.navigate.to("/projects")
+
+
+def data_folder_problem(err: Exception) -> None:
+    """Startup could not open the data folder: say why and offer the ways out (no traceback, no dead end)."""
+    from ..store import DEFAULT_DATA_DIR_NAME, DataFolderError, DataStore, resolve_data_dir, save_data_dir
+    from . import state as st_mod
+    root = resolve_data_dir()
+    ui.colors(primary=BRAND)
+    with ui.column().classes("w-full max-w-3xl mx-auto p-6 gap-3"):
+        ui.label("The data folder could not be opened").classes("text-xl font-semibold")
+        ui.label(str(root)).classes("text-xs break-all text-gray-600")
+        ui.label(str(err) if isinstance(err, DataFolderError) else f"{type(err).__name__}: {err}") \
+            .classes("text-sm whitespace-pre-line")
+        status = ui.label("").classes("text-sm text-orange-700")
+
+        async def open_folder(path: Path, save: bool) -> None:
+            status.set_text("Opening...")
+            try:
+                state = await run.io_bound(st_mod.open_data_dir, path)
+            except Exception as e:  # noqa: BLE001
+                status.set_text(str(e) if isinstance(e, DataFolderError) else f"{type(e).__name__}: {e}")
+                return
+            if save:
+                save_data_dir(path)
+            set_data_dir(path, state)
+            ui.navigate.to("/projects")
+
+        with ui.row().classes("gap-2"):
+            ui.button("Try again", icon="refresh", on_click=lambda: open_folder(root, False))
+            if isinstance(err, DataFolderError) and err.missing:
+                async def repair() -> None:
+                    try:
+                        await run.io_bound(lambda: DataStore(root).initialize_from_seed(repair=True))
+                    except Exception as e:  # noqa: BLE001
+                        status.set_text(f"{type(e).__name__}: {e}")
+                        return
+                    await open_folder(root, False)
+                ui.button("Recreate the missing files from the defaults", icon="build", on_click=repair) \
+                    .props("outline").tooltip("Only if they were deleted. If the folder is still syncing, wait "
+                                              "instead: a default copy would clash with the synced one.")
+        ui.separator()
+        folder = ui.input("Or use another folder").props("dense").classes("w-full")
+        with ui.row().classes("gap-2"):
+            ui.button("Use this folder", on_click=lambda: open_folder(
+                Path(str(folder.value or "").strip().strip('"')).expanduser(), True)).props("outline")
+            default = Path.home() / DEFAULT_DATA_DIR_NAME
+            ui.button(f"Use the default folder ({default})", on_click=lambda: open_folder(default, True)) \
+                .props("flat")

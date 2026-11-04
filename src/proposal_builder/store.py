@@ -39,6 +39,21 @@ T = TypeVar("T", bound=BaseModel)
 
 SEED_ASSETS = ["logo.png"]
 
+class DataFolderError(RuntimeError):
+    """The data folder cannot be opened: files that should be there are missing (often a sync service still
+    downloading them on this PC). `missing` lists them relative to the folder."""
+
+    def __init__(self, message: str, missing: list[str] | None = None, root: Path | None = None):
+        super().__init__(message)
+        self.missing = list(missing or [])
+        self.root = root
+
+
+# a company is known to an existing data folder once its first-run marker is in the shared settings; its files
+# are then expected (never re-seeded: in a synced folder that would race the download and leave clash copies)
+PROFILE_MARKERS = {"ce": "ce-performer"}
+SYNC_WAIT_SECONDS = 20
+
 # seed/<key>/ files copied to profiles/<key>/ for profiles other than Kept Spec
 PROFILE_SEED_FILES = ("settings.json", "boilerplate.json")
 PROFILE_SEED_ASSETS = ("logo.svg",)
@@ -92,6 +107,19 @@ def resolve_data_dir() -> Path:
         except (OSError, ValueError):
             pass
     return Path.home() / DEFAULT_DATA_DIR_NAME
+
+
+def _read_text(path: Path, tries: int = 6) -> str:
+    """Read a data file, riding out a sync client briefly replacing or locking it."""
+    import time
+    for i in range(tries):
+        try:
+            return path.read_text(encoding="utf-8")
+        except (FileNotFoundError, PermissionError):
+            if i == tries - 1:
+                raise
+            time.sleep(0.5)
+    raise AssertionError("unreachable")
 
 
 def save_data_dir(path: Path) -> None:
@@ -156,15 +184,46 @@ class DataStore:
     def is_initialized(self) -> bool:
         return all(self.path(n).exists() for n in FILES)
 
-    def initialize_from_seed(self, overwrite: bool = False) -> list[str]:
-        """Copy packaged seed files into the data folder. Returns files written."""
+    def is_existing(self) -> bool:
+        """Something of a data folder is already here (or is arriving through a sync service)."""
+        if any(self.path(n).exists() for n in FILES) or (self.root / "profiles").exists():
+            return True
+        try:
+            return self.projects_dir.exists() and any(self.projects_dir.iterdir())
+        except OSError:
+            return False
+
+    def _profile_known(self, profile: str) -> bool:
+        marker = PROFILE_MARKERS.get(profile)
+        if marker is None:
+            return True
+        try:
+            data = json.loads(self.path("settings.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return True
+        return marker in data.get("migrations", [])
+
+    def initialize_from_seed(self, overwrite: bool = False, repair: bool = False,
+                             wait: float | None = None) -> list[str]:
+        """Copy packaged seed files into the data folder. Returns files written.
+
+        A new folder gets everything. In an existing folder only what is new to it is seeded (a company added
+        by this version); a file the folder should already have is never recreated, because in Proton Drive or
+        another synced folder it is usually still downloading, and writing a default copy races the download
+        (the sync client keeps the cloud file and renames ours "Name clash"). Such files are waited for, then
+        reported (DataFolderError). repair=True recreates them from the defaults."""
+        existing = self.is_existing() and not overwrite
         self.root.mkdir(parents=True, exist_ok=True)
         self.projects_dir.mkdir(exist_ok=True)
-        written = []
+        written: list[str] = []
+        expected: list[str] = []
         seed = resources.files("proposal_builder") / "seed"
         for name in FILES:
             dest = self.path(name)
             if dest.exists() and not overwrite:
+                continue
+            if existing and not repair:
+                expected.append(name)
                 continue
             text = (seed / name).read_text(encoding="utf-8")
             FILES[name].model_validate_json(text)  # refuse a broken seed
@@ -174,17 +233,21 @@ class DataStore:
             written.append(name)
         for name in SEED_ASSETS:
             dest = self.path(name)
-            if not dest.exists():
+            if not dest.exists() and (not existing or repair):
                 dest.write_bytes((seed / name).read_bytes())
                 written.append(name)
         for profile in PROFILES:
             if profile == KS:
                 continue
             src = seed / profile
+            known = existing and self._profile_known(profile) and not repair
             for name in PROFILE_SEED_FILES:
                 rel = self.profile_file(profile, name)
                 dest = self.path(rel)
                 if dest.exists() and not overwrite:
+                    continue
+                if known:
+                    expected.append(rel)
                     continue
                 text = (src / name).read_text(encoding="utf-8")
                 FILES[name].model_validate_json(text)
@@ -194,15 +257,32 @@ class DataStore:
                 written.append(rel)
             for name in PROFILE_SEED_ASSETS:
                 dest = self.path(self.profile_file(profile, name))
-                if not dest.exists():
+                if not dest.exists() and not known:
                     dest.parent.mkdir(parents=True, exist_ok=True)
                     dest.write_bytes((src / name).read_bytes())
                     written.append(self.profile_file(profile, name))
+        if expected:
+            self._wait_for(expected, SYNC_WAIT_SECONDS if wait is None else wait)
         return written
+
+    def _wait_for(self, rels: list[str], wait: float) -> None:
+        import time
+        deadline = time.monotonic() + wait
+        missing = [r for r in rels if not self.path(r).exists()]
+        while missing and time.monotonic() < deadline:
+            time.sleep(1)
+            missing = [r for r in missing if not self.path(r).exists()]
+        if missing:
+            names = ", ".join(m.replace("/", os.sep) for m in missing)
+            raise DataFolderError(
+                f"The data folder {self.root} is missing {names}. If it is in Proton Drive or another synced "
+                "folder, this PC may still be downloading it: let the sync finish (or mark the folder 'available "
+                "offline') and try again. If the files were deleted, recreate them from the defaults.",
+                missing, self.root)
 
     # -- generic load/save
     def load(self, name: str, cls: type[T]) -> T:
-        return cls.model_validate_json(self.path(name).read_text(encoding="utf-8"))
+        return cls.model_validate_json(_read_text(self.path(name)))
 
     def save(self, name: str, model: BaseModel) -> None:
         text = dump_model(model)
